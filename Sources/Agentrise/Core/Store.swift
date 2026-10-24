@@ -176,6 +176,8 @@ struct TowerStore {
             set(&s, .waiting, .waitingAtDoor, now)
         case .interrupted:
             s.waitingSummary = nil
+            // The turn is over; a sub that never reports back must not keep its robot or the "在岗" count.
+            s.subs.removeAll()
             set(&s, .standby, .standby, now)
         case .subStarted(let id, let type):
             if let id { s.subs[id] = SubAgent(id: id, type: type, activity: .briefing, startedAt: now) }

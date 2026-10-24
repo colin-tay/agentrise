@@ -21,6 +21,8 @@ final class TowerController {
     private var cc: [String: String] = [:]
     private var larkNumbers: [String: Int] = [:]
     private var codexIndex: [String: String] = [:]
+    /// mtime and size of session_index.jsonl at the last read; it is re-parsed only when they change.
+    private var codexIndexStamp: CodexSessionIndex.Stamp?
     private var bark = BarkPolicy()
     private let batcher = BarkBatcher()
     private let chime = DeskChime()
@@ -34,6 +36,7 @@ final class TowerController {
         RankBook.current = RankBook.load()   // before the first seed, so every robot starts with the user's ranks
         registry = SessionRegistry.load()
         cc = CCConnectIndex.load()
+        codexIndexStamp = CodexSessionIndex.stamp()
         codexIndex = CodexSessionIndex.load()
         let now = Date()
         for (id, r) in registry {
@@ -111,9 +114,14 @@ final class TowerController {
         let now = Date()
         let newRegistry = SessionRegistry.load()
         let newCC = CCConnectIndex.load()
-        let newCodex = CodexSessionIndex.load()
-        let codexRenamed = newCodex != codexIndex
-        codexIndex = newCodex
+        var codexRenamed = false
+        let stamp = CodexSessionIndex.stamp()
+        if stamp != codexIndexStamp {
+            codexIndexStamp = stamp
+            let newCodex = CodexSessionIndex.load()
+            codexRenamed = newCodex != codexIndex
+            codexIndex = newCodex
+        }
         // Agents without a registry: gone when their process is, renamed only by their own index.
         let outside = store.removeExited(isRunning: ProcessProbe.isRunning)
         for (id, s) in store.sessions where !s.capabilities.contains(.registry) {

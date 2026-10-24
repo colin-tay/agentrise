@@ -47,7 +47,8 @@ open build/Agentrise.app
 2. Codex 要求先信任新 hook 才会运行它。Agentrise 会问要不要**替我确认**：同意后通过 Codex 自己的
    `app-server` 代为信任，和在 Codex 的 `/hooks` 界面里点信任是同一条路。不同意或代为信任失败时，
    在 Codex 里输入 `/hooks`，信任 Agentrise 的几条 hook 即可。
-3. 收到第一个 Codex 事件后，这一行显示 **✓ 已生效**。
+3. 新开一个 Codex 会话才会带上这个 hook，已经开着的会话不会。
+4. 收到第一个 Codex 事件后，这一行显示 **✓ 已生效**。
 
 Codex 给的信息比 Claude Code 少，所以 Codex 的机器人不会显示：外包（后台命令）、上网查资料、发飞书。
 `codex exec` 这类无界面运行不显示。Codex 退出 TUI 时不会通知 Agentrise，所以做完的 Codex 机器人

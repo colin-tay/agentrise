@@ -99,7 +99,8 @@ struct SettingsView: View {
         .padding(.vertical, 8)
     }
 
-    private static let codexManualHint = "请在 Codex 里输入 /hooks，确认 Agentrise 的 hook。"
+    private static let newSessionNote = "新开一个 Codex 会话才会带上这个 hook，已经开着的会话不会。"
+    private static let codexManualHint = "请在 Codex 里输入 /hooks，确认 Agentrise 的 hook。" + newSessionNote
 
     private var codexState: (text: String, color: Color) {
         if !codexInstalled { return ("未安装", .orange) }
@@ -143,7 +144,7 @@ struct SettingsView: View {
         CodexAppServer.inBackground({ try $0.trustAgentriseHooks() }) { r in
             codexBusy = false
             switch r {
-            case .success(let n): codexStatus = n > 0 ? "✓ 已替你确认 \(n) 条 hook" : "✓ Agentrise 的 hook 已经被信任"
+            case .success(let n): codexStatus = (n > 0 ? "✓ 已替你确认 \(n) 条 hook。" : "✓ Agentrise 的 hook 已经被信任。") + Self.newSessionNote
             case .failure: codexStatus = Self.codexManualHint
             }
         }
@@ -157,8 +158,13 @@ struct SettingsView: View {
         CodexAppServer.inBackground({ try $0.untrustAgentriseHooks() }) { r in
             codexBusy = false
             switch r {
-            case .success: codexStatus = "已卸载"
-            case .failure: codexStatus = "hook 已删除；信任记录没能清掉，它们不再起作用。"
+            case .success(let n): codexStatus = n > 0 ? "已卸载" : "hook 已删除。"
+            case .failure(let error):
+                if case CodexRPCError.binaryNotFound = error {
+                    codexStatus = "hook 已删除；找不到 codex，信任记录留在 Codex 里，它们不再起作用。"
+                } else {
+                    codexStatus = "hook 已删除；信任记录没能清掉，它们不再起作用。"
+                }
             }
         }
     }

@@ -54,7 +54,8 @@ The Codex row appears once `~/.codex/` exists (tested with Codex CLI 0.164).
    (**替我确认**, "confirm for me"), through Codex's own `app-server`, the same way Codex's
    `/hooks` screen does. If you decline, or it fails, type `/hooks` in Codex and trust the
    Agentrise entries there.
-3. The row shows **✓ 已生效** (working) once the first Codex event arrives.
+3. Start a new Codex session to pick up the hook; sessions already running won't.
+4. The row shows **✓ 已生效** (working) once the first Codex event arrives.
 
 Codex sends less than Claude Code, so some things never show up for Codex robots:
 contractors (background commands), browsing the web, and Feishu messages. `codex exec`

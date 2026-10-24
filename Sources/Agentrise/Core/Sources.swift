@@ -68,6 +68,15 @@ enum CCConnectIndex {
 enum CodexSessionIndex {
     static let file = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/session_index.jsonl")
 
+    struct Stamp: Equatable { var modified: Date?; var size: Int? }
+
+    /// Cheap change detector: the file's modification time and size (both nil when it is missing).
+    static func stamp(of url: URL = file) -> Stamp {
+        // Not URL.resourceValues: a URL caches them, and this one is long-lived.
+        let a = try? FileManager.default.attributesOfItem(atPath: url.path)
+        return Stamp(modified: a?[.modificationDate] as? Date, size: (a?[.size] as? NSNumber)?.intValue)
+    }
+
     /// Session id → thread name; a later line for the same id wins. Unreadable lines are skipped.
     static func load(from url: URL = file) -> [String: String] {
         guard let data = try? Data(contentsOf: url), let text = String(data: data, encoding: .utf8) else { return [:] }
@@ -112,9 +121,9 @@ enum SessionResolver {
                         codexIndex: [String: String] = [:],
                         arguments: (Int32) -> [String]? = ProcessAncestry.arguments(of:)) -> SessionContext {
         if event?.agent == .codex {
-            // A subagent may run another model; only the main agent's events rank the robot.
             let headless = event?.agentPid.flatMap(arguments).map(CodexCommandLine.isHeadless) ?? false
             return codexContext(sessionId: sessionId, cwd: event?.cwd, bundleId: event?.bundleId,
+                                // A subagent may run another model; only the main agent's events rank the robot.
                                 model: event?.agentId == nil ? event?.model : nil, index: codexIndex, headless: headless)
         }
         let reg = registry[sessionId]

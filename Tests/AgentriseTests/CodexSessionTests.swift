@@ -86,6 +86,20 @@ import TowerKit
         #expect(CodexSessionIndex.load(from: dir.appendingPathComponent("missing.jsonl")).isEmpty)
     }
 
+    @Test func indexStampChangesOnlyWhenTheFileDoes() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("codex-stamp-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("session_index.jsonl")
+        #expect(CodexSessionIndex.stamp(of: url) == .init(modified: nil, size: nil))
+        try "a\n".write(to: url, atomically: true, encoding: .utf8)
+        let first = CodexSessionIndex.stamp(of: url)
+        #expect(first.size == 2)
+        #expect(CodexSessionIndex.stamp(of: url) == first)
+        try "a\nb\n".write(to: url, atomically: true, encoding: .utf8)
+        #expect(CodexSessionIndex.stamp(of: url) != first)
+    }
+
     @Test func quietCodexSessionFallsBackToStandby() {
         var store = TowerStore()
         let e = codexEvent(.userPromptSubmit)
@@ -133,6 +147,23 @@ import TowerKit
         try p.run()
         p.waitUntilExit()
         #expect(!ProcessProbe.isRunning(p.processIdentifier))
+    }
+
+    @Test func interruptedCodexTurnLeavesNoSubsBehind() {
+        var store = TowerStore()
+        let ctx = context(codexEvent(.userPromptSubmit), index: [:])
+        _ = store.apply(codexEvent(.userPromptSubmit), context: ctx)
+        _ = store.apply(codexEvent(.subagentStart, at: 1) { $0.agentId = "a1"; $0.agentType = "explorer" }, context: ctx)
+        #expect(store.sessions["cx"]?.subs.count == 1)
+        _ = store.apply(codexEvent(.interrupt, at: 2), context: ctx)
+        #expect(store.sessions["cx"]?.status == .standby)
+        #expect(store.sessions["cx"]?.subs.isEmpty == true)
+        // The sub's late stop is a no-op: no counters, no effects.
+        let effects = store.apply(codexEvent(.subagentStop, at: 3) { $0.agentId = "a1" }, context: ctx)
+        #expect(effects.isEmpty)
+        #expect(store.sessions["cx"]?.subs.isEmpty == true)
+        #expect(store.sessions["cx"]?.delivered == 0 && store.sessions["cx"]?.failedSubs == 0)
+        #expect(store.sessions["cx"]?.status == .standby)
     }
 
     @Test func waitingCodexSessionAlsoFallsBack() {

@@ -15,7 +15,7 @@ enum InstallerError: LocalizedError {
 }
 
 /// One agent's hooks JSON file (`{"hooks": {"<Event>": [group, …]}}`): adds or removes Agentrise's
-/// async entries and nothing else, backing the file up before every write.
+/// entries (async unless the agent runs them synchronously anyway) and nothing else, backing the file up before every write.
 struct HookFile {
     let url: URL
     let events: [String]

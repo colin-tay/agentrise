@@ -78,16 +78,28 @@ import TowerKit
         defer { try? FileManager.default.removeItem(at: dir) }
         let bin = dir.appendingPathComponent("codex")
         try FileManager.default.copyItem(atPath: "/bin/sh", toPath: bin.path)
-        func run(_ args: [String]) throws -> Process {
+        var started: [Process] = []
+        var keepOpen: [Pipe] = []
+        defer { for p in started { p.terminate() }; for pipe in keepOpen { try? pipe.fileHandleForWriting.close() } }
+        // `read` blocks on an open pipe and is a shell builtin: no grandchild process can outlive the stand-in.
+        func run(_ args: [String]) -> Process? {
             let p = Process(); p.executableURL = bin; p.arguments = args
-            try p.run(); return p
+            let pipe = Pipe(); p.standardInput = pipe
+            do { try p.run() } catch { return nil }
+            started.append(p); keepOpen.append(pipe)
+            return p
         }
-        // `; :` keeps sh from exec-ing sleep in its place.
-        let plain = try run(["-c", "sleep 30; :"])
-        defer { plain.terminate() }
-        let daemon = try run(["-c", "sleep 30; :", "codex", "app-server", "--listen", "unix://", "--managed-daemon"])
-        defer { daemon.terminate() }
+        guard let plain = run(["-c", "read x; :"]),
+              let daemon = run(["-c", "read x; :", "codex", "app-server", "--listen", "unix://", "--managed-daemon"]) else {
+            // Some systems refuse to launch a copied system binary; nothing to verify then.
+            print("skipped: could not launch the copied sh")
+            return
+        }
         usleep(200_000)
+        guard plain.isRunning, daemon.isRunning else {
+            print("skipped: the copied sh was killed on launch")
+            return
+        }
         #expect(ProcessAncestry.agentPid(for: .codex, from: plain.processIdentifier) == plain.processIdentifier)
         #expect(ProcessAncestry.agentPid(for: .codex, from: daemon.processIdentifier) == nil)
         #expect(ProcessAncestry.arguments(of: daemon.processIdentifier)?.last == "--managed-daemon")

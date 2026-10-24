@@ -12,11 +12,16 @@ if let i = args.firstIndex(of: "--agent") {
 }
 
 let input = FileHandle.standardInput.readDataToEndOfFile()
+// Codex reads `{}` on stop events as "no decision"; decided from the raw event name so a payload we
+// cannot slim (or a dead socket) never leaves it without an answer.
+var answersCodex = false
+if agent == .codex, let obj = try? JSONSerialization.jsonObject(with: input) as? [String: Any],
+   let name = obj["hook_event_name"] as? String, name == HookEventName.stop.rawValue || name == HookEventName.subagentStop.rawValue {
+    answersCodex = true
+}
 if var event = EventSlimmer.slim(rawJSON: input, env: ProcessInfo.processInfo.environment, agent: agent) {
     event.agentPid = ProcessAncestry.agentPid(for: agent, from: getppid())
     SocketClient.send(EventSlimmer.encodeLine(event), to: TowerPaths.socketPath())
-    if agent == .codex, event.event == .stop || event.event == .subagentStop {
-        print("{}")
-    }
 }
+if answersCodex { print("{}") }
 exit(0)
