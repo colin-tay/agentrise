@@ -66,9 +66,9 @@ struct TowerStore {
 
     // MARK: Events
 
-    mutating func apply(_ e: SlimEvent, context: SessionContext) -> [TowerEffect] {
-        let now = e.receivedAt
-        if e.event == .sessionEnd { return remove(e.sessionId) }
+    mutating func apply(_ e: TowerEvent, context: SessionContext) -> [TowerEffect] {
+        let now = e.at
+        if e.kind == .sessionEnded { return remove(e.sessionId) }
         ensure(e.sessionId, context: context, now: now, status: .working, activity: .thinking)
         updateContext(e.sessionId, context: context)
         guard var s = sessions[e.sessionId] else { return [] }
@@ -78,50 +78,48 @@ struct TowerStore {
         var effects: [TowerEffect] = []
         let before = s.status
 
-        if let agentId = e.agentId, e.event != .subagentStart, e.event != .subagentStop {
-            // Something a subagent is doing: only that sub moves.
-            if var sub = s.subs[agentId] {
-                if e.event == .preToolUse, let tool = e.toolName {
-                    sub.activity = ActivityMap.activity(toolName: tool, command: e.command)
-                } else if e.event == .postToolUse {
-                    sub.activity = .thinking
-                }
-                s.subs[agentId] = sub
-            } else if e.event == .preToolUse, let tool = e.toolName {
-                s.subs[agentId] = SubAgent(id: agentId, type: e.agentType ?? "", activity: ActivityMap.activity(toolName: tool, command: e.command), startedAt: now)
+        switch e.kind {
+        // Something a subagent is doing: only that sub moves.
+        case .subActivity(let id, let type, let activity):
+            if var sub = s.subs[id] {
+                sub.activity = activity
+                s.subs[id] = sub
+            } else {
+                s.subs[id] = SubAgent(id: id, type: type, activity: activity, startedAt: now)
             }
             sessions[s.id] = s
             return effects
+        case .subIdle(let id):
+            s.subs[id]?.activity = .thinking
+            sessions[s.id] = s
+            return effects
+        default:
+            break
         }
 
-        switch e.event {
-        case .sessionStart:
-            if e.source == "startup" || e.source == "clear" { set(&s, .standby, .standby, now) }
-        case .userPromptSubmit:
+        switch e.kind {
+        case .sessionStarted(let fresh):
+            if fresh { set(&s, .standby, .standby, now) }
+        case .promptSubmitted:
             s.larkSent = false
             s.waitingSummary = nil
             set(&s, .working, .thinking, now)
-        case .preToolUse:
-            let tool = e.toolName ?? ""
-            if tool == "AskUserQuestion" {
-                s.waitingSummary = e.question
-                set(&s, .waiting, .waitingAtDoor, now)
-            } else {
-                let act = ActivityMap.activity(toolName: tool, command: e.command)
-                set(&s, .working, act, now)
-                if act == .sendingLark { s.larkSent = true }
-                if tool == "Bash", e.runInBackground == true, let id = e.toolUseId {
-                    let desc = String((e.command ?? e.toolDescription ?? "后台任务").prefix(40))
-                    s.contractors[id] = Contractor(id: id, description: desc, startedAt: now)
-                }
-            }
-        case .postToolUse:
+        case .askedUser(let question):
+            s.waitingSummary = question
+            set(&s, .waiting, .waitingAtDoor, now)
+        case .toolStarted(let act, let background):
+            set(&s, .working, act, now)
+            if act == .sendingLark { s.larkSent = true }
+            if let c = background { s.contractors[c.id] = c }
+        case .toolFinished:
             if s.status == .working { s.activity = .thinking }
-            if s.status == .waiting, e.toolName == "AskUserQuestion" { set(&s, .working, .thinking, now) }
-        case .postToolUseFailure:
-            if e.isInterrupt != true { s.transientErrorAt = now; s.activity = .commandFailed }
-        case .stop:
-            if let snapshot = e.backgroundTasks {
+        case .answeredUser:
+            if s.status == .working { s.activity = .thinking }
+            if s.status == .waiting { set(&s, .working, .thinking, now) }
+        case .toolFailed(let interrupted):
+            if !interrupted { s.transientErrorAt = now; s.activity = .commandFailed }
+        case .turnEnded(let lastMessage, let backgroundSnapshot):
+            if let snapshot = backgroundSnapshot {
                 let live = Set(snapshot.filter { $0.status != "completed" && $0.status != "failed" && $0.status != "killed" }.map(\.id))
                 for (id, _) in s.contractors where !live.contains(id) && !snapshot.contains(where: { $0.id == id }) {
                     // Not in the snapshot at all: assume finished.
@@ -138,7 +136,7 @@ struct TowerStore {
                 }
             }
             // Decided after the background snapshot, so the live subs and contractors are current.
-            switch WaitingClassifier.classify(e.lastAssistantMessage) {
+            switch WaitingClassifier.classify(lastMessage) {
             case .waiting(let summary):
                 s.waitingSummary = summary
                 set(&s, .waiting, .waitingAtDoor, now)
@@ -147,29 +145,28 @@ struct TowerStore {
                 // Background subs or commands still running: the turn ended, the work didn't.
                 if s.subs.isEmpty && s.contractors.isEmpty { set(&s, .done, .resting, now) } else { set(&s, .working, .waitingForSubs, now) }
             }
-        case .stopFailure:
-            s.waitingSummary = e.error.map { "出错：\($0)" }
+        case .turnFailed(let error):
+            s.waitingSummary = error.map { "出错：\($0)" }
             set(&s, .error, .commandFailed, now)
-        case .notification:
-            if let t = e.notificationType, ["permission_prompt", "elicitation_dialog", "agent_needs_input"].contains(t) {
-                set(&s, .waiting, .waitingAtDoor, now)
-            }
-        case .subagentStart:
-            if let id = e.agentId {
-                s.subs[id] = SubAgent(id: id, type: e.agentType ?? "", activity: .briefing, startedAt: now)
-            }
+        case .needsAttention:
+            set(&s, .waiting, .waitingAtDoor, now)
+        case .interrupted:
+            s.waitingSummary = nil
+            set(&s, .standby, .standby, now)
+        case .subStarted(let id, let type):
+            s.subs[id] = SubAgent(id: id, type: type, activity: .briefing, startedAt: now)
             if s.status == .working { s.activity = .delegating }
-        case .subagentStop:
-            if let id = e.agentId, s.subs[id] != nil {
+        case .subFinished(let id, let lastMessage):
+            if s.subs[id] != nil {
                 s.subs[id] = nil
-                let msg = (e.lastAssistantMessage ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                let msg = (lastMessage ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                 let ok = !msg.isEmpty && !msg.lowercased().hasPrefix("error")
                 if ok { s.delivered += 1 } else { s.failedSubs += 1 }
                 effects.append(.subFinished(sessionId: s.id, subId: id, success: ok))
             }
-        case .preCompact:
+        case .compacting:
             s.activity = .compacting
-        case .sessionEnd:
+        case .keepAlive, .sessionEnded, .subActivity, .subIdle:
             break
         }
         sessions[s.id] = s
