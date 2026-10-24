@@ -1,4 +1,6 @@
-# Agentrise
+<p align="center"><img src="assets/logo-256.png" width="128" alt="Agentrise logo"></p>
+
+<h1 align="center">Agentrise</h1>
 
 A tiny office tower on your Mac desktop where every coding-agent session is a robot at work.
 Sessions walk to the archive when they read files, to the server room when they run commands,
@@ -42,7 +44,8 @@ Then open **Settings → Claude Code Hooks → Install**. Agentrise shows the ex
 async hooks. Uninstall removes exactly those entries.
 
 `swift test` runs the test suite. `swift run agentrise-sim story` sends a scripted
-set of fake sessions to a running app.
+set of fake sessions to a running app. After editing `assets/*.svg`, run
+`swift scripts/make-icons.swift` to regenerate the PNGs and `Resources/AppIcon.icns`.
 
 ## Privacy
 

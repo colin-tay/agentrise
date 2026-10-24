@@ -1,4 +1,6 @@
-# Agentrise
+<p align="center"><img src="assets/logo-256.png" width="128" alt="Agentrise logo"></p>
+
+<h1 align="center">Agentrise</h1>
 
 一栋放在 Mac 桌面上的小写字楼：每个编程 agent 会话都是一个在上班的机器人。
 读文件时去档案室，跑命令时去机房，需要你回复时到 CEO 办公室门口等，跨楼层坐电梯。
@@ -37,6 +39,7 @@ open build/Agentrise.app
 `~/.claude/settings.json`，并备份原文件；只会添加 Agentrise 自己的异步 hook，卸载时也只删这几条。
 
 `swift test` 运行测试；`swift run agentrise-sim story` 会向正在运行的 App 发送一组模拟会话。
+修改 `assets/*.svg` 后，运行 `swift scripts/make-icons.swift` 重新生成 PNG 和 `Resources/AppIcon.icns`。
 
 ## 隐私
 

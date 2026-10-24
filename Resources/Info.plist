@@ -4,6 +4,7 @@
   <key>CFBundleIdentifier</key><string>io.github.colin-tay.agentrise</string>
   <key>CFBundleName</key><string>Agentrise</string>
   <key>CFBundleDisplayName</key><string>Agentrise</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleExecutable</key><string>Agentrise</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
