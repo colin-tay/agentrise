@@ -14,7 +14,7 @@ import SpriteKit
 /// relative to its parent) so the order holds when the view sets `ignoresSiblingOrder`, while a whole
 /// robot stays within 0.015 of the robot's own `zPosition`.
 final class RobotSprite: SKNode {
-    let look: RobotLook
+    private(set) var look: RobotLook
     let teamColor: NSColor
     private(set) var face: RobotFace = .calm
     private(set) var action: Activity = .standby
@@ -275,7 +275,7 @@ final class RobotSprite: SKNode {
         guard let text else { bubble.isHidden = true; return }
         bubble.isHidden = false
         // Old bubble centre: design y 2 for the sprout / hard hat wearers, 6 otherwise (no headroom added).
-        bubble.position = RobotMotion.robotPoint(CGPoint(x: 30, y: look.rank == .newGrad || look.kind == .contractor ? 2 : 6))
+        placeBubble()
         let size = RobotArt.bubbleSize(text)
         bind(bubbleBody, art.bubble(text, color: color))
         bubbleBody.size = size
@@ -285,6 +285,10 @@ final class RobotSprite: SKNode {
             bubbleGlow.size = CGSize(width: size.width + pad * 2, height: size.height + pad * 2)
             bubbleGlow.run(RobotMotion.pulse(), withKey: "pulse")
         }
+    }
+
+    private func placeBubble() {
+        bubble.position = RobotMotion.robotPoint(CGPoint(x: 30, y: look.rank == .newGrad || look.kind == .contractor ? 2 : 6))
     }
 
     func setName(_ s: String) {
@@ -298,6 +302,33 @@ final class RobotSprite: SKNode {
     func setLarkBadge(_ on: Bool) { lark.isHidden = !on }
 
     // MARK: Re-baking
+
+    /// Redraws this robot in place with a new look (its rank changed in Settings): same node, position, room,
+    /// motion, face, action and bubble; only the head, torso, head overlay, bubble anchor and name stripe change.
+    func setLook(_ new: RobotLook) {
+        guard new != look else { return }
+        look = new
+        for (node, p, pivot) in [(head, RobotPart.head(new), Self.neck), (torso, .torso(new), Self.feet)] {
+            node.size = RobotArt.frame(p).size
+            node.anchorPoint = RobotArt.anchorPoint(p, design: pivot)
+            bind(node, art.image(p))
+        }
+        if new.hasHeadOverlay {
+            let p = RobotPart.headOverlay(new)
+            headOverlay.size = RobotArt.frame(p).size
+            headOverlay.anchorPoint = RobotArt.anchorPoint(p, design: Self.neck)
+            headOverlay.position = .zero   // pivot and origin are both the neck
+            headOverlay.zPosition = Z.headOverlay - Z.head
+            bind(headOverlay, art.image(p))
+            headOverlay.isHidden = false
+        } else {
+            sources[ObjectIdentifier(headOverlay)] = nil
+            headOverlay.texture = nil
+            headOverlay.isHidden = true
+        }
+        if bubbleText != nil { placeBubble() }
+        if let n = lastName { lastName = nil; setName(n) }   // the stripe colour follows the rank
+    }
 
     /// A fresh copy of this robot drawn with `art` (e.g. after a backing scale change): same look, idle
     /// phase, face, action, name, bubble, badge, scale, position, z and alpha. Extra children the scene

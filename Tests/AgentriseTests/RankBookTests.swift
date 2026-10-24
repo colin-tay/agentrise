@@ -45,6 +45,19 @@ struct RankBookTests {
         #expect(RankBook.load(from: url) == .defaults)
     }
 
+    @Test func fileWithOnlyOneOfNamesOrKeywordsKeepsTheOtherDefault() throws {
+        let url = tempFile()
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try #"{"names": {"seniorExpert": "首席"}}"#.write(to: url, atomically: true, encoding: .utf8)
+        var b = RankBook.load(from: url)
+        #expect(b.title(.seniorExpert) == "首席")
+        #expect(b.rank(for: "claude-opus-5-5") == .seniorExpert)
+        try #"{"keywords": {"newGrad": ["mini"]}}"#.write(to: url, atomically: true, encoding: .utf8)
+        b = RankBook.load(from: url)
+        #expect(b.rank(for: "gpt-mini") == .newGrad)
+        #expect(b.title(.newGrad) == "校招生")
+    }
+
     @Test func saveThenLoadRoundTrips() throws {
         let url = tempFile()
         var b = RankBook.defaults

@@ -458,6 +458,7 @@ final class TowerScene: SKScene {
             guard let (pt, scale) = targets[e.key], let s = sessionsById[e.sessionId] else { continue }
             let sprite: RobotSprite
             var isNew = false
+            let look = RobotLook(kind: e.kind, teamIndex: s.teamIndex, larkSession: e.kind != .sub && e.kind != .contractor && s.isLark)
             if let r = robots[e.key] {
                 sprite = r
             } else if let d = departing.removeValue(forKey: e.key) {
@@ -468,7 +469,6 @@ final class TowerScene: SKScene {
                 robots[e.key] = sprite
                 owner[e.key] = e.sessionId
             } else {
-                let look = RobotLook(kind: e.kind, teamIndex: s.teamIndex, larkSession: e.kind != .sub && e.kind != .contractor && s.isLark)
                 sprite = RobotSprite(look: look, teamColor: Team.color(s.teamIndex), art: art)
                 robots[e.key] = sprite
                 owner[e.key] = e.sessionId
@@ -477,6 +477,8 @@ final class TowerScene: SKScene {
                 actors.addChild(sprite)
                 isNew = true
             }
+            // A rank changed in Settings: redraw the robot where it stands (no new entrance).
+            if !isNew, sprite.look.kind != look.kind { sprite.setLook(look) }
             let sig = "\(e.name)|\(e.face)|\(e.activity)|\(e.waitingLong)|\(e.bubble?.0 ?? "")|\(e.larkBadge)|\(pt.x),\(pt.y)|\(scale)"
             if !isNew, signatures[e.key] == sig { continue }
             signatures[e.key] = sig

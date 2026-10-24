@@ -8,6 +8,15 @@ struct RankBook: Codable, Equatable {
     /// Key = `Rank.rawValue`. Case-insensitive substrings of the model name. Missing → the default keywords.
     var keywords: [String: [String]]
 
+    init(names: [String: String], keywords: [String: [String]]) { self.names = names; self.keywords = keywords }
+
+    /// A hand-edited file may carry only one of the two; the other keeps its defaults.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        names = try c.decodeIfPresent([String: String].self, forKey: .names) ?? [:]
+        keywords = try c.decodeIfPresent([String: [String]].self, forKey: .keywords) ?? [:]
+    }
+
     static let defaults = RankBook(
         names: [Rank.seniorDirector.rawValue: "资深总监", Rank.seniorExpert.rawValue: "高级专家",
                 Rank.seniorEngineer.rawValue: "高级工程师", Rank.newGrad.rawValue: "校招生"],
