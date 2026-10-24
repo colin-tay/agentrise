@@ -1,353 +1,859 @@
 == plain-turn ==
--- 1 event SessionStart session=cc-plain-turn t=1800000001
+-- 1 event SessionStart session=cc-plain-turn t=1800000001 model=claude-opus-5-5 source=startup cwd="/work/demo" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-plain-turn", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.standby)]
-session cc-plain-turn status=standby activity=standby title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event UserPromptSubmit session=cc-plain-turn t=1800000002
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=1
+session cc-plain-turn status=standby activity=standby title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd="/work/demo" transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event UserPromptSubmit session=cc-plain-turn t=1800000002 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-plain-turn", from: Agentrise.SessionStatus.standby, to: Agentrise.SessionStatus.working)]
-session cc-plain-turn status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
--- 3 event PreToolUse session=cc-plain-turn t=1800000003 tool=Read
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-plain-turn status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd="/work/demo" transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event PreToolUse session=cc-plain-turn t=1800000003 tool=Read toolUseId=t1 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-plain-turn status=working activity=reading title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000003 teamIndex=0 isHidden=false
--- 4 event PostToolUse session=cc-plain-turn t=1800000004 tool=Read
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-plain-turn status=working activity=reading title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd="/work/demo" transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 event PostToolUse session=cc-plain-turn t=1800000004 tool=Read toolUseId=t1 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-plain-turn status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000004 teamIndex=0 isHidden=false
--- 5 event PreToolUse session=cc-plain-turn t=1800000005 tool=Edit
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-plain-turn status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000004 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd="/work/demo" transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 5 event PreToolUse session=cc-plain-turn t=1800000005 tool=Edit toolUseId=t2 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-plain-turn status=working activity=coding title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000005 teamIndex=0 isHidden=false
--- 6 event PostToolUse session=cc-plain-turn t=1800000006 tool=Edit
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-plain-turn status=working activity=coding title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000005 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd="/work/demo" transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 6 event PostToolUse session=cc-plain-turn t=1800000006 tool=Edit toolUseId=t2 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-plain-turn status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000006 teamIndex=0 isHidden=false
--- 7 event PreToolUse session=cc-plain-turn t=1800000007 tool=Bash
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-plain-turn status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000006 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd="/work/demo" transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 7 event PreToolUse session=cc-plain-turn t=1800000007 tool=Bash toolUseId=t3 command="swift test" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-plain-turn status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000007 teamIndex=0 isHidden=false
--- 8 event PostToolUse session=cc-plain-turn t=1800000008 tool=Bash
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-plain-turn status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000007 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd="/work/demo" transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 8 event PostToolUse session=cc-plain-turn t=1800000008 tool=Bash toolUseId=t3 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-plain-turn status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000008 teamIndex=0 isHidden=false
--- 9 event Stop session=cc-plain-turn t=1800000009
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-plain-turn status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000008 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd="/work/demo" transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 9 event Stop session=cc-plain-turn t=1800000009 lastAssistantMessage="已完成" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-plain-turn", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
-session cc-plain-turn status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000009 lastActivityAt=1800000009 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-plain-turn status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000009 lastActivityAt=1800000009 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd="/work/demo" transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == ask-user-question ==
--- 1 event UserPromptSubmit session=cc-ask-user-question t=1800000001
+-- 1 event UserPromptSubmit session=cc-ask-user-question t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-haiku-4-5")
 effects: []
-session cc-ask-user-question status=working activity=thinking title=主会话 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event PreToolUse session=cc-ask-user-question t=1800000002 tool=AskUserQuestion
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-ask-user-question status=working activity=thinking title=主会话 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event PreToolUse session=cc-ask-user-question t=1800000002 tool=AskUserQuestion toolUseId=q1 question="用哪个方案？" ctx(title="主会话" source=desktop(host=nil) model="claude-haiku-4-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-ask-user-question", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.waiting)]
-session cc-ask-user-question status=waiting activity=waitingAtDoor title=主会话 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=用哪个方案？ statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
--- 3 event PostToolUse session=cc-ask-user-question t=1800000003 tool=AskUserQuestion
+counts working=0 waiting=1 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-ask-user-question status=waiting activity=waitingAtDoor title=主会话 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=用哪个方案？ statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event PostToolUse session=cc-ask-user-question t=1800000003 tool=AskUserQuestion toolUseId=q1 ctx(title="主会话" source=desktop(host=nil) model="claude-haiku-4-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-ask-user-question", from: Agentrise.SessionStatus.waiting, to: Agentrise.SessionStatus.working)]
-session cc-ask-user-question status=working activity=thinking title=主会话 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=用哪个方案？ statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
--- 4 event Stop session=cc-ask-user-question t=1800000004
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-ask-user-question status=working activity=thinking title=主会话 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=用哪个方案？ statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 event Stop session=cc-ask-user-question t=1800000004 lastAssistantMessage="按你选的方案改好了。" ctx(title="主会话" source=desktop(host=nil) model="claude-haiku-4-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-ask-user-question", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
-session cc-ask-user-question status=done activity=resting title=主会话 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1800000004 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-ask-user-question status=done activity=resting title=主会话 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1800000004 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == notification-permission ==
--- 1 event UserPromptSubmit session=cc-notification-permission t=1800000001
+-- 1 event UserPromptSubmit session=cc-notification-permission t=1800000001 ctx(title="主会话" source=terminal(bundle="com.apple.Terminal") model="claude-opus-5-5")
 effects: []
-session cc-notification-permission status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event Notification session=cc-notification-permission t=1800000002
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-notification-permission status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=terminal(bundle="com.apple.Terminal") modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event Notification session=cc-notification-permission t=1800000002 notificationType=idle_prompt ctx(title="主会话" source=terminal(bundle="com.apple.Terminal") model="claude-opus-5-5")
 effects: []
-session cc-notification-permission status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
--- 3 event Notification session=cc-notification-permission t=1800000003
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-notification-permission status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=terminal(bundle="com.apple.Terminal") modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event Notification session=cc-notification-permission t=1800000003 notificationType=permission_prompt ctx(title="主会话" source=terminal(bundle="com.apple.Terminal") model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-notification-permission", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.waiting)]
-session cc-notification-permission status=waiting activity=waitingAtDoor title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
--- 4 event PostToolUse session=cc-notification-permission t=1800000004 tool=Bash
+counts working=0 waiting=1 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-notification-permission status=waiting activity=waitingAtDoor title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=terminal(bundle="com.apple.Terminal") modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 event PostToolUse session=cc-notification-permission t=1800000004 tool=Bash ctx(title="主会话" source=terminal(bundle="com.apple.Terminal") model="claude-opus-5-5")
 effects: []
-session cc-notification-permission status=waiting activity=waitingAtDoor title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000004 teamIndex=0 isHidden=false
--- 5 event Stop session=cc-notification-permission t=1800000005
+counts working=0 waiting=1 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-notification-permission status=waiting activity=waitingAtDoor title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000004 teamIndex=0 isHidden=false source=terminal(bundle="com.apple.Terminal") modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 5 event Stop session=cc-notification-permission t=1800000005 lastAssistantMessage="搞定了。" ctx(title="主会话" source=terminal(bundle="com.apple.Terminal") model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-notification-permission", from: Agentrise.SessionStatus.waiting, to: Agentrise.SessionStatus.done)]
-session cc-notification-permission status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1800000005 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-notification-permission status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1800000005 teamIndex=0 isHidden=false source=terminal(bundle="com.apple.Terminal") modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == stop-asks-question ==
--- 1 event UserPromptSubmit session=cc-stop-asks-question t=1800000001
+-- 1 event UserPromptSubmit session=cc-stop-asks-question t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-fable-1")
 effects: []
-session cc-stop-asks-question status=working activity=thinking title=主会话 rank=seniorDirector subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event Stop session=cc-stop-asks-question t=1800000002
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-stop-asks-question status=working activity=thinking title=主会话 rank=seniorDirector subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event Stop session=cc-stop-asks-question t=1800000002 lastAssistantMessage="两种做法都可行。
+
+要不要我先改接口层？" ctx(title="主会话" source=desktop(host=nil) model="claude-fable-1")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-stop-asks-question", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.waiting)]
-session cc-stop-asks-question status=waiting activity=waitingAtDoor title=主会话 rank=seniorDirector subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=要不要我先改接口层？ statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+counts working=0 waiting=1 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-stop-asks-question status=waiting activity=waitingAtDoor title=主会话 rank=seniorDirector subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=要不要我先改接口层？ statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 -- 3 markRead session=cc-stop-asks-question t=1800000003
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-stop-asks-question", from: Agentrise.SessionStatus.waiting, to: Agentrise.SessionStatus.standby)]
-session cc-stop-asks-question status=standby activity=standby title=主会话 rank=seniorDirector subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=1
+session cc-stop-asks-question status=standby activity=standby title=主会话 rank=seniorDirector subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == background-bash ==
--- 1 event UserPromptSubmit session=cc-background-bash t=1800000001
+-- 1 event UserPromptSubmit session=cc-background-bash t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-background-bash status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event PreToolUse session=cc-background-bash t=1800000002 tool=Bash
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-background-bash status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event PreToolUse session=cc-background-bash t=1800000002 tool=Bash toolUseId=b1 command="npm run dev -- --host 0.0.0.0 --port 5173 --open" runInBackground=true ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-background-bash status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run dev -- --host 0.0.0.0 --port 517] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
--- 3 event PreToolUse session=cc-background-bash t=1800000003 tool=Bash
+counts working=1 waiting=0 done=0 subs=0 contractors=1 sleeping=0 standby=0
+session cc-background-bash status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run dev -- --host 0.0.0.0 --port 517@1800000002] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event PreToolUse session=cc-background-bash t=1800000003 tool=Bash toolUseId=b2 command="swift build" runInBackground=true ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-background-bash status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run dev -- --host 0.0.0.0 --port 517,b2:swift build] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
--- 4 event PreToolUse session=cc-background-bash t=1800000004 tool=Bash
+counts working=1 waiting=0 done=0 subs=0 contractors=2 sleeping=0 standby=0
+session cc-background-bash status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run dev -- --host 0.0.0.0 --port 517@1800000002;b2:swift build@1800000003] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 event PreToolUse session=cc-background-bash t=1800000004 tool=Bash toolUseId=b3 runInBackground=true toolDescription="tail the log" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-background-bash status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run dev -- --host 0.0.0.0 --port 517,b2:swift build,b3:tail the log] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000004 teamIndex=0 isHidden=false
--- 5 event Stop session=cc-background-bash t=1800000005
+counts working=1 waiting=0 done=0 subs=0 contractors=3 sleeping=0 standby=0
+session cc-background-bash status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run dev -- --host 0.0.0.0 --port 517@1800000002;b2:swift build@1800000003;b3:tail the log@1800000004] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000004 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 5 event Stop session=cc-background-bash t=1800000005 lastAssistantMessage="几个后台任务在跑。" backgroundTasks=[b1:shell:running:"dev server";b2:shell:completed:"build"] ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.contractorFinished(sessionId: "cc-background-bash", contractorId: "b3"), Agentrise.TowerEffect.contractorFinished(sessionId: "cc-background-bash", contractorId: "b2")]
-session cc-background-bash status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run dev -- --host 0.0.0.0 --port 517] delivered=0 failedSubs=0 contractorsDone=2 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000005 teamIndex=0 isHidden=false
+counts working=1 waiting=0 done=0 subs=0 contractors=1 sleeping=0 standby=0
+session cc-background-bash status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run dev -- --host 0.0.0.0 --port 517@1800000002] delivered=0 failedSubs=0 contractorsDone=2 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000005 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 -- 6 tick t=1800000006
 effects: []
-session cc-background-bash status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run dev -- --host 0.0.0.0 --port 517] delivered=0 failedSubs=0 contractorsDone=2 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000005 teamIndex=0 isHidden=false
+counts working=1 waiting=0 done=0 subs=0 contractors=1 sleeping=0 standby=0
+session cc-background-bash status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run dev -- --host 0.0.0.0 --port 517@1800000002] delivered=0 failedSubs=0 contractorsDone=2 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000005 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == subagents ==
--- 1 event UserPromptSubmit session=cc-subagents t=1800000001
+-- 1 event UserPromptSubmit session=cc-subagents t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-subagents status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event SubagentStart session=cc-subagents t=1800000002 agent=a1
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-subagents status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event SubagentStart session=cc-subagents t=1800000002 agentId=a1 agentType=general-purpose ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:briefing] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
--- 3 event PreToolUse session=cc-subagents t=1800000003 agent=a1 tool=Grep
+counts working=1 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:briefing@1800000002/type="general-purpose"] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event PreToolUse session=cc-subagents t=1800000003 agentId=a1 agentType=general-purpose tool=Grep ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:searching] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
--- 4 event PostToolUse session=cc-subagents t=1800000004 agent=a1 tool=Grep
+counts working=1 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:searching@1800000002/type="general-purpose"] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 event PostToolUse session=cc-subagents t=1800000004 agentId=a1 tool=Grep ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:thinking] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000004 teamIndex=0 isHidden=false
--- 5 event SubagentStart session=cc-subagents t=1800000005 agent=a2
+counts working=1 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:thinking@1800000002/type="general-purpose"] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000004 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 5 event SubagentStart session=cc-subagents t=1800000005 agentId=a2 agentType=Explore ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:thinking,a2:briefing] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000005 teamIndex=0 isHidden=false
--- 6 event PreToolUse session=cc-subagents t=1800000006 agent=a3 tool=Read
+counts working=1 waiting=0 done=0 subs=2 contractors=0 sleeping=0 standby=0
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:thinking@1800000002/type="general-purpose";a2:briefing@1800000005/type="Explore"] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000005 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 6 event PreToolUse session=cc-subagents t=1800000006 agentId=a3 agentType=Explore tool=Read ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:thinking,a2:briefing,a3:reading] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000006 teamIndex=0 isHidden=false
--- 7 event SubagentStop session=cc-subagents t=1800000007 agent=a1
+counts working=1 waiting=0 done=0 subs=3 contractors=0 sleeping=0 standby=0
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:thinking@1800000002/type="general-purpose";a2:briefing@1800000005/type="Explore";a3:reading@1800000006/type="Explore"] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000006 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 7 event SubagentStop session=cc-subagents t=1800000007 agentId=a1 lastAssistantMessage="找到了三处调用。" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.subFinished(sessionId: "cc-subagents", subId: "a1", success: true)]
-session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a2:briefing,a3:reading] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000007 teamIndex=0 isHidden=false
--- 8 event SubagentStop session=cc-subagents t=1800000008 agent=a2
+counts working=1 waiting=0 done=0 subs=2 contractors=0 sleeping=0 standby=0
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a2:briefing@1800000005/type="Explore";a3:reading@1800000006/type="Explore"] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000007 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 8 event SubagentStop session=cc-subagents t=1800000008 agentId=a2 lastAssistantMessage="" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.subFinished(sessionId: "cc-subagents", subId: "a2", success: false)]
-session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a3:reading] contractors=[] delivered=1 failedSubs=1 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000008 teamIndex=0 isHidden=false
--- 9 event SubagentStop session=cc-subagents t=1800000009 agent=a3
+counts working=1 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a3:reading@1800000006/type="Explore"] contractors=[] delivered=1 failedSubs=1 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000008 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 9 event SubagentStop session=cc-subagents t=1800000009 agentId=a3 lastAssistantMessage="Error: could not read the file" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.subFinished(sessionId: "cc-subagents", subId: "a3", success: false)]
-session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=2 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000009 teamIndex=0 isHidden=false
--- 10 event SubagentStop session=cc-subagents t=1800000010 agent=ghost
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=2 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000009 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 10 event SubagentStop session=cc-subagents t=1800000010 agentId=ghost lastAssistantMessage="unknown sub" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=2 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000010 teamIndex=0 isHidden=false
--- 11 event Stop session=cc-subagents t=1800000011
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=2 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000010 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 11 event Stop session=cc-subagents t=1800000011 lastAssistantMessage="小弟们都回来了。" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-subagents", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
-session cc-subagents status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=2 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000011 lastActivityAt=1800000011 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-subagents status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=2 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000011 lastActivityAt=1800000011 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == stop-with-live-sub ==
--- 1 event UserPromptSubmit session=cc-stop-with-live-sub t=1800000001
+-- 1 event UserPromptSubmit session=cc-stop-with-live-sub t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-stop-with-live-sub status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event SubagentStart session=cc-stop-with-live-sub t=1800000002 agent=a1
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-stop-with-live-sub status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event SubagentStart session=cc-stop-with-live-sub t=1800000002 agentId=a1 agentType=general-purpose ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-stop-with-live-sub status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:briefing] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
--- 3 event PreToolUse session=cc-stop-with-live-sub t=1800000003 agent=a1 tool=Grep
+counts working=1 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-stop-with-live-sub status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:briefing@1800000002/type="general-purpose"] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event PreToolUse session=cc-stop-with-live-sub t=1800000003 agentId=a1 tool=Grep ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-stop-with-live-sub status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:searching] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
--- 4 event Stop session=cc-stop-with-live-sub t=1800000004
+counts working=1 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-stop-with-live-sub status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:searching@1800000002/type="general-purpose"] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 event Stop session=cc-stop-with-live-sub t=1800000004 lastAssistantMessage="统计交给后台的小弟了。" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-stop-with-live-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[a1:searching] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000004 teamIndex=0 isHidden=false
+counts working=1 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-stop-with-live-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[a1:searching@1800000002/type="general-purpose"] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000004 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 -- 5 tick t=1800000009
 effects: []
-session cc-stop-with-live-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[a1:searching] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000004 teamIndex=0 isHidden=false
--- 6 event SubagentStop session=cc-stop-with-live-sub t=1800000030 agent=a1
+counts working=1 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-stop-with-live-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[a1:searching@1800000002/type="general-purpose"] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000004 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 6 event SubagentStop session=cc-stop-with-live-sub t=1800000030 agentId=a1 lastAssistantMessage="统计完了" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.subFinished(sessionId: "cc-stop-with-live-sub", subId: "a1", success: true)]
-session cc-stop-with-live-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000030 teamIndex=0 isHidden=false
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-stop-with-live-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000030 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 -- 7 tick t=1800000059
 effects: []
-session cc-stop-with-live-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000030 teamIndex=0 isHidden=false
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-stop-with-live-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000030 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 -- 8 tick t=1800000061
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-stop-with-live-sub", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
-session cc-stop-with-live-sub status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000061 lastActivityAt=1800000030 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-stop-with-live-sub status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000061 lastActivityAt=1800000030 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == sub-never-reports ==
--- 1 event UserPromptSubmit session=cc-sub-never-reports t=1800000001
+-- 1 event UserPromptSubmit session=cc-sub-never-reports t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-sub-never-reports status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event SubagentStart session=cc-sub-never-reports t=1800000002 agent=a1
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-sub-never-reports status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event SubagentStart session=cc-sub-never-reports t=1800000002 agentId=a1 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-sub-never-reports status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:briefing] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
--- 3 event Stop session=cc-sub-never-reports t=1800000003
+counts working=1 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-sub-never-reports status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:briefing@1800000002/type=""] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event Stop session=cc-sub-never-reports t=1800000003 lastAssistantMessage="交给小弟了。" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-sub-never-reports status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[a1:briefing] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+counts working=1 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-sub-never-reports status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[a1:briefing@1800000002/type=""] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 -- 4 tick t=1800007193
 effects: []
-session cc-sub-never-reports status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[a1:briefing] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+counts working=1 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-sub-never-reports status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[a1:briefing@1800000002/type=""] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 -- 5 tick t=1800007213
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-sub-never-reports", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
-session cc-sub-never-reports status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800007213 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-sub-never-reports status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800007213 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == main-resumes-after-sub ==
--- 1 event UserPromptSubmit session=cc-main-resumes-after-sub t=1800000001
+-- 1 event UserPromptSubmit session=cc-main-resumes-after-sub t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-main-resumes-after-sub status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event SubagentStart session=cc-main-resumes-after-sub t=1800000002 agent=a1
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-main-resumes-after-sub status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event SubagentStart session=cc-main-resumes-after-sub t=1800000002 agentId=a1 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-main-resumes-after-sub status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:briefing] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
--- 3 event Stop session=cc-main-resumes-after-sub t=1800000003
+counts working=1 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-main-resumes-after-sub status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:briefing@1800000002/type=""] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event Stop session=cc-main-resumes-after-sub t=1800000003 lastAssistantMessage="后台跑着。" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-main-resumes-after-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[a1:briefing] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
--- 4 event SubagentStop session=cc-main-resumes-after-sub t=1800000004 agent=a1
+counts working=1 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-main-resumes-after-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[a1:briefing@1800000002/type=""] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 event SubagentStop session=cc-main-resumes-after-sub t=1800000004 agentId=a1 lastAssistantMessage="done" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.subFinished(sessionId: "cc-main-resumes-after-sub", subId: "a1", success: true)]
-session cc-main-resumes-after-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000004 teamIndex=0 isHidden=false
--- 5 event PreToolUse session=cc-main-resumes-after-sub t=1800000005 tool=Read
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-main-resumes-after-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000004 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 5 event PreToolUse session=cc-main-resumes-after-sub t=1800000005 tool=Read ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-main-resumes-after-sub status=working activity=reading title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000005 teamIndex=0 isHidden=false
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-main-resumes-after-sub status=working activity=reading title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000005 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 -- 6 tick t=1800000036
 effects: []
-session cc-main-resumes-after-sub status=working activity=reading title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000005 teamIndex=0 isHidden=false
--- 7 event Stop session=cc-main-resumes-after-sub t=1800000037
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-main-resumes-after-sub status=working activity=reading title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000005 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 7 event Stop session=cc-main-resumes-after-sub t=1800000037 lastAssistantMessage="汇总好了。" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-main-resumes-after-sub", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
-session cc-main-resumes-after-sub status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000037 lastActivityAt=1800000037 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-main-resumes-after-sub status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000037 lastActivityAt=1800000037 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == tool-failure ==
--- 1 event UserPromptSubmit session=cc-tool-failure t=1800000001
+-- 1 event UserPromptSubmit session=cc-tool-failure t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-tool-failure status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event PreToolUse session=cc-tool-failure t=1800000002 tool=Bash
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-tool-failure status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event PreToolUse session=cc-tool-failure t=1800000002 tool=Bash command="make" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-tool-failure status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
--- 3 event PostToolUseFailure session=cc-tool-failure t=1800000003 tool=Bash
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-tool-failure status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event PostToolUseFailure session=cc-tool-failure t=1800000003 tool=Bash error="interrupted" isInterrupt=true ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-tool-failure status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-tool-failure status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 -- 4 tick t=1800000007
 effects: []
-session cc-tool-failure status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
--- 5 event PostToolUseFailure session=cc-tool-failure t=1800000008 tool=Bash
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-tool-failure status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 5 event PostToolUseFailure session=cc-tool-failure t=1800000008 tool=Bash error="exit 2" isInterrupt=false ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-tool-failure status=working activity=commandFailed title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000008 teamIndex=0 isHidden=false
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-tool-failure status=working activity=commandFailed title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000008 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=1800000008 lastSeenInRegistry=nil
 -- 6 tick t=1800000010
 effects: []
-session cc-tool-failure status=working activity=commandFailed title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000008 teamIndex=0 isHidden=false
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-tool-failure status=working activity=commandFailed title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000008 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=1800000008 lastSeenInRegistry=nil
 -- 7 tick t=1800000012
 effects: []
-session cc-tool-failure status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000008 teamIndex=0 isHidden=false
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-tool-failure status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000008 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == stop-failure ==
--- 1 event UserPromptSubmit session=cc-stop-failure t=1800000001
+-- 1 event UserPromptSubmit session=cc-stop-failure t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-stop-failure status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event StopFailure session=cc-stop-failure t=1800000002
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-stop-failure status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event StopFailure session=cc-stop-failure t=1800000002 error="rate_limit" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-stop-failure", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.error)]
-session cc-stop-failure status=error activity=commandFailed title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=出错：rate_limit statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-stop-failure status=error activity=commandFailed title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=出错：rate_limit statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 -- 3 markRead session=cc-stop-failure t=1800000003
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-stop-failure", from: Agentrise.SessionStatus.error, to: Agentrise.SessionStatus.standby)]
-session cc-stop-failure status=standby activity=standby title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=1
+session cc-stop-failure status=standby activity=standby title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == pre-compact ==
--- 1 event UserPromptSubmit session=cc-pre-compact t=1800000001
+-- 1 event UserPromptSubmit session=cc-pre-compact t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-pre-compact status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event PreCompact session=cc-pre-compact t=1800000002
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-pre-compact status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event PreCompact session=cc-pre-compact t=1800000002 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-pre-compact status=working activity=compacting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
--- 3 event PostToolUse session=cc-pre-compact t=1800000003 tool=Read
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-pre-compact status=working activity=compacting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event PostToolUse session=cc-pre-compact t=1800000003 tool=Read ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-pre-compact status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
--- 4 event Stop session=cc-pre-compact t=1800000004
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-pre-compact status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 event Stop session=cc-pre-compact t=1800000004 lastAssistantMessage="整理完了。" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-pre-compact", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
-session cc-pre-compact status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1800000004 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-pre-compact status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1800000004 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == session-start ==
--- 1 event SessionStart session=cc-session-start t=1800000001
+-- 1 event SessionStart session=cc-session-start t=1800000001 source=startup ctx(title="主会话" source=desktop(host=nil) model=nil)
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-session-start", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.standby)]
-session cc-session-start status=standby activity=standby title=主会话 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event UserPromptSubmit session=cc-session-start t=1800000002
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=1
+session cc-session-start status=standby activity=standby title=主会话 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event UserPromptSubmit session=cc-session-start t=1800000002 ctx(title="主会话" source=desktop(host=nil) model=nil)
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-session-start", from: Agentrise.SessionStatus.standby, to: Agentrise.SessionStatus.working)]
-session cc-session-start status=working activity=thinking title=主会话 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
--- 3 event SessionStart session=cc-session-start t=1800000003
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-session-start status=working activity=thinking title=主会话 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event SessionStart session=cc-session-start t=1800000003 model=claude-opus-5-5 source=resume ctx(title="主会话" source=desktop(host=nil) model=nil)
 effects: []
-session cc-session-start status=working activity=thinking title=主会话 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000003 teamIndex=0 isHidden=false
--- 4 event SessionStart session=cc-session-start t=1800000004
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-session-start status=working activity=thinking title=主会话 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 event SessionStart session=cc-session-start t=1800000004 source=clear ctx(title="主会话" source=desktop(host=nil) model=nil)
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-session-start", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.standby)]
-session cc-session-start status=standby activity=standby title=主会话 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1800000004 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=1
+session cc-session-start status=standby activity=standby title=主会话 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1800000004 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == headless ==
--- 1 event UserPromptSubmit session=cc-headless t=1800000001
+-- 1 event UserPromptSubmit session=cc-headless t=1800000001 ctx(title="headless" source=nil model="claude-opus-5-5")
 effects: []
-session cc-headless status=working activity=thinking title=headless rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=true
--- 2 event Stop session=cc-headless t=1800000002
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-headless status=working activity=thinking title=headless rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=true source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event Stop session=cc-headless t=1800000002 lastAssistantMessage="ok" ctx(title="headless" source=nil model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-headless", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
-session cc-headless status=done activity=resting title=headless rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=true
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-headless status=done activity=resting title=headless rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=true source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == cc-connect-send ==
--- 1 event UserPromptSubmit session=cc-connect-send t=1800000001
+-- 1 event UserPromptSubmit session=cc-connect-send t=1800000001 ctx(title="飞书会话 1" source=lark model="claude-opus-5-5")
 effects: []
-session cc-connect-send status=working activity=thinking title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event PreToolUse session=cc-connect-send t=1800000002 tool=Bash
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-connect-send status=working activity=thinking title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=lark modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event PreToolUse session=cc-connect-send t=1800000002 tool=Bash toolUseId=l1 command="cc-connect send -m 'hello'" ctx(title="飞书会话 1" source=lark model="claude-opus-5-5")
 effects: []
-session cc-connect-send status=working activity=sendingLark title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=true waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
--- 3 event PostToolUse session=cc-connect-send t=1800000003 tool=Bash
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-connect-send status=working activity=sendingLark title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=true waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=lark modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event PostToolUse session=cc-connect-send t=1800000003 tool=Bash toolUseId=l1 ctx(title="飞书会话 1" source=lark model="claude-opus-5-5")
 effects: []
-session cc-connect-send status=working activity=thinking title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=true waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
--- 4 event Stop session=cc-connect-send t=1800000004
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-connect-send status=working activity=thinking title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=true waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=lark modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 event Stop session=cc-connect-send t=1800000004 lastAssistantMessage="已发飞书。" ctx(title="飞书会话 1" source=lark model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-connect-send", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
-session cc-connect-send status=done activity=resting title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=true waitingSummary=nil statusSince=1800000004 lastActivityAt=1800000004 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-connect-send status=done activity=resting title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=true waitingSummary=nil statusSince=1800000004 lastActivityAt=1800000004 teamIndex=0 isHidden=false source=lark modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 -- 5 markRead session=cc-connect-send t=1800000005
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-connect-send", from: Agentrise.SessionStatus.done, to: Agentrise.SessionStatus.standby)]
-session cc-connect-send status=standby activity=standby title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1800000005 teamIndex=0 isHidden=false
--- 6 event UserPromptSubmit session=cc-connect-send t=1800000006
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=1
+session cc-connect-send status=standby activity=standby title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1800000005 teamIndex=0 isHidden=false source=lark modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 6 event UserPromptSubmit session=cc-connect-send t=1800000006 ctx(title="飞书会话 1" source=lark model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-connect-send", from: Agentrise.SessionStatus.standby, to: Agentrise.SessionStatus.working)]
-session cc-connect-send status=working activity=thinking title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000006 lastActivityAt=1800000006 teamIndex=0 isHidden=false
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-connect-send status=working activity=thinking title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000006 lastActivityAt=1800000006 teamIndex=0 isHidden=false source=lark modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == cc-connect-off ==
--- 1 event UserPromptSubmit session=cc-connect-off t=1800000001
+-- 1 event UserPromptSubmit session=cc-connect-off t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-connect-off status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event PreToolUse session=cc-connect-off t=1800000002 tool=Bash
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-connect-off status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event PreToolUse session=cc-connect-off t=1800000002 tool=Bash command="cc-connect send -m 'hello'" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-connect-off status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
--- 3 event Stop session=cc-connect-off t=1800000003
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-connect-off status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event Stop session=cc-connect-off t=1800000003 lastAssistantMessage="好了。" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-connect-off", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
-session cc-connect-off status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-connect-off status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == mark-read ==
--- 1 event UserPromptSubmit session=cc-mark-read t=1800000001
+-- 1 event UserPromptSubmit session=cc-mark-read t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-mark-read status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event Stop session=cc-mark-read t=1800000002
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-mark-read status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event Stop session=cc-mark-read t=1800000002 lastAssistantMessage="完成。" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-mark-read", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
-session cc-mark-read status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-mark-read status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 -- 3 markRead session=cc-mark-read t=1800000003
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-mark-read", from: Agentrise.SessionStatus.done, to: Agentrise.SessionStatus.standby)]
-session cc-mark-read status=standby activity=standby title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=1
+session cc-mark-read status=standby activity=standby title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 -- 4 markRead session=cc-mark-read t=1800000004
 effects: []
-session cc-mark-read status=standby activity=standby title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=1
+session cc-mark-read status=standby activity=standby title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == sleep ==
--- 1 event UserPromptSubmit session=cc-sleep t=1800000001
+-- 1 event UserPromptSubmit session=cc-sleep t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-sleep status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event Stop session=cc-sleep t=1800000002
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-sleep status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event Stop session=cc-sleep t=1800000002 lastAssistantMessage="完成。" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-sleep", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
-session cc-sleep status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-sleep status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 -- 3 tick t=1800086392
 effects: []
-session cc-sleep status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-sleep status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 -- 4 tick t=1800086412
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-sleep", from: Agentrise.SessionStatus.done, to: Agentrise.SessionStatus.sleeping)]
-session cc-sleep status=sleeping activity=sleeping title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800086412 lastActivityAt=1800000002 teamIndex=0 isHidden=false
--- 5 event UserPromptSubmit session=cc-sleep t=1800086413
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=1 standby=0
+session cc-sleep status=sleeping activity=sleeping title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800086412 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 5 event UserPromptSubmit session=cc-sleep t=1800086413 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-sleep", from: Agentrise.SessionStatus.sleeping, to: Agentrise.SessionStatus.working)]
-session cc-sleep status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800086413 lastActivityAt=1800086413 teamIndex=0 isHidden=false
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-sleep status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800086413 lastActivityAt=1800086413 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == two-teams ==
--- 1 event UserPromptSubmit session=cc-team-a t=1800000001
+-- 1 event UserPromptSubmit session=cc-team-a t=1800000001 ctx(title="甲" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-team-a status=working activity=thinking title=甲 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event UserPromptSubmit session=cc-team-b t=1800000002
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-team-a status=working activity=thinking title=甲 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event UserPromptSubmit session=cc-team-b t=1800000002 ctx(title="乙" source=desktop(host=nil) model="claude-haiku-4-5")
 effects: []
-session cc-team-a status=working activity=thinking title=甲 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
-session cc-team-b status=working activity=thinking title=乙 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=1 isHidden=false
--- 3 event Stop session=cc-team-a t=1800000003
+counts working=2 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-team-a status=working activity=thinking title=甲 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-team-b status=working activity=thinking title=乙 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=1 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event Stop session=cc-team-a t=1800000003 lastAssistantMessage="完成。" ctx(title="甲" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-team-a", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
-session cc-team-a status=done activity=resting title=甲 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
-session cc-team-b status=working activity=thinking title=乙 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=1 isHidden=false
--- 4 event Stop session=cc-team-b t=1800000004
+counts working=1 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-team-a status=done activity=resting title=甲 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-team-b status=working activity=thinking title=乙 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=1 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 event Stop session=cc-team-b t=1800000004 lastAssistantMessage="要不要继续？" ctx(title="乙" source=desktop(host=nil) model="claude-haiku-4-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-team-b", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.waiting)]
-session cc-team-a status=done activity=resting title=甲 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
-session cc-team-b status=waiting activity=waitingAtDoor title=乙 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=要不要继续？ statusSince=1800000004 lastActivityAt=1800000004 teamIndex=1 isHidden=false
+counts working=0 waiting=1 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-team-a status=done activity=resting title=甲 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-team-b status=waiting activity=waitingAtDoor title=乙 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=要不要继续？ statusSince=1800000004 lastActivityAt=1800000004 teamIndex=1 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+
+== cwd-transcript ==
+-- 1 event UserPromptSubmit session=cc-cwd-transcript t=1800000001 cwd="/work/first" transcriptPath="/t/one.jsonl" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-cwd-transcript status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd="/work/first" transcriptPath="/t/one.jsonl" transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event PreToolUse session=cc-cwd-transcript t=1800000002 tool=Read cwd="/work/second" transcriptPath="/t/two.jsonl" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-cwd-transcript status=working activity=reading title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd="/work/first" transcriptPath="/t/two.jsonl" transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event PostToolUse session=cc-cwd-transcript t=1800000003 tool=Read ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-cwd-transcript status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd="/work/first" transcriptPath="/t/two.jsonl" transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 event Stop session=cc-cwd-transcript t=1800000004 lastAssistantMessage="好了。" cwd="/work/third" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-cwd-transcript", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-cwd-transcript status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1800000004 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd="/work/first" transcriptPath="/t/two.jsonl" transientErrorAt=nil lastSeenInRegistry=nil
+
+== context-updates ==
+-- 1 event UserPromptSubmit session=cc-context-updates t=1800000001 ctx(title="原标题" source=desktop(host="host-1") model=nil)
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-context-updates status=working activity=thinking title=原标题 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host="host-1") modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event PreToolUse session=cc-context-updates t=1800000002 tool=Read ctx(title="" source=terminal(bundle="com.apple.Terminal") model="claude-fable-1")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-context-updates status=working activity=reading title=原标题 rank=seniorDirector subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=terminal(bundle="com.apple.Terminal") modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event PostToolUse session=cc-context-updates t=1800000003 tool=Read ctx(title="新标题" source=nil model=nil)
+effects: []
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-context-updates status=working activity=thinking title=新标题 rank=seniorDirector subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=true source=terminal(bundle="com.apple.Terminal") modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 event Stop session=cc-context-updates t=1800000004 lastAssistantMessage="完成。" ctx(title=nil source=lark model="claude-haiku-4-5")
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-context-updates", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-context-updates status=done activity=resting title=新标题 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1800000004 teamIndex=0 isHidden=false source=lark modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 5 event UserPromptSubmit session=cc-context-updates t=1800000005 ctx(title="回桌面" source=desktop(host=nil) model="claude-sonnet-4-5")
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-context-updates", from: Agentrise.SessionStatus.done, to: Agentrise.SessionStatus.working)]
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-context-updates status=working activity=thinking title=回桌面 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1800000005 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+
+== contractor-timeout ==
+-- 1 event UserPromptSubmit session=cc-contractor-timeout t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-contractor-timeout status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event PreToolUse session=cc-contractor-timeout t=1800000002 tool=Bash toolUseId=b1 command="tail -f /var/log/system.log" runInBackground=true ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=1 sleeping=0 standby=0
+session cc-contractor-timeout status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[b1:tail -f /var/log/system.log@1800000002] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 tick t=1800007201
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=1 sleeping=0 standby=0
+session cc-contractor-timeout status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[b1:tail -f /var/log/system.log@1800000002] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 tick t=1800007203
+effects: [Agentrise.TowerEffect.contractorFinished(sessionId: "cc-contractor-timeout", contractorId: "b1")]
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-contractor-timeout status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=1 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+
+== contractor-timeout-waiting ==
+-- 1 event UserPromptSubmit session=cc-contractor-timeout-waiting t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-contractor-timeout-waiting status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event PreToolUse session=cc-contractor-timeout-waiting t=1800000002 tool=Bash toolUseId=b1 command="sleep 99999" runInBackground=true ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=1 sleeping=0 standby=0
+session cc-contractor-timeout-waiting status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[b1:sleep 99999@1800000002] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event Stop session=cc-contractor-timeout-waiting t=1800000003 lastAssistantMessage="命令在后台跑。" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=1 sleeping=0 standby=0
+session cc-contractor-timeout-waiting status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[b1:sleep 99999@1800000002] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 tick t=1800007198
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=1 sleeping=0 standby=0
+session cc-contractor-timeout-waiting status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[b1:sleep 99999@1800000002] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 5 tick t=1800007208
+effects: [Agentrise.TowerEffect.contractorFinished(sessionId: "cc-contractor-timeout-waiting", contractorId: "b1"), Agentrise.TowerEffect.statusChanged(sessionId: "cc-contractor-timeout-waiting", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-contractor-timeout-waiting status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=1 larkSent=false waitingSummary=nil statusSince=1800007208 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+
+== snapshot-adds-contractors ==
+-- 1 event UserPromptSubmit session=cc-snapshot-adds-contractors t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-snapshot-adds-contractors status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event PreToolUse session=cc-snapshot-adds-contractors t=1800000002 tool=Bash toolUseId=b9 command="make watch" runInBackground=true ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=1 sleeping=0 standby=0
+session cc-snapshot-adds-contractors status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[b9:make watch@1800000002] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event Stop session=cc-snapshot-adds-contractors t=1800000003 lastAssistantMessage="后台有几个任务。" backgroundTasks=[c1:shell:running:"tail the production log and grep for errors forever";c2:monitor:running:"monitor the deploy";c3:workflow:running:"nightly workflow";c4:agent:running:"an agent task is not a contractor";b9:agent:completed:"same id, ignored type"] ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=4 sleeping=0 standby=0
+session cc-snapshot-adds-contractors status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[b9:make watch@1800000002;c1:tail the production log and grep for err@1800000003;c2:monitor the deploy@1800000003;c3:nightly workflow@1800000003] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 event UserPromptSubmit session=cc-snapshot-adds-contractors t=1800000004 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=4 sleeping=0 standby=0
+session cc-snapshot-adds-contractors status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[b9:make watch@1800000002;c1:tail the production log and grep for err@1800000003;c2:monitor the deploy@1800000003;c3:nightly workflow@1800000003] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000004 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 5 event Stop session=cc-snapshot-adds-contractors t=1800000005 lastAssistantMessage="再看一眼。" backgroundTasks=[c1:shell:failed:"tail";c2:monitor:killed:"monitor";c3:workflow:completed:"workflow";c4:agent:running:"agent"] ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-snapshot-adds-contractors", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done), Agentrise.TowerEffect.contractorFinished(sessionId: "cc-snapshot-adds-contractors", contractorId: "b9"), Agentrise.TowerEffect.contractorFinished(sessionId: "cc-snapshot-adds-contractors", contractorId: "c1"), Agentrise.TowerEffect.contractorFinished(sessionId: "cc-snapshot-adds-contractors", contractorId: "c2"), Agentrise.TowerEffect.contractorFinished(sessionId: "cc-snapshot-adds-contractors", contractorId: "c3")]
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-snapshot-adds-contractors status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=4 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1800000005 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+
+== question-with-live-subs ==
+-- 1 event UserPromptSubmit session=cc-question-with-live-subs t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-question-with-live-subs status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event SubagentStart session=cc-question-with-live-subs t=1800000002 agentId=a1 agentType=general-purpose ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-question-with-live-subs status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:briefing@1800000002/type="general-purpose"] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event PreToolUse session=cc-question-with-live-subs t=1800000003 tool=Bash toolUseId=b1 command="npm run watch" runInBackground=true ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=1 contractors=1 sleeping=0 standby=0
+session cc-question-with-live-subs status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[a1:briefing@1800000002/type="general-purpose"] contractors=[b1:npm run watch@1800000003] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 event Stop session=cc-question-with-live-subs t=1800000004 lastAssistantMessage="小弟在查。你希望我先出方案吗？" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-question-with-live-subs", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.waiting)]
+counts working=0 waiting=1 done=0 subs=1 contractors=1 sleeping=0 standby=0
+session cc-question-with-live-subs status=waiting activity=waitingAtDoor title=主会话 rank=seniorExpert subs=[a1:briefing@1800000002/type="general-purpose"] contractors=[b1:npm run watch@1800000003] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=你希望我先出方案吗？ statusSince=1800000004 lastActivityAt=1800000004 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 5 event SubagentStop session=cc-question-with-live-subs t=1800000005 agentId=a1 lastAssistantMessage="查完了" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: [Agentrise.TowerEffect.subFinished(sessionId: "cc-question-with-live-subs", subId: "a1", success: true)]
+counts working=0 waiting=1 done=0 subs=0 contractors=1 sleeping=0 standby=0
+session cc-question-with-live-subs status=waiting activity=waitingAtDoor title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run watch@1800000003] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=你希望我先出方案吗？ statusSince=1800000004 lastActivityAt=1800000005 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 6 tick t=1800000040
+effects: []
+counts working=0 waiting=1 done=0 subs=0 contractors=1 sleeping=0 standby=0
+session cc-question-with-live-subs status=waiting activity=waitingAtDoor title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run watch@1800000003] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=你希望我先出方案吗？ statusSince=1800000004 lastActivityAt=1800000005 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 7 markRead session=cc-question-with-live-subs t=1800000041
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-question-with-live-subs", from: Agentrise.SessionStatus.waiting, to: Agentrise.SessionStatus.standby)]
+counts working=0 waiting=0 done=0 subs=0 contractors=1 sleeping=0 standby=1
+session cc-question-with-live-subs status=standby activity=standby title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run watch@1800000003] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000041 lastActivityAt=1800000041 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+
+== sleep-guard-working ==
+-- 1 event UserPromptSubmit session=cc-sleep-guard-working t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-sleep-guard-working status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 tick t=1800086411
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-sleep-guard-working status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+
+== sleep-guard-waiting ==
+-- 1 event UserPromptSubmit session=cc-sleep-guard-waiting t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-sleep-guard-waiting status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event Stop session=cc-sleep-guard-waiting t=1800000002 lastAssistantMessage="要不要继续？" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-sleep-guard-waiting", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.waiting)]
+counts working=0 waiting=1 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-sleep-guard-waiting status=waiting activity=waitingAtDoor title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=要不要继续？ statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 tick t=1800086412
+effects: []
+counts working=0 waiting=1 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-sleep-guard-waiting status=waiting activity=waitingAtDoor title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=要不要继续？ statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+
+== sleep-standby ==
+-- 1 event SessionStart session=cc-sleep-standby t=1800000001 source=startup ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-sleep-standby", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.standby)]
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=1
+session cc-sleep-standby status=standby activity=standby title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 tick t=1800086391
+effects: []
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=1
+session cc-sleep-standby status=standby activity=standby title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 tick t=1800086411
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-sleep-standby", from: Agentrise.SessionStatus.standby, to: Agentrise.SessionStatus.sleeping)]
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=1 standby=0
+session cc-sleep-standby status=sleeping activity=sleeping title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800086411 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+
+== sleep-error ==
+-- 1 event UserPromptSubmit session=cc-sleep-error t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-sleep-error status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event StopFailure session=cc-sleep-error t=1800000002 error="overloaded" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-sleep-error", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.error)]
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-sleep-error status=error activity=commandFailed title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=出错：overloaded statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 tick t=1800086392
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-sleep-error status=error activity=commandFailed title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=出错：overloaded statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 tick t=1800086412
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-sleep-error", from: Agentrise.SessionStatus.error, to: Agentrise.SessionStatus.sleeping)]
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=1 standby=0
+session cc-sleep-error status=sleeping activity=sleeping title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=出错：overloaded statusSince=1800086412 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+
+== sleep-after-give-up ==
+-- 1 event UserPromptSubmit session=cc-sleep-after-give-up t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-sleep-after-give-up status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event SubagentStart session=cc-sleep-after-give-up t=1800000002 agentId=a1 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-sleep-after-give-up status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:briefing@1800000002/type=""] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event Stop session=cc-sleep-after-give-up t=1800000003 lastAssistantMessage="交给小弟。" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-sleep-after-give-up status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[a1:briefing@1800000002/type=""] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 tick t=1800086413
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-sleep-after-give-up", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done), Agentrise.TowerEffect.statusChanged(sessionId: "cc-sleep-after-give-up", from: Agentrise.SessionStatus.done, to: Agentrise.SessionStatus.sleeping)]
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=1 standby=0
+session cc-sleep-after-give-up status=sleeping activity=sleeping title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800086413 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+
+== notification-types ==
+-- 1 event UserPromptSubmit session=cc-notification-types t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-notification-types status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event Notification session=cc-notification-types t=1800000002 notificationType=permission_prompt ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-notification-types", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.waiting)]
+counts working=0 waiting=1 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-notification-types status=waiting activity=waitingAtDoor title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event UserPromptSubmit session=cc-notification-types t=1800000003 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-notification-types", from: Agentrise.SessionStatus.waiting, to: Agentrise.SessionStatus.working)]
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-notification-types status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 event Notification session=cc-notification-types t=1800000004 notificationType=elicitation_dialog ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-notification-types", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.waiting)]
+counts working=0 waiting=1 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-notification-types status=waiting activity=waitingAtDoor title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1800000004 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 5 event UserPromptSubmit session=cc-notification-types t=1800000005 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-notification-types", from: Agentrise.SessionStatus.waiting, to: Agentrise.SessionStatus.working)]
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-notification-types status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1800000005 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 6 event Notification session=cc-notification-types t=1800000006 notificationType=agent_needs_input ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-notification-types", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.waiting)]
+counts working=0 waiting=1 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-notification-types status=waiting activity=waitingAtDoor title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000006 lastActivityAt=1800000006 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 7 event UserPromptSubmit session=cc-notification-types t=1800000007 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-notification-types", from: Agentrise.SessionStatus.waiting, to: Agentrise.SessionStatus.working)]
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-notification-types status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000007 lastActivityAt=1800000007 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 8 event Notification session=cc-notification-types t=1800000008 notificationType=idle_prompt ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-notification-types status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000007 lastActivityAt=1800000008 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 9 event Notification session=cc-notification-types t=1800000009 notificationType=auth_success ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-notification-types status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000007 lastActivityAt=1800000009 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 10 event Notification session=cc-notification-types t=1800000010 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-notification-types status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000007 lastActivityAt=1800000010 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+
+== sub-start-not-working ==
+-- 1 event SessionStart session=cc-sub-start-not-working t=1800000001 source=startup ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-sub-start-not-working", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.standby)]
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=1
+session cc-sub-start-not-working status=standby activity=standby title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event SubagentStart session=cc-sub-start-not-working t=1800000002 agentId=a1 agentType=general-purpose ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=0 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=1
+session cc-sub-start-not-working status=standby activity=standby title=主会话 rank=seniorExpert subs=[a1:briefing@1800000002/type="general-purpose"] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event UserPromptSubmit session=cc-sub-start-not-working t=1800000003 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-sub-start-not-working", from: Agentrise.SessionStatus.standby, to: Agentrise.SessionStatus.working)]
+counts working=1 waiting=0 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-sub-start-not-working status=working activity=thinking title=主会话 rank=seniorExpert subs=[a1:briefing@1800000002/type="general-purpose"] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 event Stop session=cc-sub-start-not-working t=1800000004 lastAssistantMessage="要不要先看看？" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-sub-start-not-working", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.waiting)]
+counts working=0 waiting=1 done=0 subs=1 contractors=0 sleeping=0 standby=0
+session cc-sub-start-not-working status=waiting activity=waitingAtDoor title=主会话 rank=seniorExpert subs=[a1:briefing@1800000002/type="general-purpose"] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=要不要先看看？ statusSince=1800000004 lastActivityAt=1800000004 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 5 event SubagentStart session=cc-sub-start-not-working t=1800000005 agentId=a2 agentType=Explore ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=0 waiting=1 done=0 subs=2 contractors=0 sleeping=0 standby=0
+session cc-sub-start-not-working status=waiting activity=waitingAtDoor title=主会话 rank=seniorExpert subs=[a1:briefing@1800000002/type="general-purpose";a2:briefing@1800000005/type="Explore"] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=要不要先看看？ statusSince=1800000004 lastActivityAt=1800000005 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+
+== registry ==
+-- 1 seed session=cc-seed-busy busy=true lastActive=1799999801 t=1800000001 ctx(title="忙" source=terminal(bundle=nil) model="claude-opus-5-5")
+effects: []
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-seed-busy status=working activity=thinking title=忙 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1799999801 teamIndex=0 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 seed session=cc-seed-busy-fresh busy=true lastActive=1799999942 t=1800000002 ctx(title="刚忙" source=terminal(bundle=nil) model=nil)
+effects: []
+counts working=2 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-seed-busy status=working activity=thinking title=忙 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1799999801 teamIndex=0 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy-fresh status=working activity=thinking title=刚忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1799999942 teamIndex=1 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 seed session=cc-seed-idle busy=false lastActive=1799999903 t=1800000003 ctx(title="闲" source=terminal(bundle=nil) model="claude-haiku-4-5")
+effects: []
+counts working=2 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=1
+session cc-seed-busy status=working activity=thinking title=忙 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1799999801 teamIndex=0 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy-fresh status=working activity=thinking title=刚忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1799999942 teamIndex=1 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-idle status=standby activity=standby title=闲 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1799999903 teamIndex=2 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 4 seed session=cc-seed-asleep busy=false lastActive=1799913599 t=1800000004 ctx(title="睡" source=terminal(bundle=nil) model=nil)
+effects: []
+counts working=2 waiting=0 done=0 subs=0 contractors=0 sleeping=1 standby=1
+session cc-seed-asleep status=sleeping activity=sleeping title=睡 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1799913599 teamIndex=3 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy status=working activity=thinking title=忙 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1799999801 teamIndex=0 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy-fresh status=working activity=thinking title=刚忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1799999942 teamIndex=1 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-idle status=standby activity=standby title=闲 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1799999903 teamIndex=2 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 5 seed session=cc-seed-asleep-busy busy=true lastActive=1799913600 t=1800000005 ctx(title="睡但忙" source=terminal(bundle=nil) model=nil)
+effects: []
+counts working=3 waiting=0 done=0 subs=0 contractors=0 sleeping=1 standby=1
+session cc-seed-asleep status=sleeping activity=sleeping title=睡 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1799913599 teamIndex=3 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep-busy status=working activity=thinking title=睡但忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1799913600 teamIndex=4 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy status=working activity=thinking title=忙 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1799999801 teamIndex=0 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy-fresh status=working activity=thinking title=刚忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1799999942 teamIndex=1 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-idle status=standby activity=standby title=闲 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1799999903 teamIndex=2 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 6 event UserPromptSubmit session=cc-registry t=1800000006 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
+effects: []
+counts working=4 waiting=0 done=0 subs=0 contractors=0 sleeping=1 standby=1
+session cc-registry status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000006 lastActivityAt=1800000006 teamIndex=5 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep status=sleeping activity=sleeping title=睡 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1799913599 teamIndex=3 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep-busy status=working activity=thinking title=睡但忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1799913600 teamIndex=4 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy status=working activity=thinking title=忙 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1799999801 teamIndex=0 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy-fresh status=working activity=thinking title=刚忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1799999942 teamIndex=1 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-idle status=standby activity=standby title=闲 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1799999903 teamIndex=2 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 7 seed session=cc-registry busy=false lastActive=1800000006 t=1800000007 ctx(title="已存在" source=terminal(bundle=nil) model=nil)
+effects: []
+counts working=4 waiting=0 done=0 subs=0 contractors=0 sleeping=1 standby=1
+session cc-registry status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000006 lastActivityAt=1800000006 teamIndex=5 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep status=sleeping activity=sleeping title=睡 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1799913599 teamIndex=3 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep-busy status=working activity=thinking title=睡但忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1799913600 teamIndex=4 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy status=working activity=thinking title=忙 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1799999801 teamIndex=0 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy-fresh status=working activity=thinking title=刚忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1799999942 teamIndex=1 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-idle status=standby activity=standby title=闲 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1799999903 teamIndex=2 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 8 touchRegistry session=cc-seed-idle t=1800000008
+effects: []
+counts working=4 waiting=0 done=0 subs=0 contractors=0 sleeping=1 standby=1
+session cc-registry status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000006 lastActivityAt=1800000006 teamIndex=5 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep status=sleeping activity=sleeping title=睡 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1799913599 teamIndex=3 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep-busy status=working activity=thinking title=睡但忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1799913600 teamIndex=4 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy status=working activity=thinking title=忙 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1799999801 teamIndex=0 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy-fresh status=working activity=thinking title=刚忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1799999942 teamIndex=1 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-idle status=standby activity=standby title=闲 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1799999903 teamIndex=2 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=1800000008
+-- 9 touchRegistry session=cc-nobody t=1800000009
+effects: []
+counts working=4 waiting=0 done=0 subs=0 contractors=0 sleeping=1 standby=1
+session cc-registry status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000006 lastActivityAt=1800000006 teamIndex=5 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep status=sleeping activity=sleeping title=睡 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1799913599 teamIndex=3 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep-busy status=working activity=thinking title=睡但忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1799913600 teamIndex=4 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy status=working activity=thinking title=忙 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1799999801 teamIndex=0 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy-fresh status=working activity=thinking title=刚忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1799999942 teamIndex=1 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-idle status=standby activity=standby title=闲 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1799999903 teamIndex=2 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=1800000008
+-- 10 setStatusFromRegistry session=cc-seed-busy-fresh busy=false t=1800000010
+effects: []
+counts working=4 waiting=0 done=0 subs=0 contractors=0 sleeping=1 standby=1
+session cc-registry status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000006 lastActivityAt=1800000006 teamIndex=5 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep status=sleeping activity=sleeping title=睡 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1799913599 teamIndex=3 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep-busy status=working activity=thinking title=睡但忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1799913600 teamIndex=4 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy status=working activity=thinking title=忙 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1799999801 teamIndex=0 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy-fresh status=working activity=thinking title=刚忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1799999942 teamIndex=1 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-idle status=standby activity=standby title=闲 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1799999903 teamIndex=2 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=1800000008
+-- 11 setStatusFromRegistry session=cc-seed-busy busy=true t=1800000011
+effects: []
+counts working=4 waiting=0 done=0 subs=0 contractors=0 sleeping=1 standby=1
+session cc-registry status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000006 lastActivityAt=1800000006 teamIndex=5 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep status=sleeping activity=sleeping title=睡 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1799913599 teamIndex=3 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep-busy status=working activity=thinking title=睡但忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1799913600 teamIndex=4 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy status=working activity=thinking title=忙 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1799999801 teamIndex=0 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy-fresh status=working activity=thinking title=刚忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1799999942 teamIndex=1 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-idle status=standby activity=standby title=闲 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1799999903 teamIndex=2 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=1800000008
+-- 12 setStatusFromRegistry session=cc-seed-idle busy=false t=1800000012
+effects: []
+counts working=4 waiting=0 done=0 subs=0 contractors=0 sleeping=1 standby=1
+session cc-registry status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000006 lastActivityAt=1800000006 teamIndex=5 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep status=sleeping activity=sleeping title=睡 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1799913599 teamIndex=3 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep-busy status=working activity=thinking title=睡但忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1799913600 teamIndex=4 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy status=working activity=thinking title=忙 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1799999801 teamIndex=0 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy-fresh status=working activity=thinking title=刚忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1799999942 teamIndex=1 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-idle status=standby activity=standby title=闲 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1799999903 teamIndex=2 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=1800000008
+-- 13 setStatusFromRegistry session=cc-nobody busy=false t=1800000013
+effects: []
+counts working=4 waiting=0 done=0 subs=0 contractors=0 sleeping=1 standby=1
+session cc-registry status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000006 lastActivityAt=1800000006 teamIndex=5 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep status=sleeping activity=sleeping title=睡 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1799913599 teamIndex=3 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep-busy status=working activity=thinking title=睡但忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1799913600 teamIndex=4 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy status=working activity=thinking title=忙 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1799999801 teamIndex=0 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy-fresh status=working activity=thinking title=刚忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1799999942 teamIndex=1 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-idle status=standby activity=standby title=闲 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1799999903 teamIndex=2 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=1800000008
+-- 14 setStatusFromRegistry session=cc-seed-busy busy=false t=1800000014
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-seed-busy", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.standby)]
+counts working=3 waiting=0 done=0 subs=0 contractors=0 sleeping=1 standby=2
+session cc-registry status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000006 lastActivityAt=1800000006 teamIndex=5 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep status=sleeping activity=sleeping title=睡 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1799913599 teamIndex=3 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep-busy status=working activity=thinking title=睡但忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1799913600 teamIndex=4 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy status=standby activity=standby title=忙 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000014 lastActivityAt=1799999801 teamIndex=0 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy-fresh status=working activity=thinking title=刚忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1799999942 teamIndex=1 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-idle status=standby activity=standby title=闲 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1799999903 teamIndex=2 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=1800000008
+-- 15 remove session=cc-nobody
+effects: []
+counts working=3 waiting=0 done=0 subs=0 contractors=0 sleeping=1 standby=2
+session cc-registry status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000006 lastActivityAt=1800000006 teamIndex=5 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep status=sleeping activity=sleeping title=睡 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1799913599 teamIndex=3 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep-busy status=working activity=thinking title=睡但忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1799913600 teamIndex=4 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy status=standby activity=standby title=忙 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000014 lastActivityAt=1799999801 teamIndex=0 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy-fresh status=working activity=thinking title=刚忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1799999942 teamIndex=1 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-idle status=standby activity=standby title=闲 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1799999903 teamIndex=2 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=1800000008
+-- 16 remove session=cc-seed-idle
+effects: [Agentrise.TowerEffect.sessionLeft(sessionId: "cc-seed-idle")]
+counts working=3 waiting=0 done=0 subs=0 contractors=0 sleeping=1 standby=1
+session cc-registry status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000006 lastActivityAt=1800000006 teamIndex=5 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep status=sleeping activity=sleeping title=睡 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1799913599 teamIndex=3 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-asleep-busy status=working activity=thinking title=睡但忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1799913600 teamIndex=4 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy status=standby activity=standby title=忙 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000014 lastActivityAt=1799999801 teamIndex=0 isHidden=false source=terminal(bundle=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+session cc-seed-busy-fresh status=working activity=thinking title=刚忙 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1799999942 teamIndex=1 isHidden=false source=terminal(bundle=nil) modelKnown=false cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
 
 == session-end ==
--- 1 event UserPromptSubmit session=cc-session-end t=1800000001
+-- 1 event UserPromptSubmit session=cc-session-end t=1800000001 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
-session cc-session-end status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
--- 2 event Stop session=cc-session-end t=1800000002
+counts working=1 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+session cc-session-end status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 2 event Stop session=cc-session-end t=1800000002 lastAssistantMessage="完成。" ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-session-end", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
-session cc-session-end status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
--- 3 event SessionEnd session=cc-session-end t=1800000003
+counts working=0 waiting=0 done=1 subs=0 contractors=0 sleeping=0 standby=0
+session cc-session-end status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false source=desktop(host=nil) modelKnown=true cwd=nil transcriptPath=nil transientErrorAt=nil lastSeenInRegistry=nil
+-- 3 event SessionEnd session=cc-session-end t=1800000003 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: [Agentrise.TowerEffect.sessionLeft(sessionId: "cc-session-end")]
--- 4 event SessionEnd session=cc-session-end t=1800000004
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
+-- 4 event SessionEnd session=cc-session-end t=1800000004 ctx(title="主会话" source=desktop(host=nil) model="claude-opus-5-5")
 effects: []
+counts working=0 waiting=0 done=0 subs=0 contractors=0 sleeping=0 standby=0
 
