@@ -5,14 +5,7 @@ import TowerKit
 enum Rank: String, CaseIterable {
     case seniorDirector, seniorExpert, seniorEngineer, newGrad
 
-    var title: String {
-        switch self {
-        case .seniorDirector: return "资深总监"
-        case .seniorExpert: return "高级专家"
-        case .seniorEngineer: return "高级工程师"
-        case .newGrad: return "校招生"
-        }
-    }
+    var title: String { RankBook.current.title(self) }
 
     /// Color of the light strip on the robot's body.
     var stripe: NSColor {
@@ -24,13 +17,7 @@ enum Rank: String, CaseIterable {
         }
     }
 
-    static func from(model: String?) -> Rank {
-        let m = (model ?? "").lowercased()
-        if m.contains("fable") { return .seniorDirector }
-        if m.contains("opus") { return .seniorExpert }
-        if m.contains("haiku") { return .newGrad }
-        return .seniorEngineer
-    }
+    static func from(model: String?) -> Rank { RankBook.current.rank(for: model) }
 }
 
 enum Activity: String {
@@ -173,6 +160,8 @@ struct Session: Equatable {
     var transcriptPath: String?
     var isHidden = false
     var modelKnown = false
+    /// The model name as the agent reported it, so ranks can be recomputed after a Settings change.
+    var model: String?
     var lastSeenInRegistry: Date?
     var agent: AgentKind = .claude
     /// The agent's own process, for agents without a session registry to tell when it is gone.

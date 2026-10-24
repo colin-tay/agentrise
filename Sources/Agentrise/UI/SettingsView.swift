@@ -3,6 +3,7 @@ import ServiceManagement
 
 struct SettingsView: View {
     var onSaved: () -> Void
+    var onRanksSaved: () -> Void = {}
     @State private var installed = HookInstaller.isInstalled()
     @State private var preview: String?
     @State private var hookStatus = ""
@@ -14,6 +15,9 @@ struct SettingsView: View {
     @State private var barkStatus = ""
     @State private var chime = DeskChime.enabled
     @State private var feishu = CCConnectIndex.enabled
+    @State private var rankNames: [Rank: String] = Dictionary(uniqueKeysWithValues: Rank.ranksTopDown.map { ($0, RankBook.current.title($0)) })
+    @State private var rankKeywords: [Rank: String] = Dictionary(uniqueKeysWithValues: Rank.ranksTopDown.map { ($0, RankBook.current.keywordText($0)) })
+    @State private var rankStatus = ""
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
 
     var body: some View {
@@ -70,6 +74,7 @@ struct SettingsView: View {
             Section("飞书（cc-connect）") {
                 Toggle("识别 cc-connect 转发的飞书会话", isOn: $feishu).onChange(of: feishu) { _, on in CCConnectIndex.enabled = on }
             }
+            ranksSection
             Section("其他") {
                 Toggle("开机自动启动", isOn: $launchAtLogin).onChange(of: launchAtLogin) { _, on in
                     try? on ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister()
@@ -84,6 +89,42 @@ struct SettingsView: View {
     private func save() {
         BarkConfig(server: server, deviceKey: deviceKey.trimmingCharacters(in: .whitespaces), encryptionKey: encKey, iv: iv, awayThreshold: away).save()
         onSaved()
+    }
+
+    private func keywordPrompt(_ r: Rank) -> String {
+        r == .seniorEngineer ? "关键词（其余模型都算这档）" : "模型名包含的关键词，逗号分隔"
+    }
+
+    private func rankRow(_ r: Rank) -> some View {
+        let name: Binding<String> = Binding(get: { rankNames[r] ?? "" }, set: { rankNames[r] = $0 })
+        let words: Binding<String> = Binding(get: { rankKeywords[r] ?? "" }, set: { rankKeywords[r] = $0 })
+        return HStack {
+            TextField("名称", text: name).frame(width: 110)
+            TextField(keywordPrompt(r), text: words).disabled(r == .seniorEngineer)
+        }
+    }
+
+    private var ranksSection: some View {
+        Section("模型职级") {
+            ForEach(Rank.ranksTopDown, id: \.self) { r in rankRow(r) }
+            Text("关键词不区分大小写；匹配顺序：资深总监、高级专家、校招生，都没匹配上的算高级工程师。").font(.caption).foregroundColor(.secondary)
+            HStack {
+                Button("保存") { saveRanks() }
+                Text(rankStatus).font(.caption).foregroundColor(.secondary)
+            }
+        }
+    }
+
+    private func saveRanks() {
+        var book = RankBook.current
+        for r in Rank.ranksTopDown { book.set(r, name: rankNames[r] ?? "", keywordText: rankKeywords[r] ?? "") }
+        do {
+            try book.save()
+            RankBook.current = book
+            for r in Rank.ranksTopDown { rankNames[r] = book.title(r); rankKeywords[r] = book.keywordText(r) }
+            onRanksSaved()
+            rankStatus = "✓ 已保存"
+        } catch { rankStatus = "保存失败：\(error.localizedDescription)" }
     }
 
     private func run(_ f: () throws -> Void) {

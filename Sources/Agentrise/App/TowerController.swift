@@ -31,6 +31,7 @@ final class TowerController {
     init(vm: TowerViewModel) { self.vm = vm }
 
     func start() {
+        RankBook.current = RankBook.load()   // before the first seed, so every robot starts with the user's ranks
         registry = SessionRegistry.load()
         cc = CCConnectIndex.load()
         codexIndex = CodexSessionIndex.load()
@@ -56,6 +57,13 @@ final class TowerController {
     }
 
     func reloadBarkConfig() { barkConfig = BarkConfig.load() }
+
+    /// Settings saved new ranks (already in `RankBook.current`): re-rank every session whose model is known.
+    func reloadRanks() {
+        store.rerank()
+        lastPublished = []   // a rename alone changes no session, but the name labels must be redrawn
+        publish()
+    }
 
     private func handle(_ e: SlimEvent) {
         let isClaude = (e.agent ?? .claude) == .claude

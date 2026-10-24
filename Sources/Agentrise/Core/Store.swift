@@ -49,7 +49,7 @@ struct TowerStore {
         let s = Session(id: id, title: context.title ?? "会话", source: context.source ?? .terminal(bundleId: nil),
                         rank: Rank.from(model: context.model), status: status, activity: activity,
                         teamIndex: nextTeam, statusSince: now, lastActivityAt: now,
-                        isHidden: context.source == nil, modelKnown: context.model != nil, agent: context.agent)
+                        isHidden: context.source == nil, modelKnown: context.model != nil, model: context.model, agent: context.agent)
         nextTeam += 1
         sessions[id] = s
         return s
@@ -59,8 +59,17 @@ struct TowerStore {
         guard var s = sessions[id] else { return }
         if let t = context.title, !t.isEmpty { s.title = t }
         if let src = context.source { s.source = src; s.isHidden = false } else { s.isHidden = true }
-        if let m = context.model { s.rank = Rank.from(model: m); s.modelKnown = true }
+        if let m = context.model { s.rank = Rank.from(model: m); s.modelKnown = true; s.model = m }
         sessions[id] = s
+    }
+
+    /// After the rank book changed: every session whose model we know gets its rank recomputed.
+    mutating func rerank() {
+        for (id, s) in sessions {
+            guard let m = s.model else { continue }
+            let r = Rank.from(model: m)
+            if r != s.rank { sessions[id]?.rank = r }
+        }
     }
 
     mutating func noteAgentPid(_ id: String, _ pid: Int32) { sessions[id]?.agentPid = pid }

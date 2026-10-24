@@ -234,7 +234,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if settingsWindow == nil {
             let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 560), styleMask: [.titled, .closable], backing: .buffered, defer: false)
             w.title = "Agentrise 设置"
-            w.contentView = NSHostingView(rootView: SettingsView(onSaved: { [weak self] in self?.controller.reloadBarkConfig() }))
+            w.contentView = NSHostingView(rootView: SettingsView(onSaved: { [weak self] in self?.controller.reloadBarkConfig() },
+                                                           onRanksSaved: { [weak self] in self?.controller.reloadRanks() }))
             w.isReleasedWhenClosed = false
             w.center()
             settingsWindow = w
