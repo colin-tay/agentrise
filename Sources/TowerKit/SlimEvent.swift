@@ -1,8 +1,16 @@
 import Foundation
 
-/// The hook events Agentrise listens to. PermissionRequest is deliberately absent:
-/// a silent PermissionRequest hook makes Claude Code deny tools in sessions that
-/// cannot show a prompt.
+/// Which coding agent sent an event. Claude Code events carry no tag on the wire.
+public enum AgentKind: String, Codable, Sendable, CaseIterable {
+    case claude, codex
+
+    /// The name of the agent's process, as the kernel reports it.
+    public var processName: String { rawValue }
+}
+
+/// The hook events Agentrise listens to. Claude Code never gets PermissionRequest,
+/// Interrupt or PostCompact installed: a silent PermissionRequest hook makes Claude Code
+/// deny tools in sessions that cannot show a prompt. Only Codex sends those.
 public enum HookEventName: String, Codable, Sendable, CaseIterable {
     case sessionStart = "SessionStart"
     case sessionEnd = "SessionEnd"
@@ -16,6 +24,9 @@ public enum HookEventName: String, Codable, Sendable, CaseIterable {
     case subagentStop = "SubagentStop"
     case notification = "Notification"
     case preCompact = "PreCompact"
+    case permissionRequest = "PermissionRequest"
+    case interrupt = "Interrupt"
+    case postCompact = "PostCompact"
 }
 
 public struct BackgroundTaskInfo: Codable, Equatable, Sendable {
@@ -54,6 +65,10 @@ public struct SlimEvent: Codable, Equatable, Sendable {
     public var entrypoint: String?
     public var bundleId: String?
     public var termProgram: String?
+    /// Which agent sent this; nil means Claude Code (also what old hook binaries send).
+    public var agent: AgentKind?
+    /// The agent's own process id, when the hook could find it.
+    public var agentPid: Int32?
     public var receivedAt: Date
 
     public init(event: HookEventName, sessionId: String, receivedAt: Date = Date()) {
@@ -64,7 +79,7 @@ public struct SlimEvent: Codable, Equatable, Sendable {
 public enum EventSlimmer {
     public static let maxLineBytes = 8192
 
-    public static func slim(rawJSON: Data, env: [String: String], now: Date = Date()) -> SlimEvent? {
+    public static func slim(rawJSON: Data, env: [String: String], agent: AgentKind = .claude, now: Date = Date()) -> SlimEvent? {
         guard let obj = try? JSONSerialization.jsonObject(with: rawJSON) as? [String: Any],
               let name = obj["hook_event_name"] as? String,
               let event = HookEventName(rawValue: name),
@@ -77,6 +92,7 @@ public enum EventSlimmer {
         e.entrypoint = env["CLAUDE_CODE_ENTRYPOINT"]
         e.bundleId = env["__CFBundleIdentifier"]
         e.termProgram = env["TERM_PROGRAM"]
+        if agent == .codex { e.agent = .codex }
 
         switch event {
         case .preToolUse, .postToolUse, .postToolUseFailure:

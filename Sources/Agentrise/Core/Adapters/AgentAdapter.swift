@@ -16,12 +16,17 @@ protocol AgentAdapter {
 }
 
 enum Adapters {
-    /// Only Claude Code for now; the agent to choose by arrives with `AgentKind`.
-    static func adapter() -> any AgentAdapter.Type { ClaudeAdapter.self }
+    /// nil is Claude Code, and what hook binaries from before `agent` existed send.
+    /// Codex shares Claude's adapter until it gets its own.
+    static func adapter(for agent: AgentKind?) -> any AgentAdapter.Type {
+        switch agent {
+        case nil, .claude?, .codex?: return ClaudeAdapter.self
+        }
+    }
 }
 
 extension TowerStore {
     mutating func apply(_ e: SlimEvent, context: SessionContext) -> [TowerEffect] {
-        apply(Adapters.adapter().translate(e), context: context)
+        apply(Adapters.adapter(for: e.agent).translate(e), context: context)
     }
 }

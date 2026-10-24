@@ -113,7 +113,7 @@ import TowerKit
     @Test func compactingAndCapabilities() {
         #expect(kind(ev(.preCompact)) == .compacting)
         #expect(ClaudeAdapter.capabilities == [.contractors, .webSearch, .registry])
-        #expect(Adapters.adapter() == ClaudeAdapter.self)
+        #expect(Adapters.adapter(for: nil) == ClaudeAdapter.self)
     }
 
     @Test func storeKeepsAcceptingSlimEvents() {

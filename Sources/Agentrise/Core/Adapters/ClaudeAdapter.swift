@@ -56,6 +56,9 @@ enum ClaudeAdapter: AgentAdapter {
             return .subFinished(id: id, lastMessage: e.lastAssistantMessage)
         case .preCompact:
             return .compacting
+        case .permissionRequest, .interrupt, .postCompact:
+            // Claude Code never sends these.
+            return .keepAlive
         case .sessionEnd:
             return .sessionEnded
         }

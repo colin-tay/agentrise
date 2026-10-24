@@ -16,6 +16,11 @@ enum InstallerError: LocalizedError {
 /// Adds or removes Agentrise's async hooks in ~/.claude/settings.json and nothing else.
 enum HookInstaller {
     static let marker = "/Agentrise/bin/agentrise-hook"
+    /// The hooks installed into Claude Code, in this order. Never PermissionRequest.
+    static let claudeEvents: [HookEventName] = [
+        .sessionStart, .sessionEnd, .userPromptSubmit, .preToolUse, .postToolUse, .postToolUseFailure,
+        .stop, .stopFailure, .subagentStart, .subagentStop, .notification, .preCompact,
+    ]
     static let settingsURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/settings.json")
 
     static func entry(hookPath: String) -> [String: Any] {
@@ -37,7 +42,7 @@ enum HookInstaller {
         var s = try removed(settings)
         var hooks: [String: Any]
         if let h = s["hooks"] { guard let hh = h as? [String: Any] else { throw InstallerError.unexpectedHooksShape }; hooks = hh } else { hooks = [:] }
-        for ev in HookEventName.allCases {
+        for ev in claudeEvents {
             var groups: [Any]
             if let g = hooks[ev.rawValue] { guard let gg = g as? [Any] else { throw InstallerError.unexpectedHooksShape }; groups = gg } else { groups = [] }
             groups.append(entry(hookPath: hookPath))
