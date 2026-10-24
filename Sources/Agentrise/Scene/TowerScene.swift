@@ -750,9 +750,10 @@ final class TowerScene: SKScene {
         case .lark: src = "飞书"
         case .terminal: src = "终端"
         }
-        return ["\(Team.glyph(s.teamIndex)) \(s.title)", "\(s.rank.title) · \(src)", "\(status) · \(mins) 分钟",
-                "小弟 \(s.subs.count) 在岗 · 已交付 \(s.delivered) · 失败 \(s.failedSubs)",
-                "外包 \(s.contractors.count) 在岗 · 已完成 \(s.contractorsDone)"]
+        var lines = ["\(Team.glyph(s.teamIndex)) \(s.title)", "\(s.rank.title) · \(src)", "\(status) · \(mins) 分钟",
+                     "小弟 \(s.subs.count) 在岗 · 已交付 \(s.delivered) · 失败 \(s.failedSubs)"]
+        if s.capabilities.contains(.contractors) { lines.append("外包 \(s.contractors.count) 在岗 · 已完成 \(s.contractorsDone)") }
+        return lines
     }
 
     /// Shows the detail box for a session next to a layout point, or removes it at once (no fade: the old

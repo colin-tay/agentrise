@@ -64,6 +64,29 @@ enum CCConnectIndex {
     }
 }
 
+/// ~/.codex/session_index.jsonl: one `{id, thread_name, updated_at}` per line, appended on every rename.
+enum CodexSessionIndex {
+    static let file = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/session_index.jsonl")
+
+    /// Session id → thread name; a later line for the same id wins. Unreadable lines are skipped.
+    static func load(from url: URL = file) -> [String: String] {
+        guard let data = try? Data(contentsOf: url), let text = String(data: data, encoding: .utf8) else { return [:] }
+        var out: [String: String] = [:]
+        for line in text.split(whereSeparator: \.isNewline) {
+            guard let o = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+                  let id = o["id"] as? String, let name = o["thread_name"] as? String,
+                  !id.isEmpty, !name.isEmpty else { continue }
+            out[id] = name
+        }
+        return out
+    }
+}
+
+enum ProcessProbe {
+    /// False only when the process is known to be gone (no permission to signal it still counts as running).
+    static func isRunning(_ pid: Int32) -> Bool { !(kill(pid, 0) == -1 && errno == ESRCH) }
+}
+
 enum TranscriptModelReader {
     static func model(transcriptPath: String?, sessionId: String) -> String? {
         var path = transcriptPath
@@ -85,7 +108,12 @@ enum TranscriptModelReader {
 
 enum SessionResolver {
     static func context(sessionId: String, event: SlimEvent?, registry: [String: RegistryEntry],
-                        cc: [String: String], larkNumbers: inout [String: Int]) -> SessionContext {
+                        cc: [String: String], larkNumbers: inout [String: Int],
+                        codexIndex: [String: String] = [:]) -> SessionContext {
+        if event?.agent == .codex {
+            return codexContext(sessionId: sessionId, cwd: event?.cwd, bundleId: event?.bundleId,
+                                model: event?.model, index: codexIndex)
+        }
         let reg = registry[sessionId]
         let entry = event?.entrypoint ?? reg?.entrypoint
         let cwd = event?.cwd ?? reg?.cwd
@@ -111,6 +139,19 @@ enum SessionResolver {
             ctx.source = nil  // headless run (claude -p, SDK): not shown
             ctx.title = event?.sessionTitle ?? folder
         }
+        return ctx
+    }
+
+    /// Codex has no registry: the title comes from its session index, the source is whatever app ran
+    /// the hook, and every event carries the model. Never hidden in v1 (`codex exec` is not told apart).
+    static func codexContext(sessionId: String, cwd: String?, bundleId: String?, model: String?,
+                             index: [String: String]) -> SessionContext {
+        let folder = cwd.map { ($0 as NSString).lastPathComponent } ?? "会话"
+        var ctx = SessionContext()
+        ctx.agent = .codex
+        ctx.source = .terminal(bundleId: bundleId)
+        ctx.title = index[sessionId] ?? "\(folder) · 终端"
+        ctx.model = model
         return ctx
     }
 }

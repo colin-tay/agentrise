@@ -25,8 +25,14 @@ enum Adapters {
     }
 }
 
+extension Session {
+    var capabilities: AgentCapabilities { Adapters.adapter(for: agent).capabilities }
+}
+
 extension TowerStore {
     mutating func apply(_ e: SlimEvent, context: SessionContext) -> [TowerEffect] {
-        apply(Adapters.adapter(for: e.agent).translate(e), context: context)
+        let effects = apply(Adapters.adapter(for: e.agent).translate(e), context: context)
+        if let pid = e.agentPid { noteAgentPid(e.sessionId, pid) }
+        return effects
     }
 }

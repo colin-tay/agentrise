@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import TowerKit
 
 enum Rank: String, CaseIterable {
     case seniorDirector, seniorExpert, seniorEngineer, newGrad
@@ -173,6 +174,9 @@ struct Session: Equatable {
     var isHidden = false
     var modelKnown = false
     var lastSeenInRegistry: Date?
+    var agent: AgentKind = .claude
+    /// The agent's own process, for agents without a session registry to tell when it is gone.
+    var agentPid: Int32?
 
     var isLark: Bool { source == .lark }
 }

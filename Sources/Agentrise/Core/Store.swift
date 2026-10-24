@@ -5,6 +5,7 @@ struct SessionContext {
     var title: String?
     var source: SessionSource?   // nil = hidden (headless run)
     var model: String?
+    var agent: AgentKind = .claude
 }
 
 /// All of Agentrise's state rules. Pure: feed it events and the clock.
@@ -19,6 +20,9 @@ struct TowerStore {
     static let subsSettle: TimeInterval = 30
     /// Stop waiting for subs that never report back (a missed SubagentStop).
     static let subsGiveUp: TimeInterval = 2 * 3600
+    /// A working or waiting session of an agent without a registry (and whose process we cannot watch)
+    /// that sends nothing for this long has most likely died without a SessionEnd: stand it down.
+    static let quietTimeout: TimeInterval = 60 * 60
 
     var counts: TowerCounts {
         var c = TowerCounts()
@@ -45,7 +49,7 @@ struct TowerStore {
         let s = Session(id: id, title: context.title ?? "会话", source: context.source ?? .terminal(bundleId: nil),
                         rank: Rank.from(model: context.model), status: status, activity: activity,
                         teamIndex: nextTeam, statusSince: now, lastActivityAt: now,
-                        isHidden: context.source == nil, modelKnown: context.model != nil)
+                        isHidden: context.source == nil, modelKnown: context.model != nil, agent: context.agent)
         nextTeam += 1
         sessions[id] = s
         return s
@@ -57,6 +61,17 @@ struct TowerStore {
         if let src = context.source { s.source = src; s.isHidden = false } else { s.isHidden = true }
         if let m = context.model { s.rank = Rank.from(model: m); s.modelKnown = true }
         sessions[id] = s
+    }
+
+    mutating func noteAgentPid(_ id: String, _ pid: Int32) { sessions[id]?.agentPid = pid }
+
+    /// Sessions of agents without a registry leave the building once their own process has exited.
+    mutating func removeExited(isRunning: (Int32) -> Bool) -> [TowerEffect] {
+        var effects: [TowerEffect] = []
+        for (id, s) in sessions where !s.capabilities.contains(.registry) {
+            if let pid = s.agentPid, !isRunning(pid) { effects += remove(id) }
+        }
+        return effects
     }
 
     mutating func remove(_ id: String) -> [TowerEffect] {
@@ -216,6 +231,14 @@ struct TowerStore {
                     set(&s, .done, .resting, now)
                     effects.append(.statusChanged(sessionId: id, from: .working, to: .done))
                 }
+            }
+            if !s.capabilities.contains(.registry), s.agentPid == nil,
+               s.status == .working || s.status == .waiting, idle > Self.quietTimeout {
+                let from = s.status
+                s.waitingSummary = nil
+                s.subs.removeAll(); s.contractors.removeAll()
+                set(&s, .standby, .standby, now)
+                effects.append(.statusChanged(sessionId: id, from: from, to: .standby))
             }
             if s.status != .waiting, s.status != .sleeping, s.status != .working, idle > Self.sleepAfter {
                 let from = s.status

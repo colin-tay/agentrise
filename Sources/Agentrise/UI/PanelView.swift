@@ -93,7 +93,7 @@ struct PanelView: View {
                 Text(s.title).font(.system(size: 11, weight: .semibold)).foregroundColor(ink).lineLimit(1)
                 if s.isLark || s.larkSent { lark }
                 Spacer(minLength: 4)
-                Text(s.status == .standby ? "待命" : s.status == .sleeping ? "睡觉" : "小弟 \(s.subs.count) · 外包 \(s.contractors.count)")
+                Text(Self.countsText(for: s))
                     .font(.system(size: 9.5)).foregroundColor(sub)
             }
             .padding(.horizontal, 5).padding(.vertical, 3)
@@ -101,6 +101,14 @@ struct PanelView: View {
         }
         .buttonStyle(.plain)
         .onHover { onHover($0 ? s.id : nil) }
+    }
+
+    /// Right-hand text of a row; agents that cannot report contractors show no contractor count.
+    static func countsText(for s: Session) -> String {
+        if s.status == .standby { return "待命" }
+        if s.status == .sleeping { return "睡觉" }
+        let subs = "小弟 \(s.subs.count)"
+        return s.capabilities.contains(.contractors) ? "\(subs) · 外包 \(s.contractors.count)" : subs
     }
 
     private var lark: some View {

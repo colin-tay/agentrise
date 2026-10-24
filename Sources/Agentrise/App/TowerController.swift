@@ -20,6 +20,7 @@ final class TowerController {
     private var registry: [String: RegistryEntry] = [:]
     private var cc: [String: String] = [:]
     private var larkNumbers: [String: Int] = [:]
+    private var codexIndex: [String: String] = [:]
     private var bark = BarkPolicy()
     private let batcher = BarkBatcher()
     private let chime = DeskChime()
@@ -32,6 +33,7 @@ final class TowerController {
     func start() {
         registry = SessionRegistry.load()
         cc = CCConnectIndex.load()
+        codexIndex = CodexSessionIndex.load()
         let now = Date()
         for (id, r) in registry {
             var ctx = SessionResolver.context(sessionId: id, event: nil, registry: registry, cc: cc, larkNumbers: &larkNumbers)
@@ -56,11 +58,15 @@ final class TowerController {
     func reloadBarkConfig() { barkConfig = BarkConfig.load() }
 
     private func handle(_ e: SlimEvent) {
-        var ctx = SessionResolver.context(sessionId: e.sessionId, event: e, registry: registry, cc: cc, larkNumbers: &larkNumbers)
+        let isClaude = (e.agent ?? .claude) == .claude
+        var ctx = SessionResolver.context(sessionId: e.sessionId, event: e, registry: registry, cc: cc, larkNumbers: &larkNumbers,
+                                          codexIndex: codexIndex)
         // An event without its own title must not rename a session we already know.
-        if store.sessions[e.sessionId] != nil, e.sessionTitle == nil, registry[e.sessionId]?.name == nil, cc[e.sessionId] == nil { ctx.title = nil }
+        if isClaude, store.sessions[e.sessionId] != nil, e.sessionTitle == nil, registry[e.sessionId]?.name == nil, cc[e.sessionId] == nil { ctx.title = nil }
+        if !isClaude, store.sessions[e.sessionId] != nil, codexIndex[e.sessionId] == nil { ctx.title = nil }
         let effects = store.apply(e, context: ctx)
-        if let s = store.sessions[e.sessionId], !s.modelKnown, e.event != .sessionEnd, !modelLookups.contains(e.sessionId) {
+        // Only Claude Code keeps its model in a transcript we know how to read; Codex sends it on every event.
+        if isClaude, let s = store.sessions[e.sessionId], !s.modelKnown, e.event != .sessionEnd, !modelLookups.contains(e.sessionId) {
             modelLookups.insert(e.sessionId)
             let path = e.transcriptPath, sid = e.sessionId
             DispatchQueue.global(qos: .utility).async { [weak self] in
@@ -96,6 +102,17 @@ final class TowerController {
         let now = Date()
         let newRegistry = SessionRegistry.load()
         let newCC = CCConnectIndex.load()
+        let newCodex = CodexSessionIndex.load()
+        let codexRenamed = newCodex != codexIndex
+        codexIndex = newCodex
+        // Agents without a registry: gone when their process is, renamed only by their own index.
+        let outside = store.removeExited(isRunning: ProcessProbe.isRunning)
+        for (id, s) in store.sessions where !s.capabilities.contains(.registry) {
+            if codexRenamed, let t = codexIndex[id], t != s.title {
+                var c = SessionContext(); c.agent = s.agent; c.title = t; c.source = s.isHidden ? nil : s.source
+                store.updateContext(id, context: c)
+            }
+        }
         let changed = newRegistry.keys.sorted() != registry.keys.sorted() || newCC != cc
             || newRegistry.contains { registry[$0.key]?.name != $0.value.name || registry[$0.key]?.status != $0.value.status }
         registry = newRegistry
@@ -110,8 +127,12 @@ final class TowerController {
             }
             effects += store.setStatusFromRegistry(id, busy: r.status == "busy", now: now)
         }
-        guard changed || !effects.isEmpty else { return }
-        for (id, s) in store.sessions {
+        guard changed || !effects.isEmpty else {
+            if !outside.isEmpty || codexRenamed { process(outside); publish() }
+            return
+        }
+        effects = outside + effects
+        for (id, s) in store.sessions where s.capabilities.contains(.registry) {
             var ctx = SessionResolver.context(sessionId: id, event: nil, registry: registry, cc: cc, larkNumbers: &larkNumbers)
             if case .terminal = s.source, ctx.source == nil { ctx.source = s.source }   // keep known terminals
             if s.isHidden, ctx.source == nil { continue }
