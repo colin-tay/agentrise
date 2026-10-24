@@ -8,7 +8,7 @@ wait at the CEO's office when they need you, and take the elevator between floor
 
 [中文说明](README.zh-CN.md)
 
-> Status: early. Claude Code is supported today; Codex, WorkBuddy and DeepSeek Harness
+> Status: early. Claude Code and Codex are supported; WorkBuddy and DeepSeek Harness
 > adapters are planned. The UI is currently in Chinese.
 
 ## What you see
@@ -39,9 +39,27 @@ scripts/build-app.sh          # builds build/Agentrise.app
 open build/Agentrise.app
 ```
 
-Then open **Settings → Claude Code Hooks → Install**. Agentrise shows the exact
-`~/.claude/settings.json` it will write, backs up the old file, and only adds its own
-async hooks. Uninstall removes exactly those entries.
+Then open **Settings → Agent 接入 (Agents) → Claude Code → 安装 Hooks (Install)**. Agentrise
+shows the exact `~/.claude/settings.json` it will write, backs up the old file, and only adds
+its own async hooks. Uninstall removes exactly those entries.
+
+### Codex
+
+The Codex row appears once `~/.codex/` exists (tested with Codex CLI 0.164).
+
+1. **Settings → Agent 接入 → Codex → 安装 Hook (Install)**. Agentrise shows the
+   `~/.codex/hooks.json` it will write, backs up the old file, and only adds its own entries.
+   It never edits `config.toml` itself.
+2. Codex runs a new hook only after you trust it. Agentrise offers to do that for you
+   (**替我确认**, "confirm for me"), through Codex's own `app-server`, the same way Codex's
+   `/hooks` screen does. If you decline, or it fails, type `/hooks` in Codex and trust the
+   Agentrise entries there.
+3. The row shows **✓ 已生效** (working) once the first Codex event arrives.
+
+Codex sends less than Claude Code, so some things never show up for Codex robots:
+contractors (background commands), browsing the web, and Feishu messages. `codex exec`
+runs are not shown. Codex does not report quitting its TUI, so a finished Codex robot
+stays in the building (eventually asleep) instead of leaving.
 
 `swift test` runs the test suite. `swift run agentrise-sim story` sends a scripted
 set of fake sessions to a running app. After editing `assets/*.svg`, run
