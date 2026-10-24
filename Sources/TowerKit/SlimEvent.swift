@@ -84,6 +84,7 @@ public enum EventSlimmer {
               let name = obj["hook_event_name"] as? String,
               let event = HookEventName(rawValue: name),
               let sid = obj["session_id"] as? String, !sid.isEmpty else { return nil }
+        if agent == .codex { return CodexSlimmer.slim(obj: obj, env: env, now: now) }
         var e = SlimEvent(event: event, sessionId: sid, receivedAt: now)
         e.agentId = obj["agent_id"] as? String
         e.agentType = obj["agent_type"] as? String
@@ -92,7 +93,6 @@ public enum EventSlimmer {
         e.entrypoint = env["CLAUDE_CODE_ENTRYPOINT"]
         e.bundleId = env["__CFBundleIdentifier"]
         e.termProgram = env["TERM_PROGRAM"]
-        if agent == .codex { e.agent = .codex }
 
         switch event {
         case .preToolUse, .postToolUse, .postToolUseFailure:

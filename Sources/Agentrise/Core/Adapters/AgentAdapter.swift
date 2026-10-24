@@ -17,10 +17,10 @@ protocol AgentAdapter {
 
 enum Adapters {
     /// nil is Claude Code, and what hook binaries from before `agent` existed send.
-    /// Codex shares Claude's adapter until it gets its own.
     static func adapter(for agent: AgentKind?) -> any AgentAdapter.Type {
         switch agent {
-        case nil, .claude?, .codex?: return ClaudeAdapter.self
+        case nil, .claude?: return ClaudeAdapter.self
+        case .codex?: return CodexAdapter.self
         }
     }
 }
