@@ -1,16 +1,16 @@
 {
-  "session_id": "019c1e2a-7b3d-7c10-9f55-0a1b2c3d4e5f",
-  "transcript_path": "/Users/tester/.codex/sessions/2026/10/24/rollout-2026-10-24T09-00-00-019c1e2a-7b3d-7c10-9f55-0a1b2c3d4e5f.jsonl",
+  "session_id": "01a16ced-15c9-7840-acb8-a48120355792",
+  "turn_id": "01a16ced-344b-7110-ae66-66dad88afd8e",
+  "agent_id": "01a16ced-320b-7f32-9cac-24c9ba902958",
+  "agent_type": "default",
+  "transcript_path": "/Users/tester/.codex/sessions/2026/10/24/rollout-2026-10-24T16-00-46-01a16ced-320b-7f32-9cac-24c9ba902958.jsonl",
   "cwd": "/Users/tester/work/demo",
-  "model": "gpt-5.5",
   "hook_event_name": "PreToolUse",
-  "turn_id": "019c1e2b-0001-7000-8000-000000000001",
-  "permission_mode": "default",
-  "agent_id": "agent-7f2c",
-  "agent_type": "explorer",
+  "model": "gpt-6-luna",
+  "permission_mode": "bypassPermissions",
   "tool_name": "Bash",
-  "tool_use_id": "call_sub1",
   "tool_input": {
-    "command": "ls -la"
-  }
+    "command": "ls"
+  },
+  "tool_use_id": "exec-405148c1-eac0-4195-9431-7f7435aae378"
 }

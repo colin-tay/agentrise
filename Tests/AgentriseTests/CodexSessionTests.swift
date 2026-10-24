@@ -19,7 +19,7 @@ import TowerKit
     private func context(_ e: SlimEvent, index: [String: String]) -> SessionContext {
         var lark: [String: Int] = [:]
         return SessionResolver.context(sessionId: e.sessionId, event: e, registry: [:], cc: [:],
-                                       larkNumbers: &lark, codexIndex: index)
+                                       larkNumbers: &lark, codexIndex: index, arguments: { _ in nil })
     }
 
     @Test func codexContextUsesIndexTitleAndTerminal() {
@@ -35,6 +35,32 @@ import TowerKit
         // Codex has no registry or entrypoint, but must never be hidden as a headless run.
         var other = e; other.entrypoint = nil; other.bundleId = nil
         #expect(context(other, index: [:]).source == .terminal(bundleId: nil))
+    }
+
+    @Test func codexExecRunsAreHidden() {
+        let e = codexEvent(.userPromptSubmit) { $0.agentPid = 77 }
+        var lark: [String: Int] = [:]
+        func ctx(_ argv: [String]?) -> SessionContext {
+            SessionResolver.context(sessionId: e.sessionId, event: e, registry: [:], cc: [:], larkNumbers: &lark,
+                                    arguments: { pid in pid == 77 ? argv : nil })
+        }
+        #expect(ctx(["codex", "exec", "-s", "workspace-write", "--json", "echo hi"]).source == nil)
+        #expect(ctx(["/opt/homebrew/bin/codex", "-c", "model=\"o3\"", "e", "hi"]).source == nil)
+        #expect(ctx(["codex"]).source == .terminal(bundleId: "com.googlecode.iterm2"))
+        #expect(ctx(["codex", "--no-alt-screen", "fix the exec bug"]).source == .terminal(bundleId: "com.googlecode.iterm2"))
+        #expect(ctx(["codex", "-m", "exec"]).source == .terminal(bundleId: "com.googlecode.iterm2"))
+        // The process is gone or unreadable: shown.
+        #expect(ctx(nil).source == .terminal(bundleId: "com.googlecode.iterm2"))
+        #expect(ctx(nil).agent == .codex)
+        var noPid = e; noPid.agentPid = nil
+        #expect(SessionResolver.context(sessionId: "cx", event: noPid, registry: [:], cc: [:], larkNumbers: &lark,
+                                        arguments: { _ in ["codex", "exec"] }).source == .terminal(bundleId: "com.googlecode.iterm2"))
+    }
+
+    @Test func aSubsModelNeverRanksTheSession() {
+        let sub = codexEvent(.preToolUse) { $0.agentId = "a1"; $0.model = "gpt-5-mini" }
+        #expect(context(sub, index: [:]).model == nil)
+        #expect(context(codexEvent(.preToolUse), index: [:]).model == "gpt-5-codex")
     }
 
     @Test func claudeContextStaysClaude() {

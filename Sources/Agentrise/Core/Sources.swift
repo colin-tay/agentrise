@@ -109,10 +109,13 @@ enum TranscriptModelReader {
 enum SessionResolver {
     static func context(sessionId: String, event: SlimEvent?, registry: [String: RegistryEntry],
                         cc: [String: String], larkNumbers: inout [String: Int],
-                        codexIndex: [String: String] = [:]) -> SessionContext {
+                        codexIndex: [String: String] = [:],
+                        arguments: (Int32) -> [String]? = ProcessAncestry.arguments(of:)) -> SessionContext {
         if event?.agent == .codex {
+            // A subagent may run another model; only the main agent's events rank the robot.
+            let headless = event?.agentPid.flatMap(arguments).map(CodexCommandLine.isHeadless) ?? false
             return codexContext(sessionId: sessionId, cwd: event?.cwd, bundleId: event?.bundleId,
-                                model: event?.model, index: codexIndex)
+                                model: event?.agentId == nil ? event?.model : nil, index: codexIndex, headless: headless)
         }
         let reg = registry[sessionId]
         let entry = event?.entrypoint ?? reg?.entrypoint
@@ -143,16 +146,36 @@ enum SessionResolver {
     }
 
     /// Codex has no registry: the title comes from its session index, the source is whatever app ran
-    /// the hook, and every event carries the model. Never hidden in v1 (`codex exec` is not told apart).
+    /// the hook, and every event carries the model. A `codex exec` run (`headless`) is not shown.
     static func codexContext(sessionId: String, cwd: String?, bundleId: String?, model: String?,
-                             index: [String: String]) -> SessionContext {
+                             index: [String: String], headless: Bool = false) -> SessionContext {
         let folder = cwd.map { ($0 as NSString).lastPathComponent } ?? "会话"
         var ctx = SessionContext()
         ctx.agent = .codex
-        ctx.source = .terminal(bundleId: bundleId)
+        ctx.source = headless ? nil : .terminal(bundleId: bundleId)
         ctx.title = index[sessionId] ?? "\(folder) · 终端"
         ctx.model = model
         return ctx
+    }
+}
+
+/// Codex's hooks carry nothing that tells `codex exec` apart (same `source`, no env var), so the
+/// command line of the hook's `codex` process (`agentPid`) is read instead.
+enum CodexCommandLine {
+    /// Global options that take a value, so `codex -c k=v exec …` still finds `exec`.
+    private static let valued: Set<String> = ["-c", "--config", "-m", "--model", "-p", "--profile", "-s", "--sandbox",
+                                              "-C", "--cd", "-a", "--ask-for-approval", "-i", "--image",
+                                              "--enable", "--disable", "--add-dir", "--local-provider", "--remote"]
+
+    /// True for `codex exec …` (alias `e`): the first word after the global options is the subcommand.
+    static func isHeadless(_ argv: [String]) -> Bool {
+        var it = argv.dropFirst().makeIterator()
+        while let a = it.next() {
+            if valued.contains(a) { _ = it.next(); continue }
+            if a.hasPrefix("-") { continue }
+            return a == "exec" || a == "e"
+        }
+        return false
     }
 }
 

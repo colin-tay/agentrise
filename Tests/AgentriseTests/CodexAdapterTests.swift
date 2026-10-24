@@ -3,9 +3,14 @@ import Testing
 import TowerKit
 @testable import Agentrise
 
+/// The fixtures are real Codex 0.164.0 payloads (see Fixtures/codex/RECORDED.txt).
 @Suite struct CodexAdapterTests {
     private static let t0 = Date(timeIntervalSince1970: 1_800_000_000)
     private let t0 = CodexAdapterTests.t0
+    private static let sid = "01a16ced-15c9-7840-acb8-a48120355792"
+    private static let sub = "01a16ced-320b-7f32-9cac-24c9ba902958"
+    private let sid = CodexAdapterTests.sid
+    private let sub = CodexAdapterTests.sub
 
     private static func raw(_ file: String) throws -> Data {
         let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
@@ -28,24 +33,31 @@ import TowerKit
         ("pre-tool-apply-patch", .toolStarted(activity: .coding, background: nil)),
         ("pre-tool-update-plan", .toolStarted(activity: .planning, background: nil)),
         ("pre-tool-spawn-agent", .toolStarted(activity: .delegating, background: nil)),
-        ("pre-tool-request-user-input", .askedUser(question: "用哪个数据库？")),
+        ("pre-tool-wait-agent", .toolStarted(activity: .delegating, background: nil)),
+        ("pre-tool-request-user-input", .askedUser(question: "Which database should I use?")),
+        ("pre-tool-request-user-input-async", .askedUser(question: "Database choice")),
         ("post-tool-bash", .toolFinished),
         ("post-tool-request-user-input", .answeredUser),
-        ("permission-request", .askedUser(question: "运行 rm -rf build")),
-        ("stop", .turnEnded(lastMessage: "改好了，测试都过了。要不要把测试也加上？", backgroundSnapshot: nil)),
+        ("post-tool-request-user-input-async", .toolFinished),
+        ("permission-request", .askedUser(question: "touch b.txt")),
+        ("stop", .turnEnded(lastMessage: "1", backgroundSnapshot: nil)),
+        ("stop-without-message", .needsAttention),
         ("interrupt", .interrupted),
-        ("subagent-start", .subStarted(id: "agent-7f2c", type: "explorer")),
-        ("subagent-stop", .subFinished(id: "agent-7f2c", lastMessage: "目录结构已梳理完。")),
-        ("sub-pre-tool", .subActivity(id: "agent-7f2c", type: "explorer", activity: .runningCommand)),
+        ("subagent-start", .subStarted(id: CodexAdapterTests.sub, type: "default")),
+        ("subagent-stop", .subFinished(id: CodexAdapterTests.sub, lastMessage: "`ls` output:\n\n```text\na.txt\n```")),
+        ("sub-pre-tool", .subActivity(id: CodexAdapterTests.sub, type: "default", activity: .runningCommand)),
         ("pre-compact", .compacting),
         ("post-compact", .keepAlive),
     ])
     func codexEventTranslatesPerSpec(file: String, expected: TowerEvent.Kind) throws {
         let t = try translated(file)
         #expect(t.kind == expected)
-        #expect(t.sessionId == "019c1e2a-7b3d-7c10-9f55-0a1b2c3d4e5f")
+        #expect(t.sessionId == sid)
         #expect(t.at == t0)
         #expect(t.cwd == "/Users/tester/work/demo")
+        // A sub's events carry the sub's own rollout file, never the session's.
+        let isSub = (try Self.slim(file)).agentId != nil
+        #expect((t.transcriptPath == nil) == isSub, "\(file)")
     }
 
     private func ev(_ name: HookEventName, _ f: (inout SlimEvent) -> Void = { _ in }) -> SlimEvent {
@@ -61,7 +73,18 @@ import TowerKit
         #expect(kind(ev(.preToolUse) { $0.toolName = "mcp__x__y" }) == .toolStarted(activity: .other, background: nil))
         #expect(kind(ev(.preToolUse)) == .toolStarted(activity: .other, background: nil))
         #expect(kind(ev(.preToolUse) { $0.toolName = "Agent" }) == .toolStarted(activity: .delegating, background: nil))
+        #expect(kind(ev(.preToolUse) { $0.toolName = "collaborationlist_agents" }) == .toolStarted(activity: .other, background: nil))
         #expect(kind(ev(.postToolUse) { $0.toolName = "mcp__x__y" }) == .toolFinished)
+    }
+
+    @Test func namespacedCollaborationToolsDelegate() {
+        // Codex 0.164 glues the namespace on (`collaborationspawn_agent`); separators are tolerated too.
+        for name in ["collaborationspawn_agent", "spawn_agent", "collaboration.spawn_agent", "collaboration__spawn_agent",
+                     "collaborationwait_agent", "collaborationsend_message", "collaborationfollowup_task"] {
+            #expect(CodexAdapter.activity(toolName: name) == .delegating, "\(name)")
+        }
+        #expect(CodexAdapter.baseName("collaboration") == "collaboration")
+        #expect(CodexAdapter.activity(toolName: "collaborationinterrupt_agent") == .other)
     }
 
     @Test func codexShellNeverHiresAContractorOrSendsFeishu() {
@@ -77,6 +100,13 @@ import TowerKit
 
     @Test func requestUserInputWithoutAQuestionStillAsks() {
         #expect(kind(ev(.preToolUse) { $0.toolName = "request_user_input" }) == .askedUser(question: nil))
+        #expect(kind(ev(.preToolUse) { $0.toolName = "request_user_input_async" }) == .askedUser(question: nil))
+    }
+
+    @Test func aStopWithoutAFinalMessageNeedsAttention() {
+        #expect(kind(ev(.stop)) == .needsAttention)
+        #expect(kind(ev(.stop) { $0.lastAssistantMessage = " \n" }) == .needsAttention)
+        #expect(kind(ev(.stop) { $0.lastAssistantMessage = "好了" }) == .turnEnded(lastMessage: "好了", backgroundSnapshot: nil))
     }
 
     @Test func approvalWithoutADescriptionAsksWithoutAQuestion() {
@@ -117,31 +147,36 @@ import TowerKit
         let line = String(decoding: EventSlimmer.encodeLine(e), as: UTF8.self)
         #expect(!line.contains("SECRET-PROMPT"))
         #expect(!line.contains("帮我跑一下测试"))
-        #expect(e.model == "gpt-5.5")
+        #expect(e.model == "gpt-6-luna")
         #expect(e.agent == .codex)
         #expect(e.event == .userPromptSubmit)
     }
 
     @Test func codexSlimTakesTheCommonFieldsFromEveryEvent() throws {
-        for file in ["session-start", "pre-tool-bash", "stop", "interrupt", "subagent-start", "post-compact", "session-end"] {
+        for file in ["session-start", "pre-tool-bash", "stop", "interrupt", "subagent-start", "post-compact"] {
             let e = try Self.slim(file)
             #expect(e.agent == .codex, "\(file)")
-            #expect(e.model == "gpt-5.5", "\(file)")
+            #expect(e.model == "gpt-6-luna", "\(file)")
             #expect(e.cwd == "/Users/tester/work/demo", "\(file)")
-            #expect(e.sessionId == "019c1e2a-7b3d-7c10-9f55-0a1b2c3d4e5f", "\(file)")
+            #expect(e.sessionId == sid, "\(file)")
             #expect(e.transcriptPath?.hasSuffix(".jsonl") == true, "\(file)")
         }
+        // SessionEnd carries no model.
+        let end = try Self.slim("session-end")
+        #expect(end.model == nil)
+        #expect(end.cwd == "/Users/tester/work/demo")
         #expect(try Self.slim("session-start").source == "startup")
         let sub = try Self.slim("sub-pre-tool")
-        #expect(sub.agentId == "agent-7f2c")
-        #expect(sub.agentType == "explorer")
+        #expect(sub.agentId == self.sub)
+        #expect(sub.agentType == "default")
         #expect(sub.toolName == "Bash")
-        #expect(sub.toolUseId == "call_sub1")
+        #expect(sub.toolUseId == "exec-405148c1-eac0-4195-9431-7f7435aae378")
+        #expect(sub.transcriptPath?.contains(self.sub) == true)
     }
 
     @Test func codexSlimTakesTheCommandOnlyForShell() throws {
-        #expect(try Self.slim("pre-tool-bash").command == "npm test")
-        #expect(try Self.slim("post-tool-bash").command == "npm test")
+        #expect(try Self.slim("pre-tool-bash").command == "ls")
+        #expect(try Self.slim("post-tool-bash").command == "ls")
         // A patch body is file content: never kept.
         let patch = try Self.slim("pre-tool-apply-patch")
         #expect(patch.toolName == "apply_patch")
@@ -150,12 +185,27 @@ import TowerKit
     }
 
     @Test func codexSlimKeepsTheApprovalDescriptionAndTheQuestion() throws {
+        // Codex 0.164 sends the shell approval's command, no description.
         let p = try Self.slim("permission-request")
         #expect(p.toolName == "Bash")
-        #expect(p.toolDescription == "运行 rm -rf build")
+        #expect(p.toolDescription == "touch b.txt")
         let q = try Self.slim("pre-tool-request-user-input")
-        #expect(q.question == "用哪个数据库？")
+        #expect(q.question == "Which database should I use?")
         #expect(q.toolName == "request_user_input")
+        let a = try Self.slim("pre-tool-request-user-input-async")
+        #expect(a.question == "Database choice")
+        #expect(a.toolName == "request_user_input_async")
+    }
+
+    @Test func anApprovalPrefersTheDescriptionAndNeverKeepsAPatch() throws {
+        func slim(_ json: String) throws -> SlimEvent {
+            try #require(EventSlimmer.slim(rawJSON: Data(json.utf8), env: [:], agent: .codex, now: t0))
+        }
+        let described = try slim(#"{"hook_event_name":"PermissionRequest","session_id":"s","tool_name":"Bash","tool_input":{"command":"rm -rf build","description":"清理构建目录"}}"#)
+        #expect(described.toolDescription == "清理构建目录")
+        let patch = try slim(#"{"hook_event_name":"PermissionRequest","session_id":"s","tool_name":"apply_patch","tool_input":{"command":"*** Begin Patch\n+secret\n*** End Patch"}}"#)
+        #expect(patch.toolDescription == nil)
+        #expect(!String(decoding: EventSlimmer.encodeLine(patch), as: UTF8.self).contains("secret"))
     }
 
     @Test func codexSlimClipsLongFields() throws {
@@ -204,16 +254,46 @@ import TowerKit
         var store = TowerStore()
         _ = try applyFile("user-prompt-submit", to: &store)
         _ = try applyFile("stop", to: &store, at: 1)
-        let s = try #require(store.sessions["019c1e2a-7b3d-7c10-9f55-0a1b2c3d4e5f"])
+        #expect(store.sessions[sid]?.status == .done)
+        _ = try applyFile("user-prompt-submit", to: &store, at: 2)
+        var asks = try Self.slim("stop")
+        asks.receivedAt = t0 + 3
+        asks.lastAssistantMessage = "改好了，测试都过了。要不要把测试也加上？"
+        _ = store.apply(asks, context: SessionContext(title: "Codex", source: .terminal(bundleId: nil), model: asks.model))
+        let s = try #require(store.sessions[sid])
         #expect(s.status == .waiting)
         #expect(s.waitingSummary?.contains("测试") == true)
+    }
+
+    @Test func anAsyncQuestionKeepsTheRobotAtTheDoorAfterTheTurnEnds() throws {
+        var store = TowerStore()
+        _ = try applyFile("user-prompt-submit", to: &store)
+        _ = try applyFile("pre-tool-request-user-input-async", to: &store, at: 1)
+        #expect(store.sessions[sid]?.status == .waiting)
+        #expect(store.sessions[sid]?.waitingSummary == "Database choice")
+        _ = try applyFile("post-tool-request-user-input-async", to: &store, at: 2)
+        let effects = try applyFile("stop-without-message", to: &store, at: 3)
+        #expect(effects.isEmpty)
+        #expect(store.sessions[sid]?.status == .waiting)
+        #expect(store.sessions[sid]?.waitingSummary == "Database choice")
+        _ = try applyFile("user-prompt-submit", to: &store, at: 4)
+        #expect(store.sessions[sid]?.status == .working)
+    }
+
+    @Test func aBlockingQuestionWaitsUntilAnswered() throws {
+        var store = TowerStore()
+        _ = try applyFile("user-prompt-submit", to: &store)
+        _ = try applyFile("pre-tool-request-user-input", to: &store, at: 1)
+        #expect(store.sessions[sid]?.status == .waiting)
+        _ = try applyFile("post-tool-request-user-input", to: &store, at: 2)
+        #expect(store.sessions[sid]?.status == .working)
     }
 
     @Test func codexInterruptGoesToStandbyWithoutChime() throws {
         var store = TowerStore()
         _ = try applyFile("user-prompt-submit", to: &store)
         _ = try applyFile("pre-tool-bash", to: &store, at: 1)
-        let id = "019c1e2a-7b3d-7c10-9f55-0a1b2c3d4e5f"
+        let id = sid
         #expect(store.sessions[id]?.status == .working)
         let effects = try applyFile("interrupt", to: &store, at: 2)
         #expect(store.sessions[id]?.status == .standby)
@@ -227,20 +307,27 @@ import TowerKit
         var store = TowerStore()
         _ = try applyFile("user-prompt-submit", to: &store)
         _ = try applyFile("permission-request", to: &store, at: 1)
-        let s = try #require(store.sessions["019c1e2a-7b3d-7c10-9f55-0a1b2c3d4e5f"])
+        let s = try #require(store.sessions[sid])
         #expect(s.status == .waiting)
-        #expect(s.waitingSummary == "运行 rm -rf build")
+        #expect(s.waitingSummary == "touch b.txt")
     }
 
     @Test func codexSubagentsComeAndGoThroughTheStore() throws {
         var store = TowerStore()
-        let id = "019c1e2a-7b3d-7c10-9f55-0a1b2c3d4e5f"
+        let id = sid
+        // The order Codex really sent them in.
         _ = try applyFile("user-prompt-submit", to: &store)
-        _ = try applyFile("subagent-start", to: &store, at: 1)
-        #expect(store.sessions[id]?.subs["agent-7f2c"] != nil)
-        _ = try applyFile("sub-pre-tool", to: &store, at: 2)
-        #expect(store.sessions[id]?.subs["agent-7f2c"]?.activity == .runningCommand)
-        _ = try applyFile("subagent-stop", to: &store, at: 3)
-        #expect(store.sessions[id]?.subs["agent-7f2c"] == nil)
+        _ = try applyFile("pre-tool-spawn-agent", to: &store, at: 1)
+        _ = try applyFile("pre-tool-wait-agent", to: &store, at: 2)
+        #expect(store.sessions[id]?.activity == .delegating)
+        _ = try applyFile("subagent-start", to: &store, at: 3)
+        #expect(store.sessions[id]?.subs[sub] != nil)
+        _ = try applyFile("sub-pre-tool", to: &store, at: 4)
+        #expect(store.sessions[id]?.subs[sub]?.activity == .runningCommand)
+        _ = try applyFile("subagent-stop", to: &store, at: 5)
+        #expect(store.sessions[id]?.subs[sub] == nil)
+        #expect(store.sessions[id]?.delivered == 1)
+        // The sub's rollout never replaces the session's.
+        #expect(store.sessions[id]?.transcriptPath?.contains(sub) == false)
     }
 }

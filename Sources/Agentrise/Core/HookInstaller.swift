@@ -23,11 +23,16 @@ struct HookFile {
     let command: @Sendable (String) -> String
     /// Backups are named `<file name>.<backupTag>-<yyyyMMdd-HHmmss>`.
     let backupTag: String
+    var timeout = 5
+    /// Events whose entry is not marked async (the agent would run it synchronously anyway).
+    var syncEvents: Set<String> = []
 
     private var name: String { url.lastPathComponent }
 
-    func entry(hookPath: String) -> [String: Any] {
-        ["hooks": [["type": "command", "command": command(hookPath), "async": true, "timeout": 5]]]
+    func entry(hookPath: String, event: String? = nil) -> [String: Any] {
+        var h: [String: Any] = ["type": "command", "command": command(hookPath), "timeout": timeout]
+        if !(event.map(syncEvents.contains) ?? false) { h["async"] = true }
+        return ["hooks": [h]]
     }
 
     func read() throws -> (obj: [String: Any], raw: Data?) {
@@ -43,7 +48,7 @@ struct HookFile {
         for ev in events {
             var groups: [Any]
             if let g = hooks[ev] { guard let gg = g as? [Any] else { throw InstallerError.unexpectedHooksShape(name) }; groups = gg } else { groups = [] }
-            groups.append(entry(hookPath: hookPath))
+            groups.append(entry(hookPath: hookPath, event: ev))
             hooks[ev] = groups
         }
         s["hooks"] = hooks
@@ -125,8 +130,11 @@ enum HookInstaller {
 
     static let claude = HookFile(url: settingsURL, events: claudeEvents.map(\.rawValue),
                                  command: { "\"\($0)\"" }, backupTag: "agentrise-backup")
+    /// Codex 0.164 clamps SessionEnd and Interrupt hooks to 3 s and runs an async SessionEnd hook synchronously,
+    /// warning about each on every session start; entries that ask for neither keep its status line quiet.
     static let codex = HookFile(url: codexHome().appendingPathComponent("hooks.json"), events: codexEvents.map(\.rawValue),
-                                command: { "\"\($0)\" --agent codex" }, backupTag: "agentrise-backup")
+                                command: { "\"\($0)\" --agent codex" }, backupTag: "agentrise-backup",
+                                timeout: 3, syncEvents: [HookEventName.sessionEnd.rawValue])
 
     static func entry(hookPath: String) -> [String: Any] { claude.entry(hookPath: hookPath) }
 

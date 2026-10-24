@@ -64,4 +64,32 @@ import TowerKit
         #expect(ProcessAncestry.ancestor(named: me, from: getpid()) == getpid())
         #expect(ProcessAncestry.ancestor(named: "no-such-process", from: getpid()) == nil)
     }
+
+    @Test func argumentsAreReadFromTheKernel() throws {
+        let args = try #require(ProcessAncestry.arguments(of: getpid()))
+        #expect(args == CommandLine.arguments)
+        #expect(ProcessAncestry.arguments(of: 999_999) == nil)
+    }
+
+    @Test func codexSharedDaemonIsNotTheSessionsProcess() throws {
+        // A stand-in "codex" process: a copy of sh named codex, once plain and once as the TUI's shared daemon.
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("codex-pid-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let bin = dir.appendingPathComponent("codex")
+        try FileManager.default.copyItem(atPath: "/bin/sh", toPath: bin.path)
+        func run(_ args: [String]) throws -> Process {
+            let p = Process(); p.executableURL = bin; p.arguments = args
+            try p.run(); return p
+        }
+        // `; :` keeps sh from exec-ing sleep in its place.
+        let plain = try run(["-c", "sleep 30; :"])
+        defer { plain.terminate() }
+        let daemon = try run(["-c", "sleep 30; :", "codex", "app-server", "--listen", "unix://", "--managed-daemon"])
+        defer { daemon.terminate() }
+        usleep(200_000)
+        #expect(ProcessAncestry.agentPid(for: .codex, from: plain.processIdentifier) == plain.processIdentifier)
+        #expect(ProcessAncestry.agentPid(for: .codex, from: daemon.processIdentifier) == nil)
+        #expect(ProcessAncestry.arguments(of: daemon.processIdentifier)?.last == "--managed-daemon")
+    }
 }

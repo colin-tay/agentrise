@@ -1,0 +1,5 @@
+Recorded from codex-cli 0.164.0 (macOS, 2026-10-24) with a hook that saved its stdin, then scrubbed:
+one session id for all files, home paths -> /Users/tester, cwd -> /Users/tester/work/demo, prompt text
+replaced, the encrypted spawn_agent message trimmed. Sub events keep the sub's own rollout path.
+
+Schema-based, not recorded (Codex 0.164 never offered the tool in code mode): pre-tool-update-plan.json

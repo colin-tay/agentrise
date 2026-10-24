@@ -13,7 +13,7 @@ if let i = args.firstIndex(of: "--agent") {
 
 let input = FileHandle.standardInput.readDataToEndOfFile()
 if var event = EventSlimmer.slim(rawJSON: input, env: ProcessInfo.processInfo.environment, agent: agent) {
-    event.agentPid = ProcessAncestry.ancestor(named: agent.processName, from: getppid())
+    event.agentPid = ProcessAncestry.agentPid(for: agent, from: getppid())
     SocketClient.send(EventSlimmer.encodeLine(event), to: TowerPaths.socketPath())
     if agent == .codex, event.event == .stop || event.event == .subagentStop {
         print("{}")

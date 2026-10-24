@@ -31,7 +31,7 @@ private final class FakeRPC: RPCTransport {
 
     private func codexFile(_ url: URL) -> HookFile {
         let c = HookInstaller.codex
-        return HookFile(url: url, events: c.events, command: c.command, backupTag: c.backupTag)
+        return HookFile(url: url, events: c.events, command: c.command, backupTag: c.backupTag, timeout: c.timeout, syncEvents: c.syncEvents)
     }
 
     @Test func codexInstallKeepsUserHooks() throws {
@@ -59,8 +59,9 @@ private final class FakeRPC: RPCTransport {
             #expect(h["type"] as? String == "command")
             #expect(h["command"] as? String == "\"\(hookPath)\" --agent codex")
             #expect((h["command"] as? String)?.hasSuffix("--agent codex") == true)
-            #expect(h["async"] as? Bool == true)
-            #expect(h["timeout"] as? Int == 5)
+            // Codex 0.164 warns on every session start about an async SessionEnd and a timeout over 3 s.
+            #expect(h["async"] as? Bool == (ev == "SessionEnd" ? nil : true), "\(ev)")
+            #expect(h["timeout"] as? Int == 3)
             #expect(ours.first?["matcher"] == nil)
         }
         #expect((hooks["Stop"]?.first?["hooks"] as? [[String: Any]])?.first?["command"] as? String == "echo bye")
@@ -115,7 +116,7 @@ private final class FakeRPC: RPCTransport {
         let dir = try tempDir()
         let url = dir.appendingPathComponent("settings.json")
         try Data(input.utf8).write(to: url)
-        let file = HookFile(url: url, events: c.events, command: c.command, backupTag: c.backupTag)
+        let file = HookFile(url: url, events: c.events, command: c.command, backupTag: c.backupTag, timeout: c.timeout, syncEvents: c.syncEvents)
         #expect(try file.preview(hookPath: hookPath) == golden)
         let backup = try file.install(hookPath: hookPath)
         #expect(backup?.lastPathComponent.hasPrefix("settings.json.agentrise-backup-") == true)
