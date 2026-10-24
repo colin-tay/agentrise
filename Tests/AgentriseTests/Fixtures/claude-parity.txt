@@ -1,0 +1,353 @@
+== plain-turn ==
+-- 1 event SessionStart session=cc-plain-turn t=1800000001
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-plain-turn", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.standby)]
+session cc-plain-turn status=standby activity=standby title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event UserPromptSubmit session=cc-plain-turn t=1800000002
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-plain-turn", from: Agentrise.SessionStatus.standby, to: Agentrise.SessionStatus.working)]
+session cc-plain-turn status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 event PreToolUse session=cc-plain-turn t=1800000003 tool=Read
+effects: []
+session cc-plain-turn status=working activity=reading title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+-- 4 event PostToolUse session=cc-plain-turn t=1800000004 tool=Read
+effects: []
+session cc-plain-turn status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000004 teamIndex=0 isHidden=false
+-- 5 event PreToolUse session=cc-plain-turn t=1800000005 tool=Edit
+effects: []
+session cc-plain-turn status=working activity=coding title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000005 teamIndex=0 isHidden=false
+-- 6 event PostToolUse session=cc-plain-turn t=1800000006 tool=Edit
+effects: []
+session cc-plain-turn status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000006 teamIndex=0 isHidden=false
+-- 7 event PreToolUse session=cc-plain-turn t=1800000007 tool=Bash
+effects: []
+session cc-plain-turn status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000007 teamIndex=0 isHidden=false
+-- 8 event PostToolUse session=cc-plain-turn t=1800000008 tool=Bash
+effects: []
+session cc-plain-turn status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000008 teamIndex=0 isHidden=false
+-- 9 event Stop session=cc-plain-turn t=1800000009
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-plain-turn", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
+session cc-plain-turn status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000009 lastActivityAt=1800000009 teamIndex=0 isHidden=false
+
+== ask-user-question ==
+-- 1 event UserPromptSubmit session=cc-ask-user-question t=1800000001
+effects: []
+session cc-ask-user-question status=working activity=thinking title=主会话 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event PreToolUse session=cc-ask-user-question t=1800000002 tool=AskUserQuestion
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-ask-user-question", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.waiting)]
+session cc-ask-user-question status=waiting activity=waitingAtDoor title=主会话 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=用哪个方案？ statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 event PostToolUse session=cc-ask-user-question t=1800000003 tool=AskUserQuestion
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-ask-user-question", from: Agentrise.SessionStatus.waiting, to: Agentrise.SessionStatus.working)]
+session cc-ask-user-question status=working activity=thinking title=主会话 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=用哪个方案？ statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+-- 4 event Stop session=cc-ask-user-question t=1800000004
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-ask-user-question", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
+session cc-ask-user-question status=done activity=resting title=主会话 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1800000004 teamIndex=0 isHidden=false
+
+== notification-permission ==
+-- 1 event UserPromptSubmit session=cc-notification-permission t=1800000001
+effects: []
+session cc-notification-permission status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event Notification session=cc-notification-permission t=1800000002
+effects: []
+session cc-notification-permission status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 event Notification session=cc-notification-permission t=1800000003
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-notification-permission", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.waiting)]
+session cc-notification-permission status=waiting activity=waitingAtDoor title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+-- 4 event PostToolUse session=cc-notification-permission t=1800000004 tool=Bash
+effects: []
+session cc-notification-permission status=waiting activity=waitingAtDoor title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000004 teamIndex=0 isHidden=false
+-- 5 event Stop session=cc-notification-permission t=1800000005
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-notification-permission", from: Agentrise.SessionStatus.waiting, to: Agentrise.SessionStatus.done)]
+session cc-notification-permission status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1800000005 teamIndex=0 isHidden=false
+
+== stop-asks-question ==
+-- 1 event UserPromptSubmit session=cc-stop-asks-question t=1800000001
+effects: []
+session cc-stop-asks-question status=working activity=thinking title=主会话 rank=seniorDirector subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event Stop session=cc-stop-asks-question t=1800000002
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-stop-asks-question", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.waiting)]
+session cc-stop-asks-question status=waiting activity=waitingAtDoor title=主会话 rank=seniorDirector subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=要不要我先改接口层？ statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 markRead session=cc-stop-asks-question t=1800000003
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-stop-asks-question", from: Agentrise.SessionStatus.waiting, to: Agentrise.SessionStatus.standby)]
+session cc-stop-asks-question status=standby activity=standby title=主会话 rank=seniorDirector subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+
+== background-bash ==
+-- 1 event UserPromptSubmit session=cc-background-bash t=1800000001
+effects: []
+session cc-background-bash status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event PreToolUse session=cc-background-bash t=1800000002 tool=Bash
+effects: []
+session cc-background-bash status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run dev -- --host 0.0.0.0 --port 517] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 event PreToolUse session=cc-background-bash t=1800000003 tool=Bash
+effects: []
+session cc-background-bash status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run dev -- --host 0.0.0.0 --port 517,b2:swift build] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+-- 4 event PreToolUse session=cc-background-bash t=1800000004 tool=Bash
+effects: []
+session cc-background-bash status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run dev -- --host 0.0.0.0 --port 517,b2:swift build,b3:tail the log] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000004 teamIndex=0 isHidden=false
+-- 5 event Stop session=cc-background-bash t=1800000005
+effects: [Agentrise.TowerEffect.contractorFinished(sessionId: "cc-background-bash", contractorId: "b3"), Agentrise.TowerEffect.contractorFinished(sessionId: "cc-background-bash", contractorId: "b2")]
+session cc-background-bash status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run dev -- --host 0.0.0.0 --port 517] delivered=0 failedSubs=0 contractorsDone=2 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000005 teamIndex=0 isHidden=false
+-- 6 tick t=1800000006
+effects: []
+session cc-background-bash status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[b1:npm run dev -- --host 0.0.0.0 --port 517] delivered=0 failedSubs=0 contractorsDone=2 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000005 teamIndex=0 isHidden=false
+
+== subagents ==
+-- 1 event UserPromptSubmit session=cc-subagents t=1800000001
+effects: []
+session cc-subagents status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event SubagentStart session=cc-subagents t=1800000002 agent=a1
+effects: []
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:briefing] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 event PreToolUse session=cc-subagents t=1800000003 agent=a1 tool=Grep
+effects: []
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:searching] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+-- 4 event PostToolUse session=cc-subagents t=1800000004 agent=a1 tool=Grep
+effects: []
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:thinking] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000004 teamIndex=0 isHidden=false
+-- 5 event SubagentStart session=cc-subagents t=1800000005 agent=a2
+effects: []
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:thinking,a2:briefing] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000005 teamIndex=0 isHidden=false
+-- 6 event PreToolUse session=cc-subagents t=1800000006 agent=a3 tool=Read
+effects: []
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:thinking,a2:briefing,a3:reading] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000006 teamIndex=0 isHidden=false
+-- 7 event SubagentStop session=cc-subagents t=1800000007 agent=a1
+effects: [Agentrise.TowerEffect.subFinished(sessionId: "cc-subagents", subId: "a1", success: true)]
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a2:briefing,a3:reading] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000007 teamIndex=0 isHidden=false
+-- 8 event SubagentStop session=cc-subagents t=1800000008 agent=a2
+effects: [Agentrise.TowerEffect.subFinished(sessionId: "cc-subagents", subId: "a2", success: false)]
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[a3:reading] contractors=[] delivered=1 failedSubs=1 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000008 teamIndex=0 isHidden=false
+-- 9 event SubagentStop session=cc-subagents t=1800000009 agent=a3
+effects: [Agentrise.TowerEffect.subFinished(sessionId: "cc-subagents", subId: "a3", success: false)]
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=2 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000009 teamIndex=0 isHidden=false
+-- 10 event SubagentStop session=cc-subagents t=1800000010 agent=ghost
+effects: []
+session cc-subagents status=working activity=delegating title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=2 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000010 teamIndex=0 isHidden=false
+-- 11 event Stop session=cc-subagents t=1800000011
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-subagents", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
+session cc-subagents status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=2 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000011 lastActivityAt=1800000011 teamIndex=0 isHidden=false
+
+== stop-with-live-sub ==
+-- 1 event UserPromptSubmit session=cc-stop-with-live-sub t=1800000001
+effects: []
+session cc-stop-with-live-sub status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event SubagentStart session=cc-stop-with-live-sub t=1800000002 agent=a1
+effects: []
+session cc-stop-with-live-sub status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:briefing] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 event PreToolUse session=cc-stop-with-live-sub t=1800000003 agent=a1 tool=Grep
+effects: []
+session cc-stop-with-live-sub status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:searching] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+-- 4 event Stop session=cc-stop-with-live-sub t=1800000004
+effects: []
+session cc-stop-with-live-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[a1:searching] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000004 teamIndex=0 isHidden=false
+-- 5 tick t=1800000009
+effects: []
+session cc-stop-with-live-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[a1:searching] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000004 teamIndex=0 isHidden=false
+-- 6 event SubagentStop session=cc-stop-with-live-sub t=1800000030 agent=a1
+effects: [Agentrise.TowerEffect.subFinished(sessionId: "cc-stop-with-live-sub", subId: "a1", success: true)]
+session cc-stop-with-live-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000030 teamIndex=0 isHidden=false
+-- 7 tick t=1800000059
+effects: []
+session cc-stop-with-live-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000030 teamIndex=0 isHidden=false
+-- 8 tick t=1800000061
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-stop-with-live-sub", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
+session cc-stop-with-live-sub status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000061 lastActivityAt=1800000030 teamIndex=0 isHidden=false
+
+== sub-never-reports ==
+-- 1 event UserPromptSubmit session=cc-sub-never-reports t=1800000001
+effects: []
+session cc-sub-never-reports status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event SubagentStart session=cc-sub-never-reports t=1800000002 agent=a1
+effects: []
+session cc-sub-never-reports status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:briefing] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 event Stop session=cc-sub-never-reports t=1800000003
+effects: []
+session cc-sub-never-reports status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[a1:briefing] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+-- 4 tick t=1800007193
+effects: []
+session cc-sub-never-reports status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[a1:briefing] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+-- 5 tick t=1800007213
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-sub-never-reports", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
+session cc-sub-never-reports status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800007213 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+
+== main-resumes-after-sub ==
+-- 1 event UserPromptSubmit session=cc-main-resumes-after-sub t=1800000001
+effects: []
+session cc-main-resumes-after-sub status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event SubagentStart session=cc-main-resumes-after-sub t=1800000002 agent=a1
+effects: []
+session cc-main-resumes-after-sub status=working activity=delegating title=主会话 rank=seniorExpert subs=[a1:briefing] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 event Stop session=cc-main-resumes-after-sub t=1800000003
+effects: []
+session cc-main-resumes-after-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[a1:briefing] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+-- 4 event SubagentStop session=cc-main-resumes-after-sub t=1800000004 agent=a1
+effects: [Agentrise.TowerEffect.subFinished(sessionId: "cc-main-resumes-after-sub", subId: "a1", success: true)]
+session cc-main-resumes-after-sub status=working activity=waitingForSubs title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000004 teamIndex=0 isHidden=false
+-- 5 event PreToolUse session=cc-main-resumes-after-sub t=1800000005 tool=Read
+effects: []
+session cc-main-resumes-after-sub status=working activity=reading title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000005 teamIndex=0 isHidden=false
+-- 6 tick t=1800000036
+effects: []
+session cc-main-resumes-after-sub status=working activity=reading title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000005 teamIndex=0 isHidden=false
+-- 7 event Stop session=cc-main-resumes-after-sub t=1800000037
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-main-resumes-after-sub", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
+session cc-main-resumes-after-sub status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=1 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000037 lastActivityAt=1800000037 teamIndex=0 isHidden=false
+
+== tool-failure ==
+-- 1 event UserPromptSubmit session=cc-tool-failure t=1800000001
+effects: []
+session cc-tool-failure status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event PreToolUse session=cc-tool-failure t=1800000002 tool=Bash
+effects: []
+session cc-tool-failure status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 event PostToolUseFailure session=cc-tool-failure t=1800000003 tool=Bash
+effects: []
+session cc-tool-failure status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+-- 4 tick t=1800000007
+effects: []
+session cc-tool-failure status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+-- 5 event PostToolUseFailure session=cc-tool-failure t=1800000008 tool=Bash
+effects: []
+session cc-tool-failure status=working activity=commandFailed title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000008 teamIndex=0 isHidden=false
+-- 6 tick t=1800000010
+effects: []
+session cc-tool-failure status=working activity=commandFailed title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000008 teamIndex=0 isHidden=false
+-- 7 tick t=1800000012
+effects: []
+session cc-tool-failure status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000008 teamIndex=0 isHidden=false
+
+== stop-failure ==
+-- 1 event UserPromptSubmit session=cc-stop-failure t=1800000001
+effects: []
+session cc-stop-failure status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event StopFailure session=cc-stop-failure t=1800000002
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-stop-failure", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.error)]
+session cc-stop-failure status=error activity=commandFailed title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=出错：rate_limit statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 markRead session=cc-stop-failure t=1800000003
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-stop-failure", from: Agentrise.SessionStatus.error, to: Agentrise.SessionStatus.standby)]
+session cc-stop-failure status=standby activity=standby title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+
+== pre-compact ==
+-- 1 event UserPromptSubmit session=cc-pre-compact t=1800000001
+effects: []
+session cc-pre-compact status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event PreCompact session=cc-pre-compact t=1800000002
+effects: []
+session cc-pre-compact status=working activity=compacting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 event PostToolUse session=cc-pre-compact t=1800000003 tool=Read
+effects: []
+session cc-pre-compact status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+-- 4 event Stop session=cc-pre-compact t=1800000004
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-pre-compact", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
+session cc-pre-compact status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1800000004 teamIndex=0 isHidden=false
+
+== session-start ==
+-- 1 event SessionStart session=cc-session-start t=1800000001
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-session-start", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.standby)]
+session cc-session-start status=standby activity=standby title=主会话 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event UserPromptSubmit session=cc-session-start t=1800000002
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-session-start", from: Agentrise.SessionStatus.standby, to: Agentrise.SessionStatus.working)]
+session cc-session-start status=working activity=thinking title=主会话 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 event SessionStart session=cc-session-start t=1800000003
+effects: []
+session cc-session-start status=working activity=thinking title=主会话 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+-- 4 event SessionStart session=cc-session-start t=1800000004
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-session-start", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.standby)]
+session cc-session-start status=standby activity=standby title=主会话 rank=seniorEngineer subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000004 lastActivityAt=1800000004 teamIndex=0 isHidden=false
+
+== headless ==
+-- 1 event UserPromptSubmit session=cc-headless t=1800000001
+effects: []
+session cc-headless status=working activity=thinking title=headless rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=true
+-- 2 event Stop session=cc-headless t=1800000002
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-headless", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
+session cc-headless status=done activity=resting title=headless rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=true
+
+== cc-connect-send ==
+-- 1 event UserPromptSubmit session=cc-connect-send t=1800000001
+effects: []
+session cc-connect-send status=working activity=thinking title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event PreToolUse session=cc-connect-send t=1800000002 tool=Bash
+effects: []
+session cc-connect-send status=working activity=sendingLark title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=true waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 event PostToolUse session=cc-connect-send t=1800000003 tool=Bash
+effects: []
+session cc-connect-send status=working activity=thinking title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=true waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+-- 4 event Stop session=cc-connect-send t=1800000004
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-connect-send", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
+session cc-connect-send status=done activity=resting title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=true waitingSummary=nil statusSince=1800000004 lastActivityAt=1800000004 teamIndex=0 isHidden=false
+-- 5 markRead session=cc-connect-send t=1800000005
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-connect-send", from: Agentrise.SessionStatus.done, to: Agentrise.SessionStatus.standby)]
+session cc-connect-send status=standby activity=standby title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000005 lastActivityAt=1800000005 teamIndex=0 isHidden=false
+-- 6 event UserPromptSubmit session=cc-connect-send t=1800000006
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-connect-send", from: Agentrise.SessionStatus.standby, to: Agentrise.SessionStatus.working)]
+session cc-connect-send status=working activity=thinking title=飞书会话 1 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000006 lastActivityAt=1800000006 teamIndex=0 isHidden=false
+
+== cc-connect-off ==
+-- 1 event UserPromptSubmit session=cc-connect-off t=1800000001
+effects: []
+session cc-connect-off status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event PreToolUse session=cc-connect-off t=1800000002 tool=Bash
+effects: []
+session cc-connect-off status=working activity=runningCommand title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 event Stop session=cc-connect-off t=1800000003
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-connect-off", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
+session cc-connect-off status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+
+== mark-read ==
+-- 1 event UserPromptSubmit session=cc-mark-read t=1800000001
+effects: []
+session cc-mark-read status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event Stop session=cc-mark-read t=1800000002
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-mark-read", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
+session cc-mark-read status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 markRead session=cc-mark-read t=1800000003
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-mark-read", from: Agentrise.SessionStatus.done, to: Agentrise.SessionStatus.standby)]
+session cc-mark-read status=standby activity=standby title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+-- 4 markRead session=cc-mark-read t=1800000004
+effects: []
+session cc-mark-read status=standby activity=standby title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+
+== sleep ==
+-- 1 event UserPromptSubmit session=cc-sleep t=1800000001
+effects: []
+session cc-sleep status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event Stop session=cc-sleep t=1800000002
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-sleep", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
+session cc-sleep status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 tick t=1800086392
+effects: []
+session cc-sleep status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 4 tick t=1800086412
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-sleep", from: Agentrise.SessionStatus.done, to: Agentrise.SessionStatus.sleeping)]
+session cc-sleep status=sleeping activity=sleeping title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800086412 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 5 event UserPromptSubmit session=cc-sleep t=1800086413
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-sleep", from: Agentrise.SessionStatus.sleeping, to: Agentrise.SessionStatus.working)]
+session cc-sleep status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800086413 lastActivityAt=1800086413 teamIndex=0 isHidden=false
+
+== two-teams ==
+-- 1 event UserPromptSubmit session=cc-team-a t=1800000001
+effects: []
+session cc-team-a status=working activity=thinking title=甲 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event UserPromptSubmit session=cc-team-b t=1800000002
+effects: []
+session cc-team-a status=working activity=thinking title=甲 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+session cc-team-b status=working activity=thinking title=乙 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=1 isHidden=false
+-- 3 event Stop session=cc-team-a t=1800000003
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-team-a", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
+session cc-team-a status=done activity=resting title=甲 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+session cc-team-b status=working activity=thinking title=乙 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=1 isHidden=false
+-- 4 event Stop session=cc-team-b t=1800000004
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-team-b", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.waiting)]
+session cc-team-a status=done activity=resting title=甲 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000003 lastActivityAt=1800000003 teamIndex=0 isHidden=false
+session cc-team-b status=waiting activity=waitingAtDoor title=乙 rank=newGrad subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=要不要继续？ statusSince=1800000004 lastActivityAt=1800000004 teamIndex=1 isHidden=false
+
+== session-end ==
+-- 1 event UserPromptSubmit session=cc-session-end t=1800000001
+effects: []
+session cc-session-end status=working activity=thinking title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000001 lastActivityAt=1800000001 teamIndex=0 isHidden=false
+-- 2 event Stop session=cc-session-end t=1800000002
+effects: [Agentrise.TowerEffect.statusChanged(sessionId: "cc-session-end", from: Agentrise.SessionStatus.working, to: Agentrise.SessionStatus.done)]
+session cc-session-end status=done activity=resting title=主会话 rank=seniorExpert subs=[] contractors=[] delivered=0 failedSubs=0 contractorsDone=0 larkSent=false waitingSummary=nil statusSince=1800000002 lastActivityAt=1800000002 teamIndex=0 isHidden=false
+-- 3 event SessionEnd session=cc-session-end t=1800000003
+effects: [Agentrise.TowerEffect.sessionLeft(sessionId: "cc-session-end")]
+-- 4 event SessionEnd session=cc-session-end t=1800000004
+effects: []
+
