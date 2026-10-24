@@ -182,19 +182,29 @@ private final class FakeRPC: RPCTransport {
         #expect(rpc.writes.isEmpty)
     }
 
+    /// `config/read {includeLayers: true}`: the merged `config` plus one entry per layer.
+    private func layered(merged: Any, user: Any?, system: Any? = nil) -> [String: Any] {
+        var layers: [[String: Any]] = []
+        if let user { layers.append(["name": ["type": "user", "file": "/Users/u/.codex/config.toml", "profile": NSNull()], "config": ["hooks": ["state": user]]]) }
+        if let system { layers.append(["name": ["type": "system", "file": "/etc/codex/config.toml"], "config": ["hooks": ["state": system]]]) }
+        return ["config": ["model": "x", "hooks": ["state": merged]], "layers": layers]
+    }
+
     @Test func untrustKeepsOthers() throws {
         let other = "/work/.codex/hooks.json:stop:0:0"
+        let state: [String: Any] = [
+            "\(src):stop:1:0": ["trusted_hash": "sha256:a"],
+            "\(src):pre_tool_use:0:0": ["trusted_hash": "sha256:b"],
+            other: ["trusted_hash": "sha256:o"],
+        ]
         let rpc = FakeRPC([
-            "config/read": ["config": ["model": "x", "hooks": ["state": [
-                "\(src):stop:1:0": ["trusted_hash": "sha256:a"],
-                "\(src):pre_tool_use:0:0": ["trusted_hash": "sha256:b"],
-                other: ["trusted_hash": "sha256:o"],
-            ]]]],
+            "config/read": layered(merged: state, user: state),
             "hooks/list": ["data": [["hooks": []]]],
             "config/batchWrite": [:],
         ])
         let server = CodexAppServer(transport: rpc, hooksFile: URL(fileURLWithPath: src), cwd: "/Users/u")
         #expect(try server.untrustAgentriseHooks() == 2)
+        #expect(rpc.calls.first { $0.method == "config/read" }?.params["includeLayers"] as? Bool == true)
         let w = try #require(rpc.writes.first)
         #expect(rpc.writes.count == 1)
         #expect(w["reloadUserConfig"] as? Bool == true)
@@ -206,11 +216,12 @@ private final class FakeRPC: RPCTransport {
 
     /// The user's own hooks in the same hooks.json keep their trust.
     @Test func untrustKeepsUserHooksInSameFile() throws {
+        let state: [String: Any] = [
+            "\(src):stop:0:0": ["trusted_hash": "sha256:user"],
+            "\(src):stop:1:0": ["trusted_hash": "sha256:a"],
+        ]
         let rpc = FakeRPC([
-            "config/read": ["config": ["hooks": ["state": [
-                "\(src):stop:0:0": ["trusted_hash": "sha256:user"],
-                "\(src):stop:1:0": ["trusted_hash": "sha256:a"],
-            ]]]],
+            "config/read": layered(merged: state, user: state),
             "hooks/list": ["data": [["hooks": [hook("\(src):stop:0:0", "trusted", "echo bye", hash: "sha256:user")]]]],
             "config/batchWrite": [:],
         ])
@@ -220,8 +231,51 @@ private final class FakeRPC: RPCTransport {
         #expect(edit?["value"] as? [String: [String: String]] == ["\(src):stop:0:0": ["trusted_hash": "sha256:user"]])
     }
 
+    /// Only the user layer is written back: a system layer's trust must not be copied into the user's config.toml.
+    @Test func untrustWritesBackOnlyTheUserLayer() throws {
+        let sys = "/etc/codex/hooks.json:stop:0:0"
+        let user: [String: Any] = ["\(src):stop:1:0": ["trusted_hash": "sha256:a"], "/w/hooks.json:stop:0:0": ["trusted_hash": "sha256:w"]]
+        var merged = user
+        merged[sys] = ["trusted_hash": "sha256:s"]
+        let rpc = FakeRPC([
+            "config/read": layered(merged: merged, user: user, system: [sys: ["trusted_hash": "sha256:s"]]),
+            "hooks/list": ["data": [["hooks": []]]],
+            "config/batchWrite": [:],
+        ])
+        let server = CodexAppServer(transport: rpc, hooksFile: URL(fileURLWithPath: src), cwd: "/Users/u")
+        #expect(try server.untrustAgentriseHooks() == 1)
+        let edit = (rpc.writes.first?["edits"] as? [[String: Any]])?.first
+        #expect(edit?["mergeStrategy"] as? String == "replace")
+        #expect(edit?["value"] as? [String: [String: String]] == ["/w/hooks.json:stop:0:0": ["trusted_hash": "sha256:w"]])
+    }
+
+    /// A user layer without any hooks.state counts as empty.
+    @Test func untrustWithUserLayerMissingStateWritesNothing() throws {
+        let rpc = FakeRPC([
+            "config/read": ["config": ["hooks": ["state": ["\(src):stop:1:0": ["trusted_hash": "sha256:a"]]]],
+                            "layers": [["name": ["type": "user", "file": "/Users/u/.codex/config.toml"], "config": ["model": "x"]]]],
+            "hooks/list": ["data": [["hooks": []]]],
+            "config/batchWrite": [:],
+        ])
+        let server = CodexAppServer(transport: rpc, hooksFile: URL(fileURLWithPath: src), cwd: "/Users/u")
+        #expect(try server.untrustAgentriseHooks() == 0)
+        #expect(rpc.writes.isEmpty)
+    }
+
+    @Test func untrustWithoutUserLayerWritesNothing() throws {
+        let rpc = FakeRPC([
+            "config/read": layered(merged: ["\(src):stop:1:0": ["trusted_hash": "sha256:a"]], user: nil,
+                                   system: ["\(src):stop:1:0": ["trusted_hash": "sha256:a"]]),
+            "hooks/list": ["data": [["hooks": []]]],
+            "config/batchWrite": [:],
+        ])
+        let server = CodexAppServer(transport: rpc, hooksFile: URL(fileURLWithPath: src), cwd: "/Users/u")
+        #expect(try server.untrustAgentriseHooks() == 0)
+        #expect(rpc.writes.isEmpty)
+    }
+
     @Test func untrustWithNothingOfOursWritesNothing() throws {
-        let rpc = FakeRPC(["config/read": ["config": ["hooks": NSNull()]], "hooks/list": ["data": []]])
+        let rpc = FakeRPC(["config/read": layered(merged: NSNull(), user: NSNull()), "hooks/list": ["data": []]])
         let server = CodexAppServer(transport: rpc, hooksFile: URL(fileURLWithPath: src), cwd: "/Users/u")
         #expect(try server.untrustAgentriseHooks() == 0)
         #expect(rpc.writes.isEmpty)

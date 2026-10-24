@@ -175,11 +175,15 @@ struct CodexAppServer {
         return value.count
     }
 
-    /// Drops the trust entries of our hooks.json that no longer belong to one of the user's own hooks there.
-    /// Run after `HookInstaller.codex.uninstall()`. Returns how many entries were removed.
+    /// Drops, from the user config layer, the trust entries of our hooks.json that no longer belong to one of the
+    /// user's own hooks there. Run after `HookInstaller.codex.uninstall()`. Returns how many entries were removed
+    /// (0, writing nothing, when Codex reports no user layer).
     func untrustAgentriseHooks() throws -> Int {
-        let r = try transport.call("config/read", [:])
-        let state = ((r["config"] as? [String: Any])?["hooks"] as? [String: Any])?["state"] as? [String: Any] ?? [:]
+        // Only the user's own config.toml layer is written back; the merged config may carry system or managed entries.
+        let r = try transport.call("config/read", ["includeLayers": true])
+        guard let user = (r["layers"] as? [[String: Any]])?.first(where: { ($0["name"] as? [String: Any])?["type"] as? String == "user" })
+        else { return 0 }
+        let state = ((user["config"] as? [String: Any])?["hooks"] as? [String: Any])?["state"] as? [String: Any] ?? [:]
         let paths = filePaths
         let prefixes = paths.map { $0 + ":" }
         let inOurFile = state.keys.filter { k in prefixes.contains { k.hasPrefix($0) } }
