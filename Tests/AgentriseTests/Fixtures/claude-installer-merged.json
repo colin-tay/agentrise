@@ -1,0 +1,157 @@
+{
+  "hooks" : {
+    "Notification" : [
+      {
+        "hooks" : [
+          {
+            "async" : true,
+            "command" : "\"/Users/u/Library/Application Support/Agentrise/bin/agentrise-hook\"",
+            "timeout" : 5,
+            "type" : "command"
+          }
+        ]
+      }
+    ],
+    "PostToolUse" : [
+      {
+        "hooks" : [
+          {
+            "async" : true,
+            "command" : "\"/Users/u/Library/Application Support/Agentrise/bin/agentrise-hook\"",
+            "timeout" : 5,
+            "type" : "command"
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure" : [
+      {
+        "hooks" : [
+          {
+            "async" : true,
+            "command" : "\"/Users/u/Library/Application Support/Agentrise/bin/agentrise-hook\"",
+            "timeout" : 5,
+            "type" : "command"
+          }
+        ]
+      }
+    ],
+    "PreCompact" : [
+      {
+        "hooks" : [
+          {
+            "async" : true,
+            "command" : "\"/Users/u/Library/Application Support/Agentrise/bin/agentrise-hook\"",
+            "timeout" : 5,
+            "type" : "command"
+          }
+        ]
+      }
+    ],
+    "PreToolUse" : [
+      {
+        "hooks" : [
+          {
+            "async" : true,
+            "command" : "\"/Users/u/Library/Application Support/Agentrise/bin/agentrise-hook\"",
+            "timeout" : 5,
+            "type" : "command"
+          }
+        ]
+      }
+    ],
+    "SessionEnd" : [
+      {
+        "hooks" : [
+          {
+            "async" : true,
+            "command" : "\"/Users/u/Library/Application Support/Agentrise/bin/agentrise-hook\"",
+            "timeout" : 5,
+            "type" : "command"
+          }
+        ]
+      }
+    ],
+    "SessionStart" : [
+      {
+        "hooks" : [
+          {
+            "async" : true,
+            "command" : "\"/Users/u/Library/Application Support/Agentrise/bin/agentrise-hook\"",
+            "timeout" : 5,
+            "type" : "command"
+          }
+        ]
+      }
+    ],
+    "Stop" : [
+      {
+        "hooks" : [
+          {
+            "command" : "say done",
+            "type" : "command"
+          }
+        ]
+      },
+      {
+        "hooks" : [
+          {
+            "async" : true,
+            "command" : "\"/Users/u/Library/Application Support/Agentrise/bin/agentrise-hook\"",
+            "timeout" : 5,
+            "type" : "command"
+          }
+        ]
+      }
+    ],
+    "StopFailure" : [
+      {
+        "hooks" : [
+          {
+            "async" : true,
+            "command" : "\"/Users/u/Library/Application Support/Agentrise/bin/agentrise-hook\"",
+            "timeout" : 5,
+            "type" : "command"
+          }
+        ]
+      }
+    ],
+    "SubagentStart" : [
+      {
+        "hooks" : [
+          {
+            "async" : true,
+            "command" : "\"/Users/u/Library/Application Support/Agentrise/bin/agentrise-hook\"",
+            "timeout" : 5,
+            "type" : "command"
+          }
+        ]
+      }
+    ],
+    "SubagentStop" : [
+      {
+        "hooks" : [
+          {
+            "async" : true,
+            "command" : "\"/Users/u/Library/Application Support/Agentrise/bin/agentrise-hook\"",
+            "timeout" : 5,
+            "type" : "command"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit" : [
+      {
+        "hooks" : [
+          {
+            "async" : true,
+            "command" : "\"/Users/u/Library/Application Support/Agentrise/bin/agentrise-hook\"",
+            "timeout" : 5,
+            "type" : "command"
+          }
+        ]
+      }
+    ]
+  },
+  "model" : "opus"
+}

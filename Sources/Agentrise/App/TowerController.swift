@@ -67,6 +67,7 @@ final class TowerController {
 
     private func handle(_ e: SlimEvent) {
         let isClaude = (e.agent ?? .claude) == .claude
+        HookInstaller.noteEvent(from: e.agent)
         var ctx = SessionResolver.context(sessionId: e.sessionId, event: e, registry: registry, cc: cc, larkNumbers: &larkNumbers,
                                           codexIndex: codexIndex)
         // An event without its own title must not rename a session we already know.

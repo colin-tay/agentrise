@@ -7,6 +7,13 @@ struct SettingsView: View {
     @State private var installed = HookInstaller.isInstalled()
     @State private var preview: String?
     @State private var hookStatus = ""
+    private let codexPresent = FileManager.default.fileExists(atPath: HookInstaller.codexHome().path)
+    @AppStorage(HookInstaller.codexSeenKey) private var codexSeen = false
+    @State private var codexInstalled = HookInstaller.codex.isInstalled()
+    @State private var codexPreview: String?
+    @State private var codexStatus = ""
+    @State private var codexBusy = false
+    @State private var askCodexTrust = false
     @State private var server = BarkConfig.load().server
     @State private var deviceKey = BarkConfig.load().deviceKey
     @State private var encKey = BarkConfig.load().encryptionKey
@@ -22,8 +29,9 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Claude Code Hooks") {
+            Section("Agent 接入") {
                 HStack {
+                    Text("Claude Code")
                     Text(installed ? "✓ Hooks 已安装" : "Hooks 未安装").foregroundColor(installed ? .green : .orange)
                     Spacer()
                     if installed {
@@ -42,6 +50,11 @@ struct SettingsView: View {
                     }
                 }
                 if !hookStatus.isEmpty { Text(hookStatus).font(.caption).foregroundColor(.secondary) }
+                if codexPresent { codexRows }
+            }
+            .alert("Codex 要求信任这个 hook 才会运行。要我替你确认吗？", isPresented: $askCodexTrust) {
+                Button("替我确认") { trustCodex() }
+                Button("我自己来", role: .cancel) { codexStatus = Self.codexManualHint }
             }
             Section("iPhone 推送（Bark）") {
                 TextField("服务器", text: $server)
@@ -84,6 +97,76 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 520)
         .padding(.vertical, 8)
+    }
+
+    private static let codexManualHint = "请在 Codex 里输入 /hooks，确认 Agentrise 的 hook。"
+
+    private var codexState: (text: String, color: Color) {
+        if !codexInstalled { return ("未安装", .orange) }
+        return codexSeen ? ("✓ 已生效", .green) : ("已安装待信任", .orange)
+    }
+
+    @ViewBuilder private var codexRows: some View {
+        HStack {
+            Text("Codex")
+            Text(codexState.text).foregroundColor(codexState.color)
+            Spacer()
+            if codexInstalled {
+                Button("卸载 Hook") { uninstallCodex() }.disabled(codexBusy)
+            } else {
+                Button("安装 Hook") { runCodex { codexPreview = try HookInstaller.previewCodex() } }.disabled(codexBusy)
+            }
+        }
+        if let p = codexPreview {
+            Text("确认前请检查写入后的 hooks.json：").font(.caption)
+            ScrollView { Text(p).font(.system(size: 10, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
+                .frame(height: 180).border(.gray.opacity(0.3))
+            HStack {
+                Button("确认并写入") {
+                    runCodex {
+                        let b = try HookInstaller.installCodex()
+                        codexStatus = "已安装" + (b.map { "，备份在 \($0.lastPathComponent)" } ?? "")
+                        codexPreview = nil
+                        askCodexTrust = true
+                    }
+                }
+                Button("取消") { codexPreview = nil }
+            }
+        }
+        if !codexStatus.isEmpty { Text(codexStatus).font(.caption).foregroundColor(.secondary) }
+    }
+
+    /// Off the main thread: Codex's app-server can take a few seconds to start.
+    private func trustCodex() {
+        codexBusy = true
+        codexStatus = "正在请 Codex 确认…"
+        CodexAppServer.inBackground({ try $0.trustAgentriseHooks() }) { r in
+            codexBusy = false
+            switch r {
+            case .success(let n): codexStatus = n > 0 ? "✓ 已替你确认 \(n) 条 hook" : "✓ Agentrise 的 hook 已经被信任"
+            case .failure: codexStatus = Self.codexManualHint
+            }
+        }
+    }
+
+    private func uninstallCodex() {
+        guard runCodex({ try HookInstaller.codex.uninstall() }) else { return }
+        codexSeen = false
+        codexBusy = true
+        codexStatus = "hook 已删除，正在清理信任记录…"
+        CodexAppServer.inBackground({ try $0.untrustAgentriseHooks() }) { r in
+            codexBusy = false
+            switch r {
+            case .success: codexStatus = "已卸载"
+            case .failure: codexStatus = "hook 已删除；信任记录没能清掉，它们不再起作用。"
+            }
+        }
+    }
+
+    @discardableResult
+    private func runCodex(_ f: () throws -> Void) -> Bool {
+        defer { codexInstalled = HookInstaller.codex.isInstalled() }
+        do { try f(); return true } catch { codexStatus = "失败：\(error.localizedDescription)"; return false }
     }
 
     private func save() {
