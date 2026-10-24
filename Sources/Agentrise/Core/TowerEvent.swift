@@ -28,7 +28,8 @@ struct TowerEvent: Equatable {
         case turnFailed(error: String?)
         /// Stands the session down (Claude Code never sends this).
         case interrupted
-        case subStarted(id: String, type: String)
+        /// `id` nil: the agent did not say which sub; the main still delegates.
+        case subStarted(id: String?, type: String)
         case subFinished(id: String, lastMessage: String?)
         case subActivity(id: String, type: String, activity: Activity)
         case subIdle(id: String)

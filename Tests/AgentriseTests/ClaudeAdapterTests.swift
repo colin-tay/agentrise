@@ -92,6 +92,7 @@ import TowerKit
     @Test func subagentsComeAndGo() {
         #expect(kind(ev(.subagentStart, agent: "a1") { $0.agentType = "Explore" }) == .subStarted(id: "a1", type: "Explore"))
         #expect(kind(ev(.subagentStart, agent: "a1")) == .subStarted(id: "a1", type: ""))
+        #expect(kind(ev(.subagentStart) { $0.agentType = "Explore" }) == .subStarted(id: nil, type: "Explore"))
         #expect(kind(ev(.subagentStop, agent: "a1") { $0.lastAssistantMessage = "交付" }) == .subFinished(id: "a1", lastMessage: "交付"))
         #expect(kind(ev(.subagentStop)) == .keepAlive)
     }
@@ -121,6 +122,17 @@ import TowerKit
         _ = store.apply(ev(.preToolUse) { $0.toolName = "AskUserQuestion"; $0.question = "用哪个？" }, context: ctx)
         #expect(store.sessions["m"]?.status == .waiting)
         #expect(store.sessions["m"]?.waitingSummary == "用哪个？")
+    }
+
+    @Test func aSubagentStartWithoutAnIdStillDelegatesButAddsNoSub() {
+        var store = TowerStore()
+        let ctx = SessionContext(title: "主会话", source: .desktop(hostSessionId: nil), model: "claude-opus-5-5")
+        _ = store.apply(ev(.userPromptSubmit), context: ctx)
+        let effects = store.apply(ev(.subagentStart) { $0.agentType = "Explore" }, context: ctx)
+        #expect(store.sessions["m"]?.status == .working)
+        #expect(store.sessions["m"]?.activity == .delegating)
+        #expect(store.sessions["m"]?.subs.isEmpty == true)
+        #expect(effects.isEmpty)
     }
 
     @Test func interruptedStandsTheSessionDown() {

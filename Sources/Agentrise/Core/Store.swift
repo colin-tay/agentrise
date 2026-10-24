@@ -154,7 +154,7 @@ struct TowerStore {
             s.waitingSummary = nil
             set(&s, .standby, .standby, now)
         case .subStarted(let id, let type):
-            s.subs[id] = SubAgent(id: id, type: type, activity: .briefing, startedAt: now)
+            if let id { s.subs[id] = SubAgent(id: id, type: type, activity: .briefing, startedAt: now) }
             if s.status == .working { s.activity = .delegating }
         case .subFinished(let id, let lastMessage):
             if s.subs[id] != nil {

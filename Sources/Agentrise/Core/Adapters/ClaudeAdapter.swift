@@ -50,8 +50,7 @@ enum ClaudeAdapter: AgentAdapter {
             if let t = e.notificationType, attentionNotifications.contains(t) { return .needsAttention }
             return .keepAlive
         case .subagentStart:
-            guard let id = e.agentId else { return .keepAlive }
-            return .subStarted(id: id, type: e.agentType ?? "")
+            return .subStarted(id: e.agentId, type: e.agentType ?? "")
         case .subagentStop:
             guard let id = e.agentId else { return .keepAlive }
             return .subFinished(id: id, lastMessage: e.lastAssistantMessage)
