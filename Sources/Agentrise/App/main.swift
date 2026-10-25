@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Colin Tay
+// SPDX-License-Identifier: MIT
+
 import AppKit
 import SwiftUI
 import Combine
@@ -181,6 +184,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let top = NSMenuItem(title: "窗口置顶", action: #selector(toggleTop(_:)), keyEquivalent: "")
         top.state = alwaysOnTop ? .on : .off
         menu.addItem(top)
+        menu.addItem(withTitle: "关于 Agentrise", action: #selector(showAbout), keyEquivalent: "")
         menu.addItem(withTitle: "设置…", action: #selector(openSettings), keyEquivalent: ",")
         menu.addItem(.separator())
         menu.addItem(withTitle: "退出", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -206,6 +210,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let main = NSMenu()
         let appItem = NSMenuItem(); main.addItem(appItem)
         let appMenu = NSMenu()
+        appMenu.addItem(withTitle: "关于 Agentrise", action: #selector(showAbout), keyEquivalent: "")
+        appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "设置…", action: #selector(openSettings), keyEquivalent: ",")
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "退出 Agentrise", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -221,6 +227,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc func showWindow() {
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
+    }
+
+    /// The standard About panel: icon, version and copyright from Info.plist, plus a link to the repository.
+    @objc func showAbout() {
+        var options: [NSApplication.AboutPanelOptionKey: Any] = [:]
+        if let s = Bundle.main.object(forInfoDictionaryKey: "AgentriseRepositoryURL") as? String, let url = URL(string: s) {
+            let centered = NSMutableParagraphStyle(); centered.alignment = .center
+            options[.credits] = NSAttributedString(string: "\(url.host ?? "")\(url.path)", attributes: [
+                .link: url, .font: NSFont.systemFont(ofSize: 11), .paragraphStyle: centered])
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(options: options)
     }
 
     @objc func toggleTop(_ item: NSMenuItem) {

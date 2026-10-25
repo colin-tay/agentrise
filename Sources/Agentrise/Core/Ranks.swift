@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Colin Tay
+// SPDX-License-Identifier: MIT
+
 import Foundation
 
 /// Which models are which rank, and what each rank is called. The art of the four ranks is fixed;

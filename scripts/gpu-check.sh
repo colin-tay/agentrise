@@ -1,4 +1,6 @@
 #!/bin/zsh
+# Copyright (c) 2026 Colin Tay
+# SPDX-License-Identifier: MIT
 # GPU / CPU cost of the tower while it is running.
 # Usage: scripts/gpu-check.sh [warmup_seconds=6]
 # Prints exactly one line: gpu=<x>% ws_gpu=<y>% ws_cpu=<z>% tower_cpu=<w>%

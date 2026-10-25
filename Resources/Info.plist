@@ -12,4 +12,6 @@
   <key>LSMinimumSystemVersion</key><string>15.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>
+  <key>NSHumanReadableCopyright</key><string>© 2026 Colin Tay · MIT License</string>
+  <key>AgentriseRepositoryURL</key><string>https://github.com/colin-tay/agentrise</string>
 </dict></plist>

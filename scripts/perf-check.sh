@@ -1,4 +1,6 @@
 #!/bin/sh
+# Copyright (c) 2026 Colin Tay
+# SPDX-License-Identifier: MIT
 # Usage: scripts/perf-check.sh <seconds>  → avg CPU and max RSS of Agentrise
 PID=$(pgrep -x Agentrise) || { echo "Agentrise not running"; exit 1; }
 N=$(( ${1:-60} / 2 ))

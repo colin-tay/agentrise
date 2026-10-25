@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Colin Tay
+// SPDX-License-Identifier: MIT
+
 import Foundation
 
 /// Takes the fields Agentrise needs from a Codex hook payload and clips them.

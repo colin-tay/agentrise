@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Colin Tay
+// SPDX-License-Identifier: MIT
+
 import SwiftUI
 
 private let amber = Color(red: 1, green: 0.79, blue: 0.36)

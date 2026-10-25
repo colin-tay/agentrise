@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Colin Tay
+// SPDX-License-Identifier: MIT
+
 import Foundation
 
 /// Which coding agent sent an event. Claude Code events carry no tag on the wire.

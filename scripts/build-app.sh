@@ -1,4 +1,6 @@
 #!/bin/sh
+# Copyright (c) 2026 Colin Tay
+# SPDX-License-Identifier: MIT
 # Builds build/Agentrise.app (no Xcode needed). Usage: scripts/build-app.sh [debug|release]
 set -eu
 cd "$(dirname "$0")/.."

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Colin Tay
+// SPDX-License-Identifier: MIT
+
 import Foundation
 
 /// One JSON-RPC request/response with `codex app-server`.

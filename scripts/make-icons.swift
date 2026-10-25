@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Colin Tay
+// SPDX-License-Identifier: MIT
+
 // Renders assets/*.svg into PNGs and Resources/AppIcon.icns.
 // Usage: swift scripts/make-icons.swift   (run from the repo root)
 import AppKit
