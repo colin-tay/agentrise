@@ -3,3 +3,4 @@ build/
 .superpowers/
 .DS_Store
 docs/superpowers/
+brag-output*/
