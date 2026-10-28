@@ -58,6 +58,10 @@ final class SpriteKitDisplay: SKScene {
     /// drawn once).
     private var drawn: [ObjectIdentifier: (drawing: ArtDrawingRef, texture: SKTexture)] = [:]
     private struct ArtDrawingRef { weak var drawing: ArtDrawing? }
+    /// How many drawing textures the display holds (for tests).
+    var heldDrawingTextures: Int { drawn.count }
+    /// Whether the display holds a texture for `d` (for tests).
+    func holdsTexture(of d: ArtDrawing) -> Bool { drawn[ObjectIdentifier(d)]?.drawing.drawing === d }
     /// How many drawings were rendered into textures (for tests).
     private(set) var drawCount = 0
 
@@ -102,12 +106,23 @@ final class SpriteKitDisplay: SKScene {
         let tethers = model.tethers.isEmpty ? [:] : Dictionary(model.tethers.map { (ObjectIdentifier($0.node), $0) }, uniquingKeysWith: { a, _ in a })
         syncChildren(of: model.root, into: self, id: ObjectIdentifier(self), tethers: tethers)
         // Every mirror was reached: nothing left the tree.
-        guard reached != mirrors.count else { return }
-        for (k, m) in mirrors where m.seen != generation {
-            m.sk.removeFromParent()
-            mirrors[k] = nil
+        if reached != mirrors.count {
+            for (k, m) in mirrors where m.seen != generation {
+                if m.drawing != nil { dropsDrawing = true }
+                m.sk.removeFromParent()
+                mirrors[k] = nil
+            }
+        }
+        // Textures of drawings nothing shows any more go now (a background is 8–33 MB at 2×), not at the next
+        // drawing change: by here every mirror has let go of the drawings it replaced.
+        if dropsDrawing {
+            dropsDrawing = false
+            drawn = drawn.filter { $0.value.drawing.drawing != nil }
         }
     }
+
+    /// A mirror let go of a drawing during the sync in progress.
+    private var dropsDrawing = false
 
     /// Mirrors reached by the sync in progress.
     private var reached = 0
@@ -182,16 +197,19 @@ final class SpriteKitDisplay: SKScene {
             guard m.image !== img || m.atlasStamp != atlasTextures.stamp || m.drawing != nil else { return }
             sprite.texture = atlasTextures.texture(for: img)
             m.image = img
+            if m.drawing != nil { dropsDrawing = true }
             m.drawing = nil
             m.atlasStamp = atlasTextures.stamp
         } else if let d = n.drawing {
             guard m.drawing !== d || m.image != nil else { return }
             sprite.texture = texture(of: d)
+            if m.drawing != nil { dropsDrawing = true }
             m.drawing = d
             m.image = nil
         } else if m.image != nil || m.drawing != nil || sprite.texture != nil {
             sprite.texture = nil
             m.image = nil
+            if m.drawing != nil { dropsDrawing = true }
             m.drawing = nil
         }
     }
@@ -200,7 +218,6 @@ final class SpriteKitDisplay: SKScene {
     private func texture(of d: ArtDrawing) -> SKTexture {
         let id = ObjectIdentifier(d)
         if let hit = drawn[id], hit.drawing.drawing === d { return hit.texture }
-        drawn = drawn.filter { $0.value.drawing.drawing != nil }
         let t = CGArtBackend.texture(size: d.size, scale: d.scale) { ctx in d.draw(CGPen(ctx: ctx, scale: d.scale)) }
         drawn[id] = (ArtDrawingRef(drawing: d), t)
         drawCount += 1

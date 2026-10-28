@@ -171,6 +171,31 @@ import Metal
         #expect(header?.texture !== first)
     }
 
+    /// A replaced drawing's texture goes in the same sync (a full-window background is 8–33 MB at 2×), as does a
+    /// drawing whose node left the tree (the tooltip).
+    @Test func replacedDrawingsReleaseTheirTexturesAtOnce() {
+        let r = Rig(size: size)
+        r.model.render([session("a")], animated: false)
+        r.run(0.1)
+        let held = r.display.heldDrawingTextures
+        weak var oldBackground = r.model.root.childNode(withName: "background")?.drawing
+        weak var oldCab = r.model.root.childNode(withName: "cab")?.drawing
+        #expect(oldBackground.map(r.display.holdsTexture) == true)
+        // A new size re-bakes the background, the cab and the shaft label.
+        r.model.resize(to: CGSize(width: 1100, height: 760), scale: 2)
+        r.run(1.0 / 60)
+        #expect(oldBackground == nil && oldCab == nil)
+        #expect(r.display.heldDrawingTextures == held)
+        // The tooltip's texture goes when the tooltip does.
+        let foot = r.model.transit.position(of: "s:a")!
+        r.model.hover(at: CGPoint(x: foot.x, y: foot.y - 30))
+        r.run(1.0 / 60)
+        #expect(r.display.heldDrawingTextures == held + 1)
+        r.model.hover(at: nil)
+        r.run(1.0 / 60)
+        #expect(r.display.heldDrawingTextures == held)
+    }
+
     /// Textures made while a relief is pending get one more relief after it, so the last upload of a burst
     /// (a live resize redraws every frame) is returned to the system too; a quiet scene runs none.
     @Test func reliefRunsOnceMoreAfterABurst() {
