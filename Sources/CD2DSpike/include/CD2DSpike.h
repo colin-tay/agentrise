@@ -1,29 +1,122 @@
 // Copyright (c) 2026 Colin Tay
 // SPDX-License-Identifier: MIT
 //
-// Direct2D / DirectWrite COM vtables for Swift.
+// Direct2D / DirectWrite COM declarations for Swift.
 //
-// The Windows SDK's d2d1.h and d2d1_1.h compile in C (they switch to
-// D2D_USE_C_DEFINITIONS when __cplusplus is not defined), but in C they only
-// forward-declare the interfaces: there are no lpVtbl structs. dwrite.h is
-// C++-only and cannot be included from C at all. WinSDK's Clang module has
-// neither header (it does have wincodec.h, with full C vtables, as WinSDK.WIC).
+// Swift 6.1.2's WinSDK Clang module has no Direct2D or DirectWrite (it does have
+// wincodec.h, with full C vtables, as WinSDK.WIC), and the SDK headers can't fill
+// the gap:
+// - d2d1.h / d2d1_1.h compile in C (D2D_USE_C_DEFINITIONS), but in C they only
+//   forward-declare the interfaces: no lpVtbl structs.
+// - Including them in this module anyway crashes swift-frontend 6.1.2 while it
+//   builds the module (clang ASTWriter assertion "expected a hidden declaration"
+//   at dxgitype.h's DXGI_MODE_DESC: the DXGI headers already belong to WinSDK's
+//   explicit DirectX submodule).
+// - dwrite.h is C++-only.
 //
-// So this header takes the value types (D2D1_* structs and enums) from the SDK
-// headers and declares the vtables itself, slot for slot in the order the C++
-// interfaces declare their virtual methods. Methods the spike calls are typed;
-// the rest are `void *` placeholders that only keep the slot count right.
-// Every interface pointer is `void *`, so Swift sees UnsafeMutableRawPointer and
-// reads the vtable with `p.load(as: UnsafePointer<Vtbl>.self).pointee`.
+// So this header declares everything itself: the D2D1_* value types and enums the
+// spike uses (same names, layouts and values as the SDK; DXGI_FORMAT fields are
+// UINT32), and the vtables, slot for slot in the order the C++ interfaces declare
+// their virtual methods. Methods the spike calls are typed; the rest are `void *`
+// placeholders that only keep the slot count right. Every interface pointer is
+// `void *`, so Swift sees UnsafeMutableRawPointer and reads a vtable with
+// `p.load(as: UnsafePointer<Vtbl>.self).pointee`.
 
 #pragma once
 
 #ifdef _WIN32
 
 #include <windows.h>
-#include <wincodec.h>
-#include <d2d1_1.h>
-#include <d2d1effects.h>
+
+// ---- Direct2D value types (d2d1.h, d2d1_1.h, d2d1effects.h, dcommon.h) ----
+
+typedef struct D2D1_COLOR_F { FLOAT r, g, b, a; } D2D1_COLOR_F;
+typedef struct D2D1_POINT_2F { FLOAT x, y; } D2D1_POINT_2F;
+typedef struct D2D1_SIZE_F { FLOAT width, height; } D2D1_SIZE_F;
+typedef struct D2D1_SIZE_U { UINT32 width, height; } D2D1_SIZE_U;
+typedef struct D2D1_RECT_F { FLOAT left, top, right, bottom; } D2D1_RECT_F;
+typedef struct D2D1_VECTOR_4F { FLOAT x, y, z, w; } D2D1_VECTOR_4F;
+typedef struct D2D1_MATRIX_3X2_F { FLOAT _11, _12, _21, _22, _31, _32; } D2D1_MATRIX_3X2_F;
+typedef struct D2D1_ROUNDED_RECT { D2D1_RECT_F rect; FLOAT radiusX, radiusY; } D2D1_ROUNDED_RECT;
+typedef struct D2D1_ELLIPSE { D2D1_POINT_2F point; FLOAT radiusX, radiusY; } D2D1_ELLIPSE;
+typedef UINT64 D2D1_TAG;
+
+typedef enum D2D1_FACTORY_TYPE { D2D1_FACTORY_TYPE_SINGLE_THREADED = 0, D2D1_FACTORY_TYPE_MULTI_THREADED = 1 } D2D1_FACTORY_TYPE;
+typedef enum D2D1_DEBUG_LEVEL { D2D1_DEBUG_LEVEL_NONE = 0 } D2D1_DEBUG_LEVEL;
+typedef struct D2D1_FACTORY_OPTIONS { D2D1_DEBUG_LEVEL debugLevel; } D2D1_FACTORY_OPTIONS;
+
+typedef enum D2D1_ALPHA_MODE {
+    D2D1_ALPHA_MODE_UNKNOWN = 0, D2D1_ALPHA_MODE_PREMULTIPLIED = 1,
+    D2D1_ALPHA_MODE_STRAIGHT = 2, D2D1_ALPHA_MODE_IGNORE = 3
+} D2D1_ALPHA_MODE;
+typedef struct D2D1_PIXEL_FORMAT { UINT32 format /* DXGI_FORMAT */; D2D1_ALPHA_MODE alphaMode; } D2D1_PIXEL_FORMAT;
+
+typedef enum D2D1_RENDER_TARGET_TYPE {
+    D2D1_RENDER_TARGET_TYPE_DEFAULT = 0, D2D1_RENDER_TARGET_TYPE_SOFTWARE = 1, D2D1_RENDER_TARGET_TYPE_HARDWARE = 2
+} D2D1_RENDER_TARGET_TYPE;
+typedef enum D2D1_RENDER_TARGET_USAGE { D2D1_RENDER_TARGET_USAGE_NONE = 0 } D2D1_RENDER_TARGET_USAGE;
+typedef enum D2D1_FEATURE_LEVEL { D2D1_FEATURE_LEVEL_DEFAULT = 0 } D2D1_FEATURE_LEVEL;
+typedef struct D2D1_RENDER_TARGET_PROPERTIES {
+    D2D1_RENDER_TARGET_TYPE type;
+    D2D1_PIXEL_FORMAT pixelFormat;
+    FLOAT dpiX, dpiY;
+    D2D1_RENDER_TARGET_USAGE usage;
+    D2D1_FEATURE_LEVEL minLevel;
+} D2D1_RENDER_TARGET_PROPERTIES;
+
+typedef enum D2D1_CAP_STYLE {
+    D2D1_CAP_STYLE_FLAT = 0, D2D1_CAP_STYLE_SQUARE = 1, D2D1_CAP_STYLE_ROUND = 2, D2D1_CAP_STYLE_TRIANGLE = 3
+} D2D1_CAP_STYLE;
+typedef enum D2D1_LINE_JOIN {
+    D2D1_LINE_JOIN_MITER = 0, D2D1_LINE_JOIN_BEVEL = 1, D2D1_LINE_JOIN_ROUND = 2, D2D1_LINE_JOIN_MITER_OR_BEVEL = 3
+} D2D1_LINE_JOIN;
+typedef enum D2D1_DASH_STYLE { D2D1_DASH_STYLE_SOLID = 0 } D2D1_DASH_STYLE;
+typedef struct D2D1_STROKE_STYLE_PROPERTIES {
+    D2D1_CAP_STYLE startCap, endCap, dashCap;
+    D2D1_LINE_JOIN lineJoin;
+    FLOAT miterLimit;
+    D2D1_DASH_STYLE dashStyle;
+    FLOAT dashOffset;
+} D2D1_STROKE_STYLE_PROPERTIES;
+
+typedef struct D2D1_BRUSH_PROPERTIES { FLOAT opacity; D2D1_MATRIX_3X2_F transform; } D2D1_BRUSH_PROPERTIES;
+typedef struct D2D1_GRADIENT_STOP { FLOAT position; D2D1_COLOR_F color; } D2D1_GRADIENT_STOP;
+typedef struct D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES { D2D1_POINT_2F startPoint, endPoint; } D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES;
+typedef enum D2D1_GAMMA { D2D1_GAMMA_2_2 = 0, D2D1_GAMMA_1_0 = 1 } D2D1_GAMMA;
+typedef enum D2D1_EXTEND_MODE { D2D1_EXTEND_MODE_CLAMP = 0, D2D1_EXTEND_MODE_WRAP = 1, D2D1_EXTEND_MODE_MIRROR = 2 } D2D1_EXTEND_MODE;
+typedef enum D2D1_COMPATIBLE_RENDER_TARGET_OPTIONS {
+    D2D1_COMPATIBLE_RENDER_TARGET_OPTIONS_NONE = 0, D2D1_COMPATIBLE_RENDER_TARGET_OPTIONS_GDI_COMPATIBLE = 1
+} D2D1_COMPATIBLE_RENDER_TARGET_OPTIONS;
+
+typedef enum D2D1_DRAW_TEXT_OPTIONS {
+    D2D1_DRAW_TEXT_OPTIONS_NONE = 0, D2D1_DRAW_TEXT_OPTIONS_NO_SNAP = 1, D2D1_DRAW_TEXT_OPTIONS_CLIP = 2,
+    D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT = 4, D2D1_DRAW_TEXT_OPTIONS_DISABLE_COLOR_BITMAP_SNAPPING = 8
+} D2D1_DRAW_TEXT_OPTIONS;
+typedef enum DWRITE_MEASURING_MODE {
+    DWRITE_MEASURING_MODE_NATURAL = 0, DWRITE_MEASURING_MODE_GDI_CLASSIC = 1, DWRITE_MEASURING_MODE_GDI_NATURAL = 2
+} DWRITE_MEASURING_MODE;
+
+typedef enum D2D1_INTERPOLATION_MODE {
+    D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR = 0, D2D1_INTERPOLATION_MODE_LINEAR = 1, D2D1_INTERPOLATION_MODE_CUBIC = 2,
+    D2D1_INTERPOLATION_MODE_MULTI_SAMPLE_LINEAR = 3, D2D1_INTERPOLATION_MODE_ANISOTROPIC = 4,
+    D2D1_INTERPOLATION_MODE_HIGH_QUALITY_CUBIC = 5
+} D2D1_INTERPOLATION_MODE;
+typedef enum D2D1_COMPOSITE_MODE { D2D1_COMPOSITE_MODE_SOURCE_OVER = 0 } D2D1_COMPOSITE_MODE;
+typedef enum D2D1_PROPERTY_TYPE {
+    D2D1_PROPERTY_TYPE_UNKNOWN = 0, D2D1_PROPERTY_TYPE_STRING = 1, D2D1_PROPERTY_TYPE_BOOL = 2,
+    D2D1_PROPERTY_TYPE_UINT32 = 3, D2D1_PROPERTY_TYPE_INT32 = 4, D2D1_PROPERTY_TYPE_FLOAT = 5,
+    D2D1_PROPERTY_TYPE_VECTOR2 = 6, D2D1_PROPERTY_TYPE_VECTOR3 = 7, D2D1_PROPERTY_TYPE_VECTOR4 = 8
+} D2D1_PROPERTY_TYPE;
+typedef enum D2D1_GAUSSIANBLUR_PROP { D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION = 0 } D2D1_GAUSSIANBLUR_PROP;
+typedef enum D2D1_SHADOW_PROP {
+    D2D1_SHADOW_PROP_BLUR_STANDARD_DEVIATION = 0, D2D1_SHADOW_PROP_COLOR = 1
+} D2D1_SHADOW_PROP;
+
+// From d2d1.h (D2d1.lib).
+HRESULT WINAPI D2D1CreateFactory(D2D1_FACTORY_TYPE factoryType, REFIID riid,
+                                 const D2D1_FACTORY_OPTIONS *options, void **factory);
+
+// ---- vtables ----
 
 #define CD2D_SLOT(name) void *name
 

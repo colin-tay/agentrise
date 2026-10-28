@@ -6,8 +6,8 @@
 // writes it as a PNG to the path in the first argument.
 //
 // WIC is called through WinSDK's own C vtables (WinSDK.WIC). Direct2D and
-// DirectWrite are called through the vtables declared in CD2DSpike.h, because
-// the SDK headers give C no vtables for them (see that header).
+// DirectWrite are called through the types and vtables declared in CD2DSpike.h,
+// because neither WinSDK nor the SDK headers give Swift usable ones (see that header).
 // Any failed HRESULT prints the call and the code, then exits with 1.
 
 #if os(Windows)
@@ -245,7 +245,7 @@ vtable(shadow, CD2D_ID2D1EffectVtbl.self).SetInput!(shadow, 0, bodySilhouette, t
 setProperty(shadow, UInt32(truncatingIfNeeded: D2D1_SHADOW_PROP_BLUR_STANDARD_DEVIATION.rawValue),
             D2D1_PROPERTY_TYPE_FLOAT, Float(3), "ID2D1Effect::SetValue(shadow blur)")
 setProperty(shadow, UInt32(truncatingIfNeeded: D2D1_SHADOW_PROP_COLOR.rawValue),
-            D2D1_PROPERTY_TYPE_VECTOR4, D2D_VECTOR_4F(x: 0.02, y: 0.03, z: 0.10, w: 0.6),
+            D2D1_PROPERTY_TYPE_VECTOR4, D2D1_VECTOR_4F(x: 0.02, y: 0.03, z: 0.10, w: 0.6),
             "ID2D1Effect::SetValue(shadow color)")
 let shadowImage = effectOutput(shadow)
 
