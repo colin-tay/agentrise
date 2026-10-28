@@ -4,13 +4,13 @@
 import Foundation
 import TowerKit
 
-enum Rank: String, CaseIterable {
+package enum Rank: String, CaseIterable {
     case seniorDirector, seniorExpert, seniorEngineer, newGrad
 
-    var title: String { RankBook.current.title(self) }
+    package var title: String { RankBook.current.title(self) }
 
     /// Color of the light strip on the robot's body, as 0xRRGGBB.
-    var stripeHex: UInt32 {
+    package var stripeHex: UInt32 {
         switch self {
         case .seniorDirector: return 0xFFCF3F
         case .seniorExpert: return 0xC084FF
@@ -22,12 +22,12 @@ enum Rank: String, CaseIterable {
     static func from(model: String?) -> Rank { RankBook.current.rank(for: model) }
 }
 
-enum Activity: String {
+package enum Activity: String {
     case reading, searching, coding, runningCommand, commandFailed, browsing, planning,
          delegating, sendingLark, thinking, compacting, waitingAtDoor, waitingForSubs, reporting, resting, standby,
          sleeping, briefing, other
 
-    var label: String {
+    package var label: String {
         switch self {
         case .reading: return "读文件"
         case .searching: return "搜索中"
@@ -52,10 +52,10 @@ enum Activity: String {
     }
 }
 
-enum Room: String, CaseIterable {
+package enum Room: String, CaseIterable {
     case meeting, ceoOffice, desks, whiteboard, intel, archive, pantry, mailroom, serverRoom, sleepPods
 
-    var title: String {
+    package var title: String {
         switch self {
         case .meeting: return "👥 会议室"
         case .ceoOffice: return "🙋 CEO 办公室"
@@ -81,7 +81,7 @@ enum Room: String, CaseIterable {
     }
 }
 
-enum ActivityMap {
+package enum ActivityMap {
     static func activity(toolName: String, command: String?) -> Activity {
         switch toolName {
         case "Read": return .reading
@@ -100,7 +100,7 @@ enum ActivityMap {
     }
 
     /// nil = stay where you are.
-    static func room(for a: Activity) -> Room? {
+    package static func room(for a: Activity) -> Room? {
         switch a {
         case .reading, .searching, .compacting: return .archive
         case .coding, .other, .standby: return .desks
@@ -117,66 +117,71 @@ enum ActivityMap {
     }
 }
 
-enum SessionStatus: String {
+package enum SessionStatus: String {
     case working, waiting, done, error, standby, sleeping
 }
 
-enum SessionSource: Equatable {
+package enum SessionSource: Equatable {
     case desktop(hostSessionId: String?)
     case lark
     case terminal(bundleId: String?)
 }
 
-struct SubAgent: Equatable {
-    var id: String
-    var type: String
-    var activity: Activity
-    var startedAt: Date
+package struct SubAgent: Equatable {
+    package var id: String
+    package var type: String
+    package var activity: Activity
+    package var startedAt: Date
 }
 
-struct Contractor: Equatable {
-    var id: String
-    var description: String
-    var startedAt: Date
+package struct Contractor: Equatable {
+    package var id: String
+    package var description: String
+    package var startedAt: Date
 }
 
-struct Session: Equatable {
-    var id: String
-    var title: String
-    var source: SessionSource
-    var rank: Rank
-    var status: SessionStatus
-    var activity: Activity
-    var teamIndex: Int
-    var subs: [String: SubAgent] = [:]
-    var contractors: [String: Contractor] = [:]
-    var delivered = 0
-    var failedSubs = 0
-    var contractorsDone = 0
-    var larkSent = false
-    var waitingSummary: String?
-    var transientErrorAt: Date?
-    var statusSince: Date
+package struct Session: Equatable {
+    package var id: String
+    package var title: String
+    package var source: SessionSource
+    package var rank: Rank
+    package var status: SessionStatus
+    package var activity: Activity
+    package var teamIndex: Int
+    package var subs: [String: SubAgent] = [:]
+    package var contractors: [String: Contractor] = [:]
+    package var delivered = 0
+    package var failedSubs = 0
+    package var contractorsDone = 0
+    package var larkSent = false
+    package var waitingSummary: String?
+    package var transientErrorAt: Date?
+    package var statusSince: Date
     var lastActivityAt: Date
-    var cwd: String?
+    package var cwd: String?
     var transcriptPath: String?
-    var isHidden = false
-    var modelKnown = false
+    package var isHidden = false
+    package var modelKnown = false
     /// The model name as the agent reported it, so ranks can be recomputed after a Settings change.
     var model: String?
-    var lastSeenInRegistry: Date?
-    var agent: AgentKind = .claude
+    package var lastSeenInRegistry: Date?
+    package var agent: AgentKind = .claude
     /// The agent's own process, for agents without a session registry to tell when it is gone.
     var agentPid: Int32?
 
-    var isLark: Bool { source == .lark }
+    package var isLark: Bool { source == .lark }
 }
 
-struct TowerCounts: Equatable {
-    var working = 0, waiting = 0, done = 0, subs = 0, contractors = 0, sleeping = 0, standby = 0
+package struct TowerCounts: Equatable {
+    package var working = 0, waiting = 0, done = 0, subs = 0, contractors = 0, sleeping = 0, standby = 0
+
+    package init(working: Int = 0, waiting: Int = 0, done: Int = 0, subs: Int = 0, contractors: Int = 0, sleeping: Int = 0, standby: Int = 0) {
+        self.working = working; self.waiting = waiting; self.done = done; self.subs = subs
+        self.contractors = contractors; self.sleeping = sleeping; self.standby = standby
+    }
 }
 
-enum TowerEffect: Equatable {
+package enum TowerEffect: Equatable {
     case statusChanged(sessionId: String, from: SessionStatus, to: SessionStatus)
     case subFinished(sessionId: String, subId: String, success: Bool)
     case contractorFinished(sessionId: String, contractorId: String)
@@ -184,9 +189,9 @@ enum TowerEffect: Equatable {
 }
 
 /// Team identity of a main agent: halo color + emblem glyph.
-enum Team {
+package enum Team {
     /// Halo colors as 0xRRGGBB.
-    static let hexes: [UInt32] = [0xC084FF, 0x3EE6D2, 0xFFA94D, 0xFF6B9A, 0x7CC4FF, 0xB6F36A, 0xFFD84D, 0x9D8CFF]
+    package static let hexes: [UInt32] = [0xC084FF, 0x3EE6D2, 0xFFA94D, 0xFF6B9A, 0x7CC4FF, 0xB6F36A, 0xFFD84D, 0x9D8CFF]
     static let glyphs = ["⚡", "◆", "★", "▲", "●", "✦", "■", "✚"]
-    static func glyph(_ i: Int) -> String { glyphs[((i % glyphs.count) + glyphs.count) % glyphs.count] }
+    package static func glyph(_ i: Int) -> String { glyphs[((i % glyphs.count) + glyphs.count) % glyphs.count] }
 }

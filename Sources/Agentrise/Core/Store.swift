@@ -4,17 +4,23 @@
 import Foundation
 import TowerKit
 
-struct SessionContext {
-    var title: String?
-    var source: SessionSource?   // nil = hidden (headless run)
-    var model: String?
-    var agent: AgentKind = .claude
+package struct SessionContext {
+    package var title: String?
+    package var source: SessionSource?   // nil = hidden (headless run)
+    package var model: String?
+    package var agent: AgentKind = .claude
+
+    package init(title: String? = nil, source: SessionSource? = nil, model: String? = nil, agent: AgentKind = .claude) {
+        self.title = title; self.source = source; self.model = model; self.agent = agent
+    }
 }
 
 /// All of Agentrise's state rules. Pure: feed it events and the clock.
-struct TowerStore {
-    private(set) var sessions: [String: Session] = [:]
+package struct TowerStore {
+    package private(set) var sessions: [String: Session] = [:]
     private var nextTeam = 0
+
+    package init() {}
 
     static let sleepAfter: TimeInterval = 24 * 3600
     static let contractorTimeout: TimeInterval = 2 * 3600
@@ -27,7 +33,7 @@ struct TowerStore {
     /// that sends nothing for this long has most likely died without a SessionEnd: stand it down.
     static let quietTimeout: TimeInterval = 60 * 60
 
-    var counts: TowerCounts {
+    package var counts: TowerCounts {
         var c = TowerCounts()
         for s in sessions.values where !s.isHidden {
             switch s.status {
@@ -58,7 +64,7 @@ struct TowerStore {
         return s
     }
 
-    mutating func updateContext(_ id: String, context: SessionContext) {
+    package mutating func updateContext(_ id: String, context: SessionContext) {
         guard var s = sessions[id] else { return }
         if let t = context.title, !t.isEmpty { s.title = t }
         if let src = context.source { s.source = src; s.isHidden = false } else { s.isHidden = true }
@@ -67,7 +73,7 @@ struct TowerStore {
     }
 
     /// After the rank book changed: every session whose model we know gets its rank recomputed.
-    mutating func rerank() {
+    package mutating func rerank() {
         for (id, s) in sessions {
             guard let m = s.model else { continue }
             let r = Rank.from(model: m)
@@ -78,7 +84,7 @@ struct TowerStore {
     mutating func noteAgentPid(_ id: String, _ pid: Int32) { sessions[id]?.agentPid = pid }
 
     /// Sessions of agents without a registry leave the building once their own process has exited.
-    mutating func removeExited(isRunning: (Int32) -> Bool) -> [TowerEffect] {
+    package mutating func removeExited(isRunning: (Int32) -> Bool) -> [TowerEffect] {
         var effects: [TowerEffect] = []
         for (id, s) in sessions where !s.capabilities.contains(.registry) {
             if let pid = s.agentPid, !isRunning(pid) { effects += remove(id) }
@@ -86,7 +92,7 @@ struct TowerStore {
         return effects
     }
 
-    mutating func remove(_ id: String) -> [TowerEffect] {
+    package mutating func remove(_ id: String) -> [TowerEffect] {
         guard sessions.removeValue(forKey: id) != nil else { return [] }
         return [.sessionLeft(sessionId: id)]
     }
@@ -211,7 +217,7 @@ struct TowerStore {
 
     // MARK: CEO actions and time
 
-    mutating func markRead(_ id: String, now: Date) -> [TowerEffect] {
+    package mutating func markRead(_ id: String, now: Date) -> [TowerEffect] {
         guard var s = sessions[id] else { return [] }
         s.larkSent = false
         var effects: [TowerEffect] = []
@@ -226,7 +232,7 @@ struct TowerStore {
         return effects
     }
 
-    mutating func tick(now: Date) -> [TowerEffect] {
+    package mutating func tick(now: Date) -> [TowerEffect] {
         var effects: [TowerEffect] = []
         for (id, var s) in sessions {
             for (cid, c) in s.contractors where now.timeIntervalSince(c.startedAt) > Self.contractorTimeout {
@@ -265,7 +271,7 @@ struct TowerStore {
     }
 
     /// Seeds a session found in ~/.claude/sessions at launch, before any hook fired.
-    mutating func seed(id: String, context: SessionContext, busy: Bool, lastActive: Date, now: Date) {
+    package mutating func seed(id: String, context: SessionContext, busy: Bool, lastActive: Date, now: Date) {
         guard sessions[id] == nil else { return }
         let asleep = now.timeIntervalSince(lastActive) > Self.sleepAfter
         let status: SessionStatus = busy ? .working : (asleep ? .sleeping : .standby)
@@ -274,9 +280,9 @@ struct TowerStore {
         sessions[id]?.lastActivityAt = lastActive
     }
 
-    mutating func touchRegistry(_ id: String, now: Date) { sessions[id]?.lastSeenInRegistry = now }
+    package mutating func touchRegistry(_ id: String, now: Date) { sessions[id]?.lastSeenInRegistry = now }
 
-    mutating func setStatusFromRegistry(_ id: String, busy: Bool, now: Date) -> [TowerEffect] {
+    package mutating func setStatusFromRegistry(_ id: String, busy: Bool, now: Date) -> [TowerEffect] {
         // The app was restarted mid-turn and missed the Stop: trust the registry's idle.
         guard var s = sessions[id], s.status == .working, !busy, now.timeIntervalSince(s.lastActivityAt) > 120 else { return [] }
         set(&s, .standby, .standby, now)

@@ -5,11 +5,12 @@ import Foundation
 import TowerKit
 
 /// What an agent can tell Agentrise beyond the basics; the UI degrades for what is missing.
-struct AgentCapabilities: OptionSet {
-    let rawValue: Int
-    static let contractors = AgentCapabilities(rawValue: 1 << 0)
-    static let webSearch = AgentCapabilities(rawValue: 1 << 1)
-    static let registry = AgentCapabilities(rawValue: 1 << 2)
+package struct AgentCapabilities: OptionSet {
+    package let rawValue: Int
+    package init(rawValue: Int) { self.rawValue = rawValue }
+    package static let contractors = AgentCapabilities(rawValue: 1 << 0)
+    package static let webSearch = AgentCapabilities(rawValue: 1 << 1)
+    package static let registry = AgentCapabilities(rawValue: 1 << 2)
 }
 
 /// Gives one agent's hook events their meaning.
@@ -29,11 +30,11 @@ enum Adapters {
 }
 
 extension Session {
-    var capabilities: AgentCapabilities { Adapters.adapter(for: agent).capabilities }
+    package var capabilities: AgentCapabilities { Adapters.adapter(for: agent).capabilities }
 }
 
 extension TowerStore {
-    mutating func apply(_ e: SlimEvent, context: SessionContext) -> [TowerEffect] {
+    package mutating func apply(_ e: SlimEvent, context: SessionContext) -> [TowerEffect] {
         let effects = apply(Adapters.adapter(for: e.agent).translate(e), context: context)
         if let pid = e.agentPid { noteAgentPid(e.sessionId, pid) }
         return effects
