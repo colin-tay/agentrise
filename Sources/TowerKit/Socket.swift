@@ -2,9 +2,38 @@
 // SPDX-License-Identifier: MIT
 
 import Foundation
+#if canImport(Darwin)
 import Darwin
+#elseif os(Windows)
+import WinSDK
+#endif
 
 public enum TowerPaths {
+#if os(Windows)
+    /// `%LOCALAPPDATA%\Agentrise`, or `%USERPROFILE%\AppData\Local\Agentrise` when that isn't set.
+    private static func supportPath(_ environment: [String: String]) -> String {
+        var base: String
+        if let local = environment["LOCALAPPDATA"], !local.isEmpty {
+            base = local
+        } else {
+            var profile = environment["USERPROFILE"] ?? ""
+            if profile.isEmpty { profile = NSHomeDirectory() }
+            while profile.hasSuffix("\\") || profile.hasSuffix("/") { profile.removeLast() }
+            base = profile + "\\AppData\\Local"
+        }
+        while base.hasSuffix("\\") || base.hasSuffix("/") { base.removeLast() }
+        return base + "\\Agentrise"
+    }
+    public static func supportDir(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL {
+        URL(fileURLWithPath: supportPath(environment), isDirectory: true)
+    }
+    public static func socketPath(environment: [String: String] = ProcessInfo.processInfo.environment) -> String {
+        supportPath(environment) + "\\tower.sock"
+    }
+    public static func hookBinaryURL(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL {
+        URL(fileURLWithPath: supportPath(environment) + "\\bin\\agentrise-hook.exe")
+    }
+#else
     public static func supportDir(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
         home.appendingPathComponent("Library/Application Support/Agentrise", isDirectory: true)
     }
@@ -14,6 +43,7 @@ public enum TowerPaths {
     public static func hookBinaryURL(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
         supportDir(home: home).appendingPathComponent("bin/agentrise-hook")
     }
+#endif
 }
 
 private func makeAddress(_ path: String) -> sockaddr_un? {

@@ -2,11 +2,72 @@
 // SPDX-License-Identifier: MIT
 
 import Foundation
+#if os(Windows)
+import WinSDK
+#endif
 
 public enum ProcessAncestry {
+#if os(Windows)
+    /// The process that started this one, from a Toolhelp32 snapshot; 0 when it can't be found.
+    public static func parentPID() -> Int32 {
+        let me = Int32(bitPattern: GetCurrentProcessId())
+        return snapshot()[me]?.parent ?? 0
+    }
+
+    /// The nearest process, starting with `pid` itself and then its parents, whose executable
+    /// name (without `.exe`) starts with `prefix`, compared without regard to case.
+    public static func ancestor(named prefix: String, from pid: Int32 = parentPID(), maxDepth: Int = 8) -> Int32? {
+        let table = snapshot()
+        let wanted = prefix.lowercased()
+        var current = pid
+        for _ in 0..<maxDepth {
+            guard current > 0, let info = table[current] else { return nil }
+            var name = info.name.lowercased()
+            if name.hasSuffix(".exe") { name.removeLast(4) }
+            if name.hasPrefix(wanted) { return current }
+            current = info.parent
+        }
+        return nil
+    }
+
+    /// The session's own agent process, for the liveness check (see the macOS version for Codex's daemon).
+    public static func agentPid(for agent: AgentKind, from pid: Int32 = parentPID()) -> Int32? {
+        guard let found = ancestor(named: agent.processName, from: pid) else { return nil }
+        if agent == .codex, arguments(of: found)?.contains("--managed-daemon") == true { return nil }
+        return found
+    }
+
+    /// Reading another process's command line is not supported on Windows.
+    public static func arguments(of pid: Int32) -> [String]? { nil }
+
+    /// pid -> (executable name, parent pid) for every process, from one Toolhelp32 snapshot.
+    private static func snapshot() -> [Int32: (name: String, parent: Int32)] {
+        let snap = CreateToolhelp32Snapshot(DWORD(TH32CS_SNAPPROCESS), 0)
+        guard let snap, snap != INVALID_HANDLE_VALUE else { return [:] }
+        defer { CloseHandle(snap) }
+        var table: [Int32: (name: String, parent: Int32)] = [:]
+        var entry = PROCESSENTRY32W()
+        entry.dwSize = DWORD(MemoryLayout<PROCESSENTRY32W>.size)
+        guard Process32FirstW(snap, &entry) else { return [:] }
+        repeat {
+            let name = withUnsafeBytes(of: entry.szExeFile) { raw -> String in
+                let units = raw.bindMemory(to: UInt16.self)
+                let end = units.firstIndex(of: 0) ?? units.count
+                return String(decoding: units[..<end], as: UTF16.self)
+            }
+            table[Int32(bitPattern: entry.th32ProcessID)] = (name, Int32(bitPattern: entry.th32ParentProcessID))
+        } while Process32NextW(snap, &entry)
+        return table
+    }
+#else
+    /// The process that started this one.
+    public static func parentPID() -> Int32 {
+        return getppid()
+    }
+
     /// The nearest process, starting with `pid` itself and then its parents, whose name
     /// starts with `prefix`. The kernel keeps only the first 16 characters of a name.
-    public static func ancestor(named prefix: String, from pid: pid_t = getppid(), maxDepth: Int = 8) -> Int32? {
+    public static func ancestor(named prefix: String, from pid: pid_t = parentPID(), maxDepth: Int = 8) -> Int32? {
         var current = pid
         for _ in 0..<maxDepth {
             guard current > 1, let info = info(of: current) else { return nil }
@@ -19,7 +80,7 @@ public enum ProcessAncestry {
     /// The session's own agent process, for the liveness check. Codex's TUI runs its threads, and so its
     /// hooks, in a shared background app-server (`--managed-daemon`) that outlives every session and may
     /// serve several terminals: that process says nothing about one session, so none is reported.
-    public static func agentPid(for agent: AgentKind, from pid: pid_t = getppid()) -> Int32? {
+    public static func agentPid(for agent: AgentKind, from pid: pid_t = parentPID()) -> Int32? {
         guard let found = ancestor(named: agent.processName, from: pid) else { return nil }
         if agent == .codex, arguments(of: found)?.contains("--managed-daemon") == true { return nil }
         return found
@@ -57,4 +118,5 @@ public enum ProcessAncestry {
         }
         return (name, proc.kp_eproc.e_ppid)
     }
+#endif
 }

@@ -23,7 +23,7 @@ if agent == .codex, let obj = try? JSONSerialization.jsonObject(with: input) as?
     answersCodex = true
 }
 if var event = EventSlimmer.slim(rawJSON: input, env: ProcessInfo.processInfo.environment, agent: agent) {
-    event.agentPid = ProcessAncestry.agentPid(for: agent, from: getppid())
+    event.agentPid = ProcessAncestry.agentPid(for: agent, from: ProcessAncestry.parentPID())
     SocketClient.send(EventSlimmer.encodeLine(event), to: TowerPaths.socketPath())
 }
 if answersCodex { print("{}") }
