@@ -113,12 +113,17 @@ package struct HookFile {
         // Another program may have written meanwhile.
         if (try? Data(contentsOf: url)) != raw { throw InstallerError.changedSinceRead(name) }
         let data = try JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .withoutEscapingSlashes])
+        #if os(Windows)
+        // Foundation has no `replaceItemAt` on Windows; its atomic write moves a temporary file over the target.
+        try (data + Data("\n".utf8)).write(to: url, options: .atomic)
+        #else
         let fm = FileManager.default
         let perms = (try? fm.attributesOfItem(atPath: url.path)[.posixPermissions]) as? NSNumber
         let tmp = url.deletingLastPathComponent().appendingPathComponent(".\(name).agentrise-tmp")
         try (data + Data("\n".utf8)).write(to: tmp)
         if let perms { try? fm.setAttributes([.posixPermissions: perms], ofItemAtPath: tmp.path) }
         _ = try fm.replaceItemAt(url, withItemAt: tmp)
+        #endif
         return backup
     }
 }
