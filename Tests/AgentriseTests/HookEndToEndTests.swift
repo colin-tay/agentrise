@@ -127,9 +127,10 @@ private let claudeStop = Data(#"{"hook_event_name":"Stop","session_id":"s1"}"#.u
     /// Sends `stdin` through the hook to a listening server and checks the one line that arrives
     /// matches what `EventSlimmer` makes of the same input and environment. With `thenWithoutListener`,
     /// it then stops the server and runs the hook again in the same, now proven, environment.
-    private func deliver(_ stdin: Data, args: [String], agent: AgentKind,
+    /// `dirSuffix` names the temp data root (e.g. non-ASCII, as under a Chinese Windows user name).
+    private func deliver(_ stdin: Data, args: [String], agent: AgentKind, dirSuffix: String = "",
                          thenWithoutListener: Bool = false) async throws -> HookRun {
-        let dir = try makeTempDir()
+        let dir = try makeTempDir(suffix: dirSuffix)
         defer { try? FileManager.default.removeItem(atPath: dir) }
         let env = childEnvironment(dataRoot: dir)
         let box = LineBox()
@@ -171,7 +172,11 @@ private let claudeStop = Data(#"{"hook_event_name":"Stop","session_id":"s1"}"#.u
     }
 
     @Test func codexStopReachesTheServerAndAnswersCodex() async throws {
-        let run = try await deliver(try codexStopFixture(), args: ["--agent", "codex"], agent: .codex)
+        // Non-ASCII data root: the hook gets it through `Process` and the environment block, as it
+        // would under a Chinese Windows user name. The Claude case stays ASCII so both are covered.
+        // macOS socket path: /tmp/ar-<8>-测试/Library/Application Support/Agentrise/tower.sock, 72 bytes.
+        let run = try await deliver(try codexStopFixture(), args: ["--agent", "codex"], agent: .codex,
+                                    dirSuffix: "-测试")
         #expect(run.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "{}")
     }
 }

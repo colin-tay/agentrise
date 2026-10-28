@@ -63,7 +63,7 @@ if mode == "story" {
         let i = Int.random(in: 0..<bosses)
         if Bool.random() { tool("load\(i)", tools.randomElement()!) }
         else { tool("load\(i)", tools.randomElement()!, agent: "ls\(Int.random(in: 0..<subs) / bosses * bosses + i)") }
-        Thread.sleep(forTimeInterval: TimeInterval(UInt32(1_000_000 * Double(bosses) / Double(bosses) / 3)) / 1_000_000)
+        Thread.sleep(forTimeInterval: TimeInterval(UInt32(1_000_000 * Double(bosses) / Double(bosses) / 3)) / 1_000_000)  // the original usleep microseconds: 333_333
     }
     for i in 0..<bosses { ev(.sessionEnd, "load\(i)") }
     print("load done")
