@@ -39,14 +39,8 @@ enum SessionRegistry {
 }
 
 /// cc-connect (Feishu bridge) remembers which Claude session belongs to which chat.
-/// Off by default: only users who run cc-connect turn it on in Settings.
-enum CCConnectIndex {
+extension CCConnectIndex {
     static let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".cc-connect/sessions")
-
-    static var enabled: Bool {
-        get { UserDefaults.standard.bool(forKey: "feishuBridge") }
-        set { UserDefaults.standard.set(newValue, forKey: "feishuBridge") }
-    }
 
     static func load() -> [String: String] {
         var out: [String: String] = [:]

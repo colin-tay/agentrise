@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 import Foundation
-import AppKit
 import TowerKit
 
 enum Rank: String, CaseIterable {
@@ -10,13 +9,13 @@ enum Rank: String, CaseIterable {
 
     var title: String { RankBook.current.title(self) }
 
-    /// Color of the light strip on the robot's body.
-    var stripe: NSColor {
+    /// Color of the light strip on the robot's body, as 0xRRGGBB.
+    var stripeHex: UInt32 {
         switch self {
-        case .seniorDirector: return NSColor(hex: 0xFFCF3F)
-        case .seniorExpert: return NSColor(hex: 0xC084FF)
-        case .seniorEngineer: return NSColor(hex: 0x4CC3FF)
-        case .newGrad: return NSColor(hex: 0x6FF0A8)
+        case .seniorDirector: return 0xFFCF3F
+        case .seniorExpert: return 0xC084FF
+        case .seniorEngineer: return 0x4CC3FF
+        case .newGrad: return 0x6FF0A8
         }
     }
 
@@ -186,15 +185,8 @@ enum TowerEffect: Equatable {
 
 /// Team identity of a main agent: halo color + emblem glyph.
 enum Team {
-    static let colors: [NSColor] = [0xC084FF, 0x3EE6D2, 0xFFA94D, 0xFF6B9A, 0x7CC4FF, 0xB6F36A, 0xFFD84D, 0x9D8CFF].map { NSColor(hex: $0) }
+    /// Halo colors as 0xRRGGBB.
+    static let hexes: [UInt32] = [0xC084FF, 0x3EE6D2, 0xFFA94D, 0xFF6B9A, 0x7CC4FF, 0xB6F36A, 0xFFD84D, 0x9D8CFF]
     static let glyphs = ["⚡", "◆", "★", "▲", "●", "✦", "■", "✚"]
-    static func color(_ i: Int) -> NSColor { colors[((i % colors.count) + colors.count) % colors.count] }
     static func glyph(_ i: Int) -> String { glyphs[((i % glyphs.count) + glyphs.count) % glyphs.count] }
-}
-
-extension NSColor {
-    convenience init(hex: UInt32, alpha: CGFloat = 1) {
-        self.init(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
-                  blue: CGFloat(hex & 0xFF) / 255, alpha: alpha)
-    }
 }
