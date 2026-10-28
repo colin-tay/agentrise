@@ -98,7 +98,7 @@ public enum SocketClient {
         guard s != invalidSocket else { return false }
         defer { closesocket(s) }
         var nonBlocking: u_long = 1
-        _ = ioctlsocket(s, fionbio, &nonBlocking)
+        guard ioctlsocket(s, fionbio, &nonBlocking) == 0 else { return false }   // a blocking socket could stall the agent
         let rc = withSockaddr(addr) { connect(s, $0, $1) }
         if rc != 0 {
             guard WSAGetLastError() == wsaWouldBlock else { return false }
@@ -134,7 +134,6 @@ public enum SocketClient {
 /// one thread per connection blocks in `recv`; `onLine` calls are serialised like the macOS queue.
 public final class SocketServer: @unchecked Sendable {
     private let path: String
-    private let listenSocket: SOCKET
     private let onLine: (Data) -> Void
     private let lock = NSLock()
     private var stopped = false
@@ -159,7 +158,6 @@ public final class SocketServer: @unchecked Sendable {
             deleteFile(path)
             throw NSError(domain: "Agentrise", code: 4)
         }
-        listenSocket = s
         let acceptor = Thread { [self] in acceptLoop(s) }
         acceptor.name = "agentrise.socket.accept"
         acceptor.start()
@@ -167,11 +165,17 @@ public final class SocketServer: @unchecked Sendable {
 
     private var isStopped: Bool { lock.lock(); defer { lock.unlock() }; return stopped }
 
+    /// Owns the listening socket: only this thread closes it, so `accept` never runs on a
+    /// handle value that `stop()` already closed and Windows may have handed to someone else.
     private func acceptLoop(_ s: SOCKET) {
-        while true {
+        defer { closesocket(s) }
+        while !isStopped {
             let client = accept(s, nil, nil)
+            if isStopped {                                     // woken by stop()'s own connect
+                if client != invalidSocket { closesocket(client) }
+                return
+            }
             if client == invalidSocket {
-                if isStopped { return }                        // stop() closed the listening socket
                 Thread.sleep(forTimeInterval: 0.05)            // transient failure: don't spin
                 continue
             }
@@ -215,7 +219,7 @@ public final class SocketServer: @unchecked Sendable {
         stopped = true
         lock.unlock()
         guard !wasStopped else { return }
-        closesocket(listenSocket)
+        SocketClient.send(Data(), to: path)                    // wake the blocked accept; it closes the listener
         deleteFile(path)
     }
 }
