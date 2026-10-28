@@ -55,8 +55,11 @@ struct RankBookTests {
         var b = RankBook.load(from: url)
         #expect(b.title(.seniorExpert) == "首席")
         #expect(b.rank(for: "claude-opus-5-5") == .seniorExpert)
-        try #"{"keywords": {"newGrad": ["mini"]}}"#.write(to: url, atomically: true, encoding: .utf8)
-        b = RankBook.load(from: url)
+        // A fresh file: replacing one that was just written and read hits a sharing violation on Windows.
+        let url2 = tempFile()
+        try FileManager.default.createDirectory(at: url2.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try #"{"keywords": {"newGrad": ["mini"]}}"#.write(to: url2, atomically: true, encoding: .utf8)
+        b = RankBook.load(from: url2)
         #expect(b.rank(for: "gpt-mini") == .newGrad)
         #expect(b.title(.newGrad) == "校招生")
     }
