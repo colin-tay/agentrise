@@ -6,7 +6,7 @@
 // Each entry of `ArtSnapshotTests.shots` renders one image, takes its premultiplied RGBA bytes (sRGB, rows top
 // first) and compares them with the decoded baseline, channel by channel, allowing a difference of 1. Robot
 // parts, labels, bubbles, signs and emoji come straight from a fresh `RobotArt(scale: 2)`; building pieces
-// from `BuildingArt` at scale 2 for a landscape (1200×800) and a portrait (700×1100) layout; the header,
+// from `BuildingArt` at scale 2 (both the portable recipes, drawn by `CGArtBackend` through `CGPen`) for a landscape (1200×800) and a portrait (700×1100) layout; the header,
 // tooltip and report card, which only the scene bakes, from a `TowerScene` at backing scale 2 (the report is
 // baked at the scene's robot-art scale, 2 × 1.25 = 2.5).
 //
@@ -118,23 +118,25 @@ enum SnapshotPaths {
 
     static func shots() -> [Shot] {
         var out: [Shot] = []
-        let art = RobotArt(scale: scale)
+        let backend = CGArtBackend.shared
+        let art = RobotArt(scale: scale, backend: backend)
         func add(_ key: String, _ render: @escaping () -> CGImage) { out.append(Shot(key: key, render: render)) }
+        func add(_ key: String, _ render: @escaping () -> BakedImage) { add(key) { render().cgImage } }
 
         // Building.
         for (name, size) in layouts {
             let layout = BuildingLayout.make(size: size)
-            add("building-background-\(name)") { BuildingArt.background(layout, scale: scale).cgImage() }
-            add("building-cab-\(name)") { BuildingArt.cab(layout, scale: scale).cgImage() }
+            add("building-background-\(name)") { BuildingArt.background(layout, scale: scale, backend: backend) }
+            add("building-cab-\(name)") { BuildingArt.cab(layout, scale: scale, backend: backend) }
         }
         var ledColors: [UInt32] = []
         for spec in BuildingArt.ledSpecs(BuildingLayout.make(size: layouts[0].size)) {
-            let hex = hexOf(spec.color)
+            let hex = hexOf(NSColor(spec.color))
             guard !ledColors.contains(hex) else { continue }
             ledColors.append(hex)
-            add(String(format: "building-led-%06x", hex)) { BuildingArt.led(color: spec.color, scale: scale) }
+            add(String(format: "building-led-%06x", hex)) { BuildingArt.led(color: spec.color, scale: scale, backend: backend) }
         }
-        add("building-elevator-label") { BuildingArt.elevatorLabel(scale: scale).cgImage() }
+        add("building-elevator-label") { BuildingArt.elevatorLabel(scale: scale, backend: backend) }
 
         // Robot parts that don't depend on the look.
         let plain: [(RobotPart, String)] = [(.halo, "halo"), (.leftHand, "left-hand"), (.rightHand, "right-hand"),
@@ -169,21 +171,21 @@ enum SnapshotPaths {
             return "\(Team.glyph(team)) \(t)\n\(Self.title(rank))"
         }
         for (rank, rankName) in ranks {
-            add("name-stripe-\(rankName)") { art.name(bossName("修复登录", team: 0, rank: rank), small: false, stripe: NSColor(rank.stripe)) }
+            add("name-stripe-\(rankName)") { art.name(bossName("修复登录", team: 0, rank: rank), small: false, stripe: rank.stripe) }
         }
         add("name-short-no-stripe") { art.name("⚡ 修复登录", small: false, stripe: nil) }
         add("name-long-truncated") {
-            art.name(bossName("重构整个支付网关的回调处理逻辑", team: 1, rank: .seniorEngineer), small: false, stripe: NSColor(Rank.seniorEngineer.stripe))
+            art.name(bossName("重构整个支付网关的回调处理逻辑", team: 1, rank: .seniorEngineer), small: false, stripe: Rank.seniorEngineer.stripe)
         }
         add("name-long-clipped") { art.name("✚ 一个特别特别特别特别特别特别长的名字", small: false, stripe: nil) }
         add("name-small-sub") { art.name("Explore", small: true, stripe: nil) }
         add("name-small-contractor") { art.name("外包·" + String("跑一遍完整的测试套件".prefix(10)), small: true, stripe: nil) }
 
         // Bubbles: every bubble the scene shows, plus a two-line one; glows for the pulsing ones.
-        let bubbles: [(String, String, NSColor, Bool)] = [
-            ("waiting", "等你回复", NSColor(hex: 0xFFC95C), true), ("done", "✓ 做完了", NSColor(hex: 0x1F8F57), false),
-            ("error", "出错了", NSColor(hex: 0xD84545), true), ("working", Activity.coding.label, NSColor(hex: 0x24477A), false),
-            ("two-lines", "等你回复\n第二行", NSColor(hex: 0xFFC95C), true)]
+        let bubbles: [(String, String, Color, Bool)] = [
+            ("waiting", "等你回复", Color(hex: 0xFFC95C), true), ("done", "✓ 做完了", Color(hex: 0x1F8F57), false),
+            ("error", "出错了", Color(hex: 0xD84545), true), ("working", Activity.coding.label, Color(hex: 0x24477A), false),
+            ("two-lines", "等你回复\n第二行", Color(hex: 0xFFC95C), true)]
         for (name, text, color, glows) in bubbles {
             add("bubble-\(name)") { art.bubble(text, color: color) }
             if glows { add("bubble-glow-\(name)") { art.bubbleGlow(text, color: color) } }
@@ -270,13 +272,13 @@ enum SnapshotPaths {
         let bytes: [UInt8]
     }
 
-    /// Premultiplied RGBA in sRGB, top row first: the format `ArtKit` bakes in.
+    /// Premultiplied RGBA in sRGB, top row first: the format `CGArtBackend` bakes in.
     static func pixels(_ image: CGImage) -> Pixels {
         let w = image.width, h = image.height
         var bytes = [UInt8](repeating: 0, count: w * h * 4)
         bytes.withUnsafeMutableBytes { buf in
             let ctx = CGContext(data: buf.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
-                                space: ArtKit.colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+                                space: CGArtBackend.colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
             ctx.setBlendMode(.copy)
             ctx.interpolationQuality = .none
             ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))

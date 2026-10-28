@@ -52,7 +52,7 @@ final class RobotSprite: SKNode {
     private var lastName: String?
     private var lastBubble: String?
     /// Every sprite's source image, so its texture can be swapped for the atlas copy (`rebindTextures`).
-    private var sources: [ObjectIdentifier: (node: SKSpriteNode, image: CGImage)] = [:]
+    private var sources: [ObjectIdentifier: (node: SKSpriteNode, image: BakedImage)] = [:]
 
     private struct Pose {
         let position: CGPoint, zRotation: CGFloat, xScale: CGFloat, yScale: CGFloat, alpha: CGFloat
@@ -79,13 +79,13 @@ final class RobotSprite: SKNode {
         self.art = art
         self.phase = phase
         let feet = Self.feet, neck = Self.neck
-        var baked: [(SKSpriteNode, CGImage)] = []
+        var baked: [(SKSpriteNode, BakedImage)] = []
         func part(_ name: String, _ p: RobotPart, pivot: CGPoint, origin: CGPoint, z: CGFloat) -> SKSpriteNode {
             let image = art.image(p)
-            let s = SKSpriteNode(texture: nil, size: RobotArt.frame(p).size)
+            let s = SKSpriteNode(texture: nil, size: art.frame(p).size)
             baked.append((s, image))
             s.name = name
-            s.anchorPoint = RobotArt.anchorPoint(p, design: pivot)
+            s.anchorPoint = art.anchorPoint(p, design: pivot)
             let at = RobotMotion.robotPoint(pivot), o = RobotMotion.robotPoint(origin)
             s.position = CGPoint(x: at.x - o.x, y: at.y - o.y)
             s.zPosition = z
@@ -148,13 +148,13 @@ final class RobotSprite: SKNode {
 
     // MARK: Textures
 
-    private static let textures: NSCache<CGImage, SKTexture> = {
-        let c = NSCache<CGImage, SKTexture>()
+    private static let textures: NSCache<BakedImage, SKTexture> = {
+        let c = NSCache<BakedImage, SKTexture>()
         c.totalCostLimit = standaloneCostLimit
         return c
     }()
 
-    /// Byte budget (image `bytesPerRow × height`) of the standalone texture cache. Packed images leave it, so it
+    /// Byte budget (`RobotArt.cost`) of the standalone texture cache. Packed images leave it, so it
     /// mostly holds images that don't fit in the atlas (overflow after a reset, oversized ones) and images
     /// waiting for the next commit; roomy enough that those aren't re-uploaded every time they are shown.
     static let standaloneCostLimit = 16 << 20
@@ -162,28 +162,28 @@ final class RobotSprite: SKNode {
     /// One standalone SKTexture per baked image (keyed by the image itself, which the cache keeps alive), shared
     /// by all robots; used until the image is packed into `art.atlas`, which then drops it (`forgetTexture`).
     /// Each costs its image's bytes on the GPU (and the image on the CPU), hence the byte budget.
-    static func texture(_ image: CGImage) -> SKTexture {
+    static func texture(_ image: BakedImage) -> SKTexture {
         if let t = textures.object(forKey: image) { return t }
-        let t = SKTexture(cgImage: image)
+        let t = SKTexture(cgImage: image.cgImage)
         textures.setObject(t, forKey: image, cost: RobotArt.cost(image))
         return t
     }
 
     /// Drops the standalone texture of an image that is now drawn from the atlas.
-    static func forgetTexture(_ image: CGImage) { textures.removeObject(forKey: image) }
+    static func forgetTexture(_ image: BakedImage) { textures.removeObject(forKey: image) }
 
     /// Whether a standalone texture for `image` is cached. For tests.
-    static func hasStandaloneTexture(_ image: CGImage) -> Bool { textures.object(forKey: image) != nil }
+    static func hasStandaloneTexture(_ image: BakedImage) -> Bool { textures.object(forKey: image) != nil }
 
     /// Shows `image` on `node`, from the atlas once it is packed there.
-    private func bind(_ node: SKSpriteNode, _ image: CGImage) {
+    private func bind(_ node: SKSpriteNode, _ image: BakedImage) {
         sources[ObjectIdentifier(node)] = (node, image)
         node.texture = art.atlas.texture(for: image)
     }
 
     /// The baked image a part of this robot shows (nil for a node without one). For tests: the motion
     /// baselines record which image each part draws.
-    func sourceImage(of node: SKNode) -> CGImage? { sources[ObjectIdentifier(node)]?.image }
+    func sourceImage(of node: SKNode) -> BakedImage? { sources[ObjectIdentifier(node)]?.image }
 
     /// Re-asks the atlas for every sprite's texture (the scene calls this when the atlas `version` changes),
     /// so freshly packed images move onto the shared page and batch with the rest.
@@ -249,11 +249,11 @@ final class RobotSprite: SKNode {
     }
 
     private func makeProp(_ p: RobotMotion.Prop, z: CGFloat) -> SKSpriteNode {
-        let image: CGImage, size: CGSize
+        let image: BakedImage, size: CGSize
         switch p.art {
         case let .emoji(s, sz):
             image = art.emoji(s, size: sz)
-            size = ArtKit.labelSize(s, size: sz, weight: .regular)
+            size = art.emojiSize(s, size: sz)
         case .doorSign:
             image = art.doorSign()
             size = CGSize(width: 16, height: 14)
@@ -285,12 +285,12 @@ final class RobotSprite: SKNode {
         bubble.isHidden = false
         // Old bubble centre: design y 2 for the sprout / hard hat wearers, 6 otherwise (no headroom added).
         placeBubble()
-        let size = RobotArt.bubbleSize(text)
-        bind(bubbleBody, art.bubble(text, color: color))
+        let size = art.bubbleSize(text)
+        bind(bubbleBody, art.bubble(text, color: Color(color)))
         bubbleBody.size = size
         if pulse {
             let pad = RobotArt.bubbleGlowPadding
-            bind(bubbleGlow, art.bubbleGlow(text, color: color))
+            bind(bubbleGlow, art.bubbleGlow(text, color: Color(color)))
             bubbleGlow.size = CGSize(width: size.width + pad * 2, height: size.height + pad * 2)
             bubbleGlow.run(.from(RobotMotion.pulse()), withKey: "pulse")
         }
@@ -304,8 +304,8 @@ final class RobotSprite: SKNode {
         guard s != lastName else { return }
         lastName = s
         let small = look.kind == .sub || look.kind == .contractor
-        bind(nameSprite, art.name(s, small: small, stripe: look.rank.map { NSColor($0.stripe) }))
-        nameSprite.size = RobotArt.nameImageSize(s, small: small)
+        bind(nameSprite, art.name(s, small: small, stripe: look.rank?.stripe))
+        nameSprite.size = art.nameImageSize(s, small: small)
     }
 
     func setLarkBadge(_ on: Bool) { lark.isHidden = !on }
@@ -318,14 +318,14 @@ final class RobotSprite: SKNode {
         guard new != look else { return }
         look = new
         for (node, p, pivot) in [(head, RobotPart.head(new), Self.neck), (torso, .torso(new), Self.feet)] {
-            node.size = RobotArt.frame(p).size
-            node.anchorPoint = RobotArt.anchorPoint(p, design: pivot)
+            node.size = art.frame(p).size
+            node.anchorPoint = art.anchorPoint(p, design: pivot)
             bind(node, art.image(p))
         }
         if new.hasHeadOverlay {
             let p = RobotPart.headOverlay(new)
-            headOverlay.size = RobotArt.frame(p).size
-            headOverlay.anchorPoint = RobotArt.anchorPoint(p, design: Self.neck)
+            headOverlay.size = art.frame(p).size
+            headOverlay.anchorPoint = art.anchorPoint(p, design: Self.neck)
             headOverlay.position = .zero   // pivot and origin are both the neck
             headOverlay.zPosition = Z.headOverlay - Z.head
             bind(headOverlay, art.image(p))

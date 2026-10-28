@@ -16,7 +16,7 @@ import Metal
 
     private func robot(_ look: RobotLook? = nil) -> RobotSprite {
         let l = look ?? self.look
-        return RobotSprite(look: l, teamColor: l.teamColor, art: art, phase: 0.7)
+        return RobotSprite(look: l, teamColor: NSColor(l.teamColor), art: art, phase: 0.7)
     }
 
     private func node(_ r: RobotSprite, _ name: String) -> SKNode {
@@ -128,7 +128,7 @@ import Metal
 
     @Test func bobMatchesTheOldKeyframes() {
         // phase 0: float [0, -2.5, 0] over 2.6 s, eased over the whole loop (peak at 1.3 s).
-        let r = RobotSprite(look: look, teamColor: look.teamColor, art: art, phase: 0)
+        let r = RobotSprite(look: look, teamColor: NSColor(look.teamColor), art: art, phase: 0)
         let s = Stepper(r)
         let float = node(r, "float")
         s.at(1.3); #expect(near(float.position.y, 2.5))
@@ -141,7 +141,7 @@ import Metal
 
     @Test func phaseStartsMidLoop() {
         // The old `timeOffset = phase`: at t = 0 the bob is already 1.3 s in, i.e. at its peak.
-        let r = RobotSprite(look: look, teamColor: look.teamColor, art: art, phase: 1.3)
+        let r = RobotSprite(look: look, teamColor: NSColor(look.teamColor), art: art, phase: 1.3)
         let s = Stepper(r)
         s.at(0.001); #expect(near(node(r, "float").position.y, 2.5))
         s.at(1.3); #expect(near(node(r, "float").position.y, 0))
@@ -149,7 +149,7 @@ import Metal
 
     @Test func blinkFollowsKeyTimes() {
         // scale.y [1, 1, 0.1, 1, 1] over 4 s at keyTimes [0, .46, .5, .54, 1]: shut at 2 s, open well before/after.
-        let r = RobotSprite(look: look, teamColor: look.teamColor, art: art, phase: 0)
+        let r = RobotSprite(look: look, teamColor: NSColor(look.teamColor), art: art, phase: 0)
         let s = Stepper(r)
         let eyes = node(r, "eyes")
         s.at(1.5); #expect(near(eyes.yScale, 1))
@@ -173,7 +173,7 @@ import Metal
     @Test func sleepingShiftsLikeTheOldTransform() {
         // Old floatGroup.transform = translate(3, 6) then scale 0.9 about the canvas centre, with the y
         // translation replaced on screen by the bob's `transform.translation.y` (see `sleepingFloatPosition`).
-        let r = RobotSprite(look: look, teamColor: look.teamColor, art: art, phase: 0)
+        let r = RobotSprite(look: look, teamColor: NSColor(look.teamColor), art: art, phase: 0)
         r.setAction(.sleeping)
         let s = Stepper(r)
         s.at(2.6)   // bob back at rest
@@ -182,7 +182,7 @@ import Metal
     }
 
     @Test func handsTypeAndReturnHome() {
-        let r = RobotSprite(look: look, teamColor: look.teamColor, art: art, phase: 0)
+        let r = RobotSprite(look: look, teamColor: NSColor(look.teamColor), art: art, phase: 0)
         r.setAction(.coding)
         let s = Stepper(r)
         s.at(0.18)
@@ -220,7 +220,7 @@ import Metal
         r.setName("项目A\n资深总监")
         let name = node(r, "name") as? SKSpriteNode
         #expect(name?.texture != nil)
-        #expect(name?.size == RobotArt.nameImageSize("项目A\n资深总监", small: false))
+        #expect(name?.size == art.nameImageSize("项目A\n资深总监", small: false))
         // Old label top at design y 82 → 2 pt above the feet, minus the shadow padding.
         #expect(name.map { $0.frame.maxY } == 2 + RobotArt.namePadding)
     }

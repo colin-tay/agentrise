@@ -214,7 +214,7 @@ import SpriteKit
     private let header: () -> String?
     private var byImage: [ObjectIdentifier: String] = [:]
     /// Keeps the named images alive, so their identifiers stay theirs (and `RobotArt` hands out these objects).
-    private var images: [CGImage] = []
+    private var images: [BakedImage] = []
     private var arts: [ObjectIdentifier: RobotArt] = [:]
     private var byTexture: [ObjectIdentifier: (texture: SKTexture, key: String)] = [:]
 
@@ -233,7 +233,7 @@ import SpriteKit
     static let bubbles: [(String, NSColor)] = ArtSnapshotTests.activities.map { ($0.label, NSColor(hex: 0x24477A)) } + [
         ("等你回复", NSColor(hex: 0xFFC95C)), ("✓ 做完了", NSColor(hex: 0x1F8F57)), ("出错了", NSColor(hex: 0xD84545))]
 
-    private func name(_ image: CGImage, _ key: String) {
+    private func name(_ image: BakedImage, _ key: String) {
         guard byImage[ObjectIdentifier(image)] == nil else { return }
         byImage[ObjectIdentifier(image)] = key
         images.append(image)
@@ -264,11 +264,11 @@ import SpriteKit
         }
         name(art.doorSign(), "door-sign")
         for (text, color) in Self.bubbles {
-            name(art.bubble(text, color: color), "bubble:\(Self.clean(text)):\(Self.hex(color))")
-            name(art.bubbleGlow(text, color: color), "bubble-glow:\(Self.clean(text)):\(Self.hex(color))")
+            name(art.bubble(text, color: Color(color)), "bubble:\(Self.clean(text)):\(Self.hex(color))")
+            name(art.bubbleGlow(text, color: Color(color)), "bubble-glow:\(Self.clean(text)):\(Self.hex(color))")
         }
         for n in names {
-            name(art.name(n.text, small: n.small, stripe: n.stripe), "name:\(Self.clean(n.text)):\(n.small ? 1 : 0):\(Self.hex(n.stripe))")
+            name(art.name(n.text, small: n.small, stripe: n.stripe.map { Color($0) }), "name:\(Self.clean(n.text)):\(n.small ? 1 : 0):\(Self.hex(n.stripe))")
         }
     }
 
@@ -276,7 +276,7 @@ import SpriteKit
         guard let sprite = node as? SKSpriteNode else { return "." }
         if let robot, let image = robot.sourceImage(of: sprite) {
             register(robot.art)
-            return byImage[ObjectIdentifier(image)] ?? "unnamed:" + Self.digest(ArtSnapshotTests.pixels(image))
+            return byImage[ObjectIdentifier(image)] ?? "unnamed:" + Self.digest(ArtSnapshotTests.pixels(image.cgImage))
         }
         guard let texture = sprite.texture else { return "-" }
         if sprite.name == "header", sprite.parent === sprite.scene, let h = header() { return "header:" + Self.clean(h) }
@@ -307,7 +307,7 @@ import SpriteKit
     /// A boss (senior engineer, team 0) at robot-art scale 2.5, as the scene bakes them at 2×.
     static func robot(phase: TimeInterval) -> RobotSprite {
         let look = RobotLook(kind: .boss(.seniorEngineer), teamIndex: 0, larkSession: false)
-        let r = RobotSprite(look: look, teamColor: look.teamColor, art: RobotArt(scale: 2.5), phase: phase)
+        let r = RobotSprite(look: look, teamColor: NSColor(look.teamColor), art: RobotArt(scale: 2.5), phase: phase)
         r.setName(robotName.text)
         r.position = CGPoint(x: 100, y: 40)
         return r

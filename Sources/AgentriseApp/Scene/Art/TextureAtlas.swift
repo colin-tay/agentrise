@@ -4,6 +4,7 @@
 import CoreGraphics
 import Foundation
 import SpriteKit
+import AgentriseScene
 
 /// A runtime texture atlas for baked robot images, so SpriteKit can draw many robots' parts in one
 /// batch instead of one draw call per part.
@@ -13,13 +14,13 @@ import SpriteKit
 /// `commit()` packs the queue into the pages, re-uploads the pages that changed and bumps `version`.
 /// Whoever holds atlas textures re-asks `texture(for:)` when `version` changes (`RobotSprite.rebindTextures`).
 ///
-/// Pixels are copied unchanged (same colour space and alpha format as `ArtKit.image`) with a transparent
+/// Pixels are copied unchanged (same colour space and alpha format as `CGArtBackend` bakes) with a transparent
 /// gutter around entries (1 px to the page edge, 2 px between neighbours), so a packed image samples like
 /// its standalone texture. Images that don't fit in an empty page stay standalone.
 ///
 /// Pages keep no bitmap: a commit re-renders each changed page from its entries' source images into a
 /// temporary buffer and uploads it as a raw-data texture, which SpriteKit frees once it is on the GPU
-/// (`ArtKit.texture(pixels:width:height:)`), so a page costs its GPU copy only. A page's texture is only as
+/// (`CGArtBackend.texture(pixels:width:height:)`), so a page costs its GPU copy only. A page's texture is only as
 /// tall as its filled shelves (rounded up to `rowStep` rows), so the last, partly filled page doesn't hold
 /// a full page of empty pixels. (Smaller square pages would waste as little, but robots' parts then spread
 /// over more pages and SpriteKit draws them in many more batches.)
@@ -46,7 +47,7 @@ final class TextureAtlas {
         /// Rows in `texture` (≤ `pageSize`).
         var textureHeight = 0
         /// What the page holds, so it can be drawn again when entries are added.
-        var placed: [(image: CGImage, rect: CGRect)] = []
+        var placed: [(image: BakedImage, rect: CGRect)] = []
     }
 
     private struct Entry {
@@ -54,13 +55,13 @@ final class TextureAtlas {
         let rect: CGRect          // pixels, CG (bottom-left) origin
         /// Not kept alive by the entry: the open page's `placed` list holds its images (it is drawn again on
         /// the next add), while a full page is never drawn again and needs none. Whoever shows an image holds it.
-        weak var image: CGImage?
+        weak var image: BakedImage?
         var texture: SKTexture?
     }
 
-    /// Hashes a `CGImage` by identity and keeps it alive (queued and overflow images).
+    /// Hashes a `BakedImage` by identity and keeps it alive (queued and overflow images).
     private struct Key: Hashable {
-        let image: CGImage
+        let image: BakedImage
         static func == (a: Key, b: Key) -> Bool { a.image === b.image }
         func hash(into h: inout Hasher) { h.combine(ObjectIdentifier(image)) }
     }
@@ -82,7 +83,7 @@ final class TextureAtlas {
     }
 
     /// The image's packed texture, or (until the next `commit`) a standalone one.
-    func texture(for image: CGImage) -> SKTexture {
+    func texture(for image: BakedImage) -> SKTexture {
         lock.lock(); defer { lock.unlock() }
         let key = Key(image: image)
         if let e = entry(image) {
@@ -100,20 +101,20 @@ final class TextureAtlas {
     }
 
     /// Whether `texture(for:)` would return a packed texture for this image.
-    func isPacked(_ image: CGImage) -> Bool {
+    func isPacked(_ image: BakedImage) -> Bool {
         lock.lock(); defer { lock.unlock() }
         return entry(image) != nil
     }
 
     /// Where a packed image sits: page index and pixel rect (bottom-left origin). For tests.
-    func placement(of image: CGImage) -> (page: Int, rect: CGRect)? {
+    func placement(of image: BakedImage) -> (page: Int, rect: CGRect)? {
         lock.lock(); defer { lock.unlock() }
         return entry(image).map { ($0.page, $0.rect) }
     }
 
     /// The live entry for `image`. A stale entry under the same identifier (its image was freed and the
     /// address reused) is dropped.
-    private func entry(_ image: CGImage) -> Entry? {
+    private func entry(_ image: BakedImage) -> Entry? {
         let id = ObjectIdentifier(image)
         guard let e = entries[id] else { return nil }
         if e.image === image { return e }
@@ -122,8 +123,8 @@ final class TextureAtlas {
     }
 
     /// Small enough for an empty page, gutter included.
-    private func fits(_ image: CGImage) -> Bool {
-        image.width + Self.gutter <= pageSize && image.height + Self.gutter <= pageSize
+    private func fits(_ image: BakedImage) -> Bool {
+        image.pixelWidth + Self.gutter <= pageSize && image.pixelHeight + Self.gutter <= pageSize
     }
 
     /// Packs the queued images; true (and a new `version`) when anything changed.
@@ -181,13 +182,13 @@ final class TextureAtlas {
         let buffer = calloc(count, 1)!
         do {
             let ctx = CGContext(data: buffer, width: pageSize, height: height, bitsPerComponent: 8, bytesPerRow: bytesPerRow,
-                                space: ArtKit.colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+                                space: CGArtBackend.colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
             ctx.setBlendMode(.copy)
             ctx.interpolationQuality = .none
-            for p in page.placed { ctx.draw(p.image, in: p.rect) }
+            for p in page.placed { ctx.draw(p.image.cgImage, in: p.rect) }
             ctx.flush()
         }
-        return ArtKit.texture(pixels: NSData(bytesNoCopy: buffer, length: count, freeWhenDone: true) as Data, width: pageSize, height: height)
+        return CGArtBackend.texture(pixels: NSData(bytesNoCopy: buffer, length: count, freeWhenDone: true) as Data, width: pageSize, height: height)
     }
 
     private func reset() {
@@ -198,7 +199,7 @@ final class TextureAtlas {
 
     /// Shelf packing: fill rows left to right, open a new row (or page) when the image doesn't fit.
     private func pack(_ key: Key) -> Bool {
-        let w = key.image.width + Self.gutter, h = key.image.height + Self.gutter
+        let w = key.image.pixelWidth + Self.gutter, h = key.image.pixelHeight + Self.gutter
         func place(in i: Int) -> Bool {
             let p = pages[i]
             if p.shelfX + w > pageSize {
@@ -207,7 +208,7 @@ final class TextureAtlas {
                 p.shelfHeight = 0
             }
             guard p.shelfY + h <= pageSize else { return false }
-            let rect = CGRect(x: p.shelfX + Self.gutter / 2, y: p.shelfY + Self.gutter / 2, width: key.image.width, height: key.image.height)
+            let rect = CGRect(x: p.shelfX + Self.gutter / 2, y: p.shelfY + Self.gutter / 2, width: key.image.pixelWidth, height: key.image.pixelHeight)
             p.placed.append((key.image, rect))
             p.shelfX += w
             p.shelfHeight = max(p.shelfHeight, h)

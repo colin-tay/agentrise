@@ -46,8 +46,8 @@ final class TowerScene: SKScene {
     /// (one per scale), so a scale change resets this.
     private var atlasVersion = -1
     /// LED sprites and their images, rebound with the robots when the atlas changes.
-    private var ledSources: [(node: SKSpriteNode, image: CGImage)] = []
-    private var ledImages: [NSColor: CGImage] = [:]
+    private var ledSources: [(node: SKSpriteNode, image: BakedImage)] = []
+    private var ledImages: [Color: BakedImage] = [:]
     private var ledImagesScale: CGFloat = 0
 
     /// A robot on its way out: (sub/contractor) to its boss, then to its floor's elevator door, then fading out.
@@ -156,14 +156,15 @@ final class TowerScene: SKScene {
             art = RobotArt.shared(scale: artScale)   // the old scale's art goes once its robots are re-baked
             reportTextures.removeAll()
         }
-        backgroundSprite.texture = BuildingArt.background(geo, scale: scale)
+        let backend = CGArtBackend.shared
+        backgroundSprite.texture = CGArtBackend.texture(BuildingArt.background(geo, scale: scale, backend: backend))
         backgroundSprite.size = size
         backgroundSprite.position = .zero
         let body = BuildingArt.cabBody(geo), m = BuildingArt.cabMargin
-        cab.texture = BuildingArt.cab(geo, scale: scale)
+        cab.texture = CGArtBackend.texture(BuildingArt.cab(geo, scale: scale, backend: backend))
         cab.size = CGSize(width: body.width + 2 * m, height: body.height + 2 * m)
-        elevatorLabel.texture = BuildingArt.elevatorLabel(scale: scale)
-        elevatorLabel.size = BuildingArt.elevatorLabelSize
+        elevatorLabel.texture = CGArtBackend.texture(BuildingArt.elevatorLabel(scale: scale, backend: backend))
+        elevatorLabel.size = BuildingArt.elevatorLabelSize(backend)
         elevatorLabel.position = scenePoint(CGPoint(x: geo.elevator.midX, y: geo.elevator.midY))
         bakeHeader()
         scheduleRelief()
@@ -177,7 +178,7 @@ final class TowerScene: SKScene {
         if ledImagesScale != scale { ledImages.removeAll(); ledImagesScale = scale }   // same images on resize
         let atlas = art.atlas
         for spec in BuildingArt.ledSpecs(geo) {
-            let image = ledImages[spec.color] ?? BuildingArt.led(color: spec.color, scale: scale)
+            let image = ledImages[spec.color] ?? BuildingArt.led(color: spec.color, scale: scale, backend: CGArtBackend.shared)
             ledImages[spec.color] = image
             let led = SKSpriteNode(texture: atlas.texture(for: image), size: CGSize(width: 4, height: 4))
             ledSources.append((led, image))
@@ -239,7 +240,7 @@ final class TowerScene: SKScene {
         if let due = reliefDue {
             reliefDue = due - dt
             if due - dt <= 0 {
-                ArtKit.releaseFreedPixels()
+                CGArtBackend.releaseFreedPixels()
                 reliefRuns += 1
                 // Textures made while this one was pending may not have been uploaded (and freed) yet: once more.
                 reliefDue = reliefRearm ? Self.reliefDelay : nil
@@ -306,8 +307,8 @@ final class TowerScene: SKScene {
         headerBakedScale = bakedScale
         let r = s.boundingRect(with: CGSize(width: 10_000, height: 100), options: [.usesLineFragmentOrigin])
         let size = CGSize(width: max(1, ceil(r.width)), height: max(1, ceil(r.height)))
-        header.texture = ArtKit.texture(size: size, scale: bakedScale) { ctx in
-            ArtKit.draw(s, in: CGRect(origin: .zero, size: size), ctx: ctx)
+        header.texture = CGArtBackend.texture(size: size, scale: bakedScale) { ctx in
+            CGArtBackend.draw(s, in: CGRect(origin: .zero, size: size), ctx: ctx)
         }
         scheduleRelief()
         header.size = size
@@ -631,7 +632,7 @@ final class TowerScene: SKScene {
         let scale = artScale
         if let t = reportTextures[scale] { return t }
         let pad = Self.reportPadding
-        let t = ArtKit.texture(size: Self.reportImageSize, scale: scale) { ctx in
+        let t = CGArtBackend.texture(size: Self.reportImageSize, scale: scale) { ctx in
             ctx.setShadow(offset: .zero, blur: ArtKit.shadowBlur(radius: 5, scale: scale), color: NSColor(hex: 0x7CC4FF).cgColor)
             ctx.addPath(CGPath(roundedRect: CGRect(x: pad, y: pad, width: 10, height: 13), cornerWidth: 2, cornerHeight: 2, transform: nil))
             ctx.setFillColor(NSColor(hex: 0xBFE8FF).cgColor)
@@ -815,7 +816,7 @@ final class TowerScene: SKScene {
         for (i, line) in lines.enumerated() {
             let size: CGFloat = i == 0 ? 12 : 10.5
             let weight: NSFont.Weight = i == 0 ? .bold : .regular
-            let box = ArtKit.labelSize(line, size: size, weight: weight)
+            let box = CGArtBackend.labelSize(line, size: size, weight: weight)
             let text = NSAttributedString(string: line, attributes: [
                 .font: NSFont.systemFont(ofSize: size, weight: weight),
                 .foregroundColor: i == 0 ? NSColor.white : NSColor(hex: 0xC9D2FF), .paragraphStyle: para])
@@ -824,7 +825,7 @@ final class TowerScene: SKScene {
             w = max(w, box.width)
         }
         let size = CGSize(width: min(w + 20, 320), height: y + 6)
-        let texture = ArtKit.texture(size: size, scale: scale) { ctx in
+        let texture = CGArtBackend.texture(size: size, scale: scale) { ctx in
             let outer = CGRect(origin: .zero, size: size)
             ctx.addPath(CGPath(roundedRect: outer, cornerWidth: 8, cornerHeight: 8, transform: nil))
             ctx.setFillColor(NSColor(hex: 0x0A0E26, alpha: 0.95).cgColor)
@@ -836,7 +837,7 @@ final class TowerScene: SKScene {
             for r in rows {
                 var rect = r.rect
                 rect.size.width = min(rect.width, size.width - 20)   // truncate rather than spill over the border
-                ArtKit.draw(r.text, in: rect, ctx: ctx)
+                CGArtBackend.draw(r.text, in: rect, ctx: ctx)
             }
         }
         return (texture, size)

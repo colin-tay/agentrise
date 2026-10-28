@@ -6,16 +6,21 @@ import CoreGraphics
 import SpriteKit
 @testable import AgentriseApp
 @testable import Agentrise
+@testable import AgentriseScene
 
 @MainActor
 @Suite struct TextureAtlasTests {
     /// A solid w×h image (a fresh object every call: the atlas keys images by identity).
-    private func image(_ w: Int, _ h: Int) -> CGImage {
+    private func image(_ w: Int, _ h: Int) -> BakedImage {
         let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
-                            space: ArtKit.colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+                            space: CGArtBackend.colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
         ctx.setFillColor(CGColor(red: 1, green: 0, blue: 0, alpha: 1))
         ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
-        return ctx.makeImage()!
+        return baked(ctx.makeImage()!)
+    }
+
+    private func baked(_ img: CGImage) -> BakedImage {
+        BakedImage(pixelWidth: img.width, pixelHeight: img.height, scale: 1, native: img)
     }
 
     @Test func packsOnCommit() {
@@ -121,19 +126,21 @@ import SpriteKit
     }
 
     /// A w×h image with a distinct colour per call and an asymmetric marker, so misplaced or flipped pixels show.
-    private func marked(_ w: Int, _ h: Int, _ seed: Int) -> CGImage {
+    private func marked(_ w: Int, _ h: Int, _ seed: Int) -> BakedImage {
         let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
-                            space: ArtKit.colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+                            space: CGArtBackend.colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
         ctx.setFillColor(CGColor(red: CGFloat(seed % 7) / 7, green: CGFloat(seed % 5) / 5, blue: CGFloat(seed % 3) / 3, alpha: 0.6))
         ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
         ctx.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
         ctx.fill(CGRect(x: 0, y: h - 4, width: 9, height: 4))        // top-left corner
-        return ctx.makeImage()!
+        return baked(ctx.makeImage()!)
     }
+
+    private func pixels(_ img: BakedImage) -> [UInt8] { pixels(img.cgImage) }
 
     private func pixels(_ img: CGImage) -> [UInt8] {
         let ctx = CGContext(data: nil, width: img.width, height: img.height, bitsPerComponent: 8, bytesPerRow: img.width * 4,
-                            space: ArtKit.colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+                            space: CGArtBackend.colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
         ctx.setBlendMode(.copy)
         ctx.draw(img, in: CGRect(x: 0, y: 0, width: img.width, height: img.height))
         return Array(UnsafeBufferPointer(start: ctx.data!.assumingMemoryBound(to: UInt8.self), count: img.width * img.height * 4))
@@ -161,7 +168,7 @@ import SpriteKit
     /// including ones packed by earlier commits on a page that was re-rendered (and grew) since, samples its own pixels.
     @Test func incrementalAddsAcrossPagesKeepEveryImagesPixels() {
         let atlas = TextureAtlas()
-        var images: [CGImage] = []
+        var images: [BakedImage] = []
         for batch in 0..<4 {
             for i in 0..<12 {
                 // Mostly robot-part sized, plus one big image per batch so the first page runs out.
@@ -177,7 +184,7 @@ import SpriteKit
         #expect((atlas.pageTextureSize(1)?.height ?? 2048) < 2048)
         for img in images {
             let t = atlas.texture(for: img)
-            #expect(t.size() == CGSize(width: img.width, height: img.height))
+            #expect(t.size() == CGSize(width: img.pixelWidth, height: img.pixelHeight))
             let same = pixels(t.cgImage()) == pixels(img)   // a Bool: a failing array comparison would print megabytes
             #expect(same, "page \(atlas.placement(of: img)?.page ?? -1) rect \(atlas.placement(of: img)?.rect ?? .zero)")
         }
@@ -210,8 +217,8 @@ import SpriteKit
     /// alive (it is drawn again when entries are added); a full page lets go of images nobody shows any more.
     @Test func onlyTheOpenPageKeepsImagesAlive() {
         let atlas = TextureAtlas(pageSize: 64, maxPages: 2)
-        weak var gone: CGImage?
-        var kept: CGImage? = image(30, 30)
+        weak var gone: BakedImage?
+        var kept: BakedImage? = image(30, 30)
         do {
             let a = image(30, 30)
             gone = a
