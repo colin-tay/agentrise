@@ -140,12 +140,12 @@ final class TowerController {
         cc = newCC
         var effects: [TowerEffect] = []
         for (id, r) in registry {
-            store.touchRegistry(id, now: now)
             if store.sessions[id] == nil {
                 var ctx = SessionResolver.context(sessionId: id, event: nil, registry: registry, cc: cc, larkNumbers: &larkNumbers)
                 ctx.model = TranscriptModelReader.model(transcriptPath: nil, sessionId: id)
                 store.seed(id: id, context: ctx, busy: r.status == "busy", lastActive: r.updatedAt ?? now, now: now)
             }
+            store.touchRegistry(id, now: now)   // after the seed, so a fresh session is already marked as seen
             effects += store.setStatusFromRegistry(id, busy: r.status == "busy", now: now)
         }
         // Every refresh, not only when the registry changed: once a session's file is gone it stops changing.
