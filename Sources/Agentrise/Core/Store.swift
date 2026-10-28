@@ -32,6 +32,8 @@ package struct TowerStore {
     /// A working or waiting session of an agent without a registry (and whose process we cannot watch)
     /// that sends nothing for this long has most likely died without a SessionEnd: stand it down.
     static let quietTimeout: TimeInterval = 60 * 60
+    /// A session with a registry that has been missing from it this long has left the building.
+    static let registryGrace: TimeInterval = 30
 
     package var counts: TowerCounts {
         var c = TowerCounts()
@@ -88,6 +90,20 @@ package struct TowerStore {
         var effects: [TowerEffect] = []
         for (id, s) in sessions where !s.capabilities.contains(.registry) {
             if let pid = s.agentPid, !isRunning(pid) { effects += remove(id) }
+        }
+        return effects
+    }
+
+    /// Sessions with a registry leave once they have been gone from it past the grace; one never listed there
+    /// leaves when its own process has exited. Lark sessions stay. Runs on every refresh, changed or not.
+    package mutating func removeDeparted(registry: Set<String>, now: Date, isRunning: (Int32) -> Bool) -> [TowerEffect] {
+        var effects: [TowerEffect] = []
+        for (id, s) in sessions where s.capabilities.contains(.registry) && !registry.contains(id) && !s.isLark {
+            if let seen = s.lastSeenInRegistry {
+                if now.timeIntervalSince(seen) > Self.registryGrace { effects += remove(id) }
+            } else if let pid = s.agentPid, !isRunning(pid) {
+                effects += remove(id)
+            }
         }
         return effects
     }

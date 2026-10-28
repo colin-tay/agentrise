@@ -148,11 +148,13 @@ final class TowerController {
             }
             effects += store.setStatusFromRegistry(id, busy: r.status == "busy", now: now)
         }
+        // Every refresh, not only when the registry changed: once a session's file is gone it stops changing.
+        let departed = store.removeDeparted(registry: Set(registry.keys), now: now, isRunning: ProcessProbe.isRunning)
         guard changed || !effects.isEmpty else {
-            if !outside.isEmpty || codexRenamed { process(outside); publish() }
+            if !outside.isEmpty || !departed.isEmpty || codexRenamed { process(outside + departed); publish() }
             return
         }
-        effects = outside + effects
+        effects = outside + departed + effects
         for (id, s) in store.sessions where s.capabilities.contains(.registry) {
             var ctx = SessionResolver.context(sessionId: id, event: nil, registry: registry, cc: cc, larkNumbers: &larkNumbers)
             if case .terminal = s.source, ctx.source == nil { ctx.source = s.source }   // keep known terminals
@@ -161,10 +163,6 @@ final class TowerController {
             // Only the registry (sidebar title) or cc-connect may rename a session.
             if registry[id]?.name == nil && cc[id] == nil { ctx.title = s.title }
             store.updateContext(id, context: ctx)
-            // A desktop or terminal session whose process is gone has left the building.
-            if registry[id] == nil, let seen = s.lastSeenInRegistry, now.timeIntervalSince(seen) > 30, !s.isLark {
-                effects += store.remove(id)
-            }
         }
         process(effects)
         publish()

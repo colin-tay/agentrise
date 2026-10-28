@@ -93,3 +93,83 @@ import TowerKit
         #expect(effects.contains(.statusChanged(sessionId: "m", from: .working, to: .done)))
     }
 }
+
+@Suite struct StoreDepartureTests {
+    private let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+    private let ctx = SessionContext(title: "主会话", source: .desktop(hostSessionId: nil), model: "claude-opus-5-5")
+    private let alive: (Int32) -> Bool = { _ in true }
+    private let dead: (Int32) -> Bool = { _ in false }
+
+    /// A session known from a hook event, optionally with its agent pid, last listed in the registry at `seen`.
+    private func store(_ id: String = "m", agent: AgentKind? = nil, pid: Int32? = nil, seen: TimeInterval? = nil,
+                       context: SessionContext? = nil) -> TowerStore {
+        var store = TowerStore()
+        var e = SlimEvent(event: .userPromptSubmit, sessionId: id, receivedAt: t0)
+        e.agent = agent
+        e.agentPid = pid
+        var c = context ?? ctx
+        c.agent = agent ?? .claude
+        _ = store.apply(e, context: c)
+        if let seen { store.touchRegistry(id, now: t0 + seen) }
+        return store
+    }
+
+    @Test func aSessionGoneFromTheRegistryPastTheGraceLeaves() {
+        var s = store(seen: 0)
+        let effects = s.removeDeparted(registry: [], now: t0 + 31, isRunning: alive)
+        #expect(s.sessions["m"] == nil)
+        #expect(effects == [.sessionLeft(sessionId: "m")])
+    }
+
+    @Test func aSessionGoneFromTheRegistryWithinTheGraceStays() {
+        var s = store(seen: 0)
+        #expect(s.removeDeparted(registry: [], now: t0 + 10, isRunning: alive).isEmpty)
+        #expect(s.sessions["m"] != nil)
+    }
+
+    @Test func aSessionStillInTheRegistryStaysHoweverOldItsLastSighting() {
+        var s = store(seen: 0)
+        #expect(s.removeDeparted(registry: ["m"], now: t0 + 3600, isRunning: dead).isEmpty)
+        #expect(s.sessions["m"] != nil)
+    }
+
+    @Test func aLarkSessionMissingFromTheRegistryStays() {
+        var s = store(seen: 0, context: SessionContext(title: "飞书", source: .lark, model: "claude-opus-5-5"))
+        #expect(s.removeDeparted(registry: [], now: t0 + 3600, isRunning: dead).isEmpty)
+        #expect(s.sessions["m"] != nil)
+    }
+
+    @Test func aNeverListedSessionLeavesOnlyOnceItsProcessHasExited() {
+        var gone = store(pid: 4242)
+        #expect(gone.removeDeparted(registry: [], now: t0 + 1, isRunning: dead) == [.sessionLeft(sessionId: "m")])
+        #expect(gone.sessions["m"] == nil)
+
+        var running = store(pid: 4242)
+        #expect(running.removeDeparted(registry: [], now: t0 + 3600, isRunning: alive).isEmpty)
+        #expect(running.sessions["m"] != nil)
+
+        var unknown = store()
+        #expect(unknown.removeDeparted(registry: [], now: t0 + 3600, isRunning: dead).isEmpty)
+        #expect(unknown.sessions["m"] != nil)
+    }
+
+    @Test func aCodexSessionIsNeverTouched() {
+        var s = store("c", agent: .codex, pid: 4242, seen: 0)
+        #expect(s.sessions["c"]?.agent == .codex)
+        #expect(s.removeDeparted(registry: [], now: t0 + 3600, isRunning: dead).isEmpty)
+        #expect(s.sessions["c"] != nil)
+    }
+
+    /// The desk bug: the registry stops changing once the session's file is gone, and removal must not wait for it to.
+    @Test func removalDoesNotDependOnTheRegistryChanging() {
+        var s = store(seen: 0)
+        var left: [TowerEffect] = []
+        for t in stride(from: 5.0, through: 35.0, by: 5.0) {
+            let effects = s.removeDeparted(registry: [], now: t0 + t, isRunning: alive)
+            if t <= TowerStore.registryGrace { #expect(effects.isEmpty) }
+            left += effects
+        }
+        #expect(left == [.sessionLeft(sessionId: "m")])
+        #expect(s.sessions["m"] == nil)
+    }
+}
