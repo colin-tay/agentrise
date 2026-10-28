@@ -47,47 +47,59 @@ import Metal
         [n.position.x, n.position.y, n.zRotation, n.alpha, n.xScale, n.yScale]
     }
 
-    /// Runs every case both ways for `frames` frames at 60 fps; returns the worst deviation per case.
-    private static func compare(_ cases: [(String, Tween)], frames: Int) -> [CGFloat] {
+    /// One node's script: tweens to run (with an optional key) just before update `i`, by `i`.
+    typealias Script = [Int: [(Tween, String?)]]
+
+    /// Runs every script both ways, updating at `times` (seconds after the first update, `times[0] == 0`):
+    /// SpriteKit through `SKRenderer.update(atTime:)`, the engine through `step(dt:)` by the same gaps. The
+    /// first update is each side's first frame (SpriteKit starts actions there at progress 0; the engine's
+    /// first step for a new tween is likewise at local time 0). Returns the worst deviation per script.
+    /// `floatSlack`: forgive 1e-6 of each SpriteKit value on top, for SpriteKit storing positions as `Float`
+    /// (after thousands of `moveBy` cycles its running sum carries that much rounding).
+    private static func compare(_ scripts: [Script], times: [Double], floatSlack: Bool = false) -> [CGFloat] {
         // All SKNodes share one scene and renderer, each `SceneNode` gets its own root.
         let renderer = SKRenderer(device: MTLCreateSystemDefaultDevice()!)
         let scene = SKScene(size: CGSize(width: 200, height: 200))
         renderer.scene = scene
-        var sk: [SKNode] = [], tw: [SceneNode] = []
-        for (_, t) in cases {
-            let a = SKNode(), b = SceneNode()
-            a.run(.from(t))
-            b.run(t)
-            scene.addChild(a)
-            tw.append(b)
-            sk.append(a)
-        }
+        let sk = scripts.map { _ in SKNode() }, tw = scripts.map { _ in SceneNode() }
+        sk.forEach(scene.addChild)
         let base: TimeInterval = 1000
-        renderer.update(atTime: base)
-        tw.forEach { TweenEngine.step($0, dt: 0) }
-
-        var worst = Array(repeating: CGFloat(0), count: cases.count)
-        for frame in 0...frames {
-            if frame > 0 {
-                renderer.update(atTime: base + Double(frame) / 60)
-                tw.forEach { TweenEngine.step($0, dt: 1.0 / 60) }
+        var worst = Array(repeating: CGFloat(0), count: scripts.count)
+        for (i, time) in times.enumerated() {
+            for (k, script) in scripts.enumerated() {
+                for (t, key) in script[i] ?? [] {
+                    sk[k].run(.from(t), withKey: key ?? "")
+                    tw[k].run(t, withKey: key)
+                }
             }
-            for i in cases.indices {
-                let d = zip(state(sk[i]), state(tw[i])).map { abs($0 - $1) }.max() ?? 0
-                worst[i] = max(worst[i], d)
+            renderer.update(atTime: base + time)
+            let dt = i == 0 ? 0 : time - times[i - 1]
+            tw.forEach { TweenEngine.step($0, dt: dt) }
+            for k in scripts.indices {
+                var d: CGFloat = 0
+                for (a, b) in zip(state(sk[k]), state(tw[k])) {
+                    let slack: CGFloat = floatSlack ? 1e-6 * abs(a) : 0
+                    d = max(d, abs(a - b) - slack)
+                }
+                worst[k] = max(worst[k], d)
             }
         }
         return worst
     }
 
-    private static func check(_ cases: [(String, Tween)], frames: Int) {
-        let worst = compare(cases, frames: frames)
-        var report = "TweenParity max deviation over frames 0…\(frames):\n"
-        for (i, c) in cases.enumerated() {
-            report += String(format: "  %-40@ %.6f\n", c.0 as NSString, Double(worst[i]))
-            #expect(worst[i] <= tolerance, "\(c.0): max deviation \(worst[i])")
+    private static func check(_ names: [String], _ scripts: [Script], times: [Double], floatSlack: Bool = false) {
+        let worst = compare(scripts, times: times, floatSlack: floatSlack)
+        var report = "TweenParity max deviation over \(times.count) updates:\n"
+        for (i, name) in names.enumerated() {
+            report += String(format: "  %-40@ %.6f\n", name as NSString, Double(worst[i]))
+            #expect(worst[i] <= Self.tolerance, "\(name): max deviation \(worst[i])")
         }
         print(report)
+    }
+
+    /// Each tween started before the first frame, then `frames` frames at 60 fps.
+    private static func check(_ cases: [(String, Tween)], frames: Int) {
+        check(cases.map(\.0), cases.map { [0: [($0.1, nil)]] }, times: (0...frames).map { Double($0) / 60 })
     }
 
     @Test func everyRobotMotionTweenMatchesSpriteKit() {
@@ -115,8 +127,77 @@ import Metal
             ("loop 3 parts", .repeatForever(.sequence([.wait(1.5691120894751711), .rotateTo(-.pi, duration: 0.8308879105248289),
                                                        .rotateTo(0, duration: 0)]))),
             ("nested loops", .repeatForever(.sequence([.group([x(0.3), .repeatForever(.fadeAlpha(to: 0.5, duration: 0.07))]), x(0.2)]))),
+            // `timed` around containers: the curve remaps the container's clock; past its time it finishes
+            // even when the curve falls short; around repeatForever SpriteKit ignores it.
+            ("timed sequence", .timed(.sequence([x(0.5), .moveBy(dx: 10, dy: 0, duration: 0.5)]), timing: { $0 * $0 })),
+            ("timed group", .timed(.group([x(0.5), .moveBy(dx: 10, dy: 0, duration: 1)]), timing: { $0 * $0 })),
+            ("timed sequence, early", .sequence([.timed(.sequence([x(0.5), .moveBy(dx: 10, dy: 0, duration: 0.5)]),
+                                                        timing: { min(1, 2 * $0) }), x(1)])),
+            ("timed sequence, short", .sequence([.timed(.sequence([x(0.5), .moveBy(dx: 10, dy: 0, duration: 0.5)]),
+                                                        timing: { 0.5 * $0 }), x(1)])),
+            ("timed group, short", .sequence([.timed(.group([x(1)]), timing: { 0.5 * $0 }), x(1)])),
+            ("timed sequence, inner curve", .timed(.sequence([.timed(x(0.5), timing: { $0 * $0 }), x(0.5)]), timing: { $0 * $0 })),
+            ("timed repeatForever", .timed(.repeatForever(x(0.5)), timing: { $0 * $0 })),
+            ("timed loop of sequences", .repeatForever(.timed(.sequence([x(0.3), .fadeAlpha(to: 0.2, duration: 0.3)]),
+                                                              timing: { $0 * $0 * (3 - 2 * $0) }))),
         ]
         Self.check(cases, frames: Self.frames)
+    }
+
+    /// Tweens run between frames, after the node has been animating for a while — the way `RobotSprite`
+    /// starts its actions — including a same-key replacement mid-loop.
+    @Test func tweensStartedMidStreamMatchSpriteKit() {
+        let bob = Tween.repeatForever(.sequence([.moveBy(dx: 0, dy: 2, duration: 0.3), .moveBy(dx: 0, dy: -2, duration: 0.3)]))
+        let late: Script = [7: [(.moveBy(dx: 60, dy: 0, duration: 1), nil)]]
+        let fade = Tween.repeatForever(.fadeAlpha(to: 0.1, duration: 0.25))
+        let replaced: Script = [0: [(bob, "k")], 13: [(fade, "k")], 41: [(.moveBy(dx: 5, dy: 0, duration: 0.2), "k")]]
+        let flip = Tween.sequence([.moveTo(x: 3, y: nil, duration: 0), .scaleX(to: -1, duration: 0.4)])
+        let beside: Script = [0: [(bob, "idle")], 9: [(.rotateTo(1, duration: 0.5), "act")], 30: [(flip, "act")]]
+        var scripts: [(String, Script)] = [("late start", late), ("same key replaces", replaced), ("added beside", beside)]
+        for (i, c) in Self.cases.enumerated() {
+            let robot: Script = [0: [(bob, "idle")], 5 + i % 40: [(c.1, "act")]]
+            scripts.append(("late " + c.0, robot))
+        }
+        Self.check(scripts.map(\.0), scripts.map(\.1), times: (0...Self.frames).map { Double($0) / 60 })
+    }
+
+    /// After a long pause (an app woken from sleep: one update 3600 s after the last) every loop lands at the
+    /// same phase as in SpriteKit, and carries on from there.
+    @Test func aLongPauseLandsAtSpriteKitsPhase() {
+        let before: [Double] = (0...3).map { Double($0) / 60 }
+        let after: [Double] = (0...30).map { 3600 + Double($0) / 60 }
+        let times = before + after
+        let x = { (d: TimeInterval) in Tween.moveBy(dx: 1, dy: 0, duration: d) }
+        let extra: [(String, Tween)] = [
+            ("loop moveBy 0.7", .repeatForever(x(0.7))),
+            ("loop 0.01", .repeatForever(.sequence([x(0.004), .moveTo(x: nil, y: 5, duration: 0.006)]))),
+            ("loop moveTo", .repeatForever(.sequence([.moveTo(x: 5, y: nil, duration: 0.3), .moveTo(x: 0, y: nil, duration: 0.4)]))),
+        ]
+        let cases = extra + Self.cases
+        let scripts: [Script] = cases.map { [0: [($0.1, nil)]] }
+        Self.check(cases.map(\.0), scripts, times: times, floatSlack: true)
+    }
+
+    /// Blocks in a loop run once per cycle through a long pause, as many times as SpriteKit runs them.
+    @Test func blocksRunAsOftenAsSpriteKitThroughALongPause() {
+        let renderer = SKRenderer(device: MTLCreateSystemDefaultDevice()!)
+        let scene = SKScene(size: CGSize(width: 200, height: 200))
+        renderer.scene = scene
+        var skRuns = 0, skCustoms = 0, runs = 0, customs = 0
+        let a = SKNode(), b = SKNode(), c = SceneNode(), d = SceneNode()
+        a.run(.from(.repeatForever(.sequence([.wait(0.5), .run { skRuns += 1 }]))))
+        b.run(.from(.repeatForever(.custom(duration: 1.2) { _, _ in skCustoms += 1 })))
+        c.run(.repeatForever(.sequence([.wait(0.5), .run { runs += 1 }])))
+        d.run(.repeatForever(.custom(duration: 1.2) { _, _ in customs += 1 }))
+        scene.addChild(a)
+        scene.addChild(b)
+        for (i, t) in [0, 1.0 / 60, 3600, 3600 + 1.0 / 60].enumerated() {
+            renderer.update(atTime: 1000 + t)
+            let dt = i == 0 ? 0 : t - [0, 1.0 / 60, 3600][i - 1]
+            TweenEngine.step(c, dt: dt)
+            TweenEngine.step(d, dt: dt)
+            #expect(runs == skRuns && customs == skCustoms, "after \(t) s: SpriteKit \(skRuns)/\(skCustoms), engine \(runs)/\(customs)")
+        }
     }
 
     /// The bridge maps `custom` and `run` as SpriteKit would run them: the block sees the node's state and its

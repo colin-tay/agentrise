@@ -37,7 +37,8 @@ package enum TweenEngine {
 
     private static func visit(_ n: SceneNode, dt: TimeInterval) {
         for r in n.tweens where n.tweens.contains(where: { $0 === r }) {
-            r.elapsed += dt
+            // Like SpriteKit, a tween's first frame is the step after `run`, at local time 0.
+            if r.started { r.elapsed += dt } else { r.started = true }
             if case .running = r.runner.update(n, r.elapsed) { continue }
             n.tweens.removeAll { $0 === r }
         }
@@ -49,6 +50,7 @@ package enum TweenEngine {
         let key: String?
         let runner: Runner
         var elapsed: TimeInterval = 0
+        var started = false
 
         init(key: String?, tween: Tween) {
             self.key = key
@@ -64,6 +66,8 @@ package enum TweenEngine {
 /// value then).
 protocol Runner: AnyObject {
     func update(_ node: SceneNode, _ local: TimeInterval) -> Progress
+    /// Back to the state before its first `update`, so loops reuse runners instead of rebuilding them.
+    func reset()
 }
 
 enum Progress {
@@ -80,6 +84,7 @@ private func makeRunner(_ t: Tween, timing: ((Double) -> Double)?, leading: Bool
     switch t {
     case .sequence(let ts): return wrap(SequenceRunner(ts), t, timing)
     case .group(let ts): return wrap(GroupRunner(ts), t, timing)
+    // SpriteKit ignores a timing function set on an endless action (measured), so `timing` is dropped here.
     case .repeatForever(let inner): return RepeatRunner(inner)
     case let .timed(inner, f):
         // Nested: the outer curve wins, as the bridge sets `timingFunction` on the same SKAction last.
@@ -90,6 +95,9 @@ private func makeRunner(_ t: Tween, timing: ((Double) -> Double)?, leading: Bool
 
 private func wrap(_ r: Runner, _ t: Tween, _ timing: ((Double) -> Double)?) -> Runner {
     guard let timing else { return r }
+    // SpriteKit times such a container over its finite members only and then lets the endless one run on
+    // its own clock: a degenerate mix nothing here relies on, so it is refused rather than imitated.
+    precondition(t.duration.isFinite, "Tween.timed around a sequence or group that contains repeatForever is not supported")
     return TimedContainerRunner(r, duration: spriteKitDuration(t.duration), timing: timing)
 }
 
@@ -114,6 +122,7 @@ private final class LeafRunner: Runner {
     private var started = false
     private var from: CGPoint = .zero   // start value (x, y), or (value, unused) for the scalar tweens
     private var last: CGFloat = 0       // moveBy: the progress already applied
+    private var fired = false           // run: the block has been called
 
     init(_ t: Tween, timing: ((Double) -> Double)?, leading: Bool) {
         tween = t
@@ -156,7 +165,7 @@ private final class LeafRunner: Runner {
         case let .scaleY(s, _): node.yScale = from.x + (s - from.x) * p
         case .wait: break
         case .custom(_, let block): block(node, min(t, duration))
-        case .run(let block): if isStart { block() }
+        case .run(let block): if done && !fired { fired = true; block() }   // when it completes, as SpriteKit does
         case .sequence, .group, .repeatForever, .timed: break   // built by makeRunner
         }
         guard done else { return .running }
@@ -164,20 +173,28 @@ private final class LeafRunner: Runner {
         // early ends it here and now.
         return u >= 1 ? .ended(at: duration) : .endedNow
     }
+
+    func reset() {
+        started = false
+        from = .zero
+        last = 0
+        fired = false
+    }
 }
 
 private final class SequenceRunner: Runner {
-    private let tweens: [Tween]
+    private let runners: [Runner]
     private var index = 0
-    private var start: TimeInterval = 0   // local time at which tweens[index] started
-    private var current: Runner?
+    private var start: TimeInterval = 0   // local time at which runners[index] started
 
-    init(_ ts: [Tween]) { tweens = ts }
+    init(_ ts: [Tween]) {
+        runners = ts.enumerated().map { makeRunner($1, timing: nil, leading: $0 == 0) }
+    }
 
     func update(_ node: SceneNode, _ local: TimeInterval) -> Progress {
         var startsNow = false
-        while index < tweens.count {
-            let isLast = index == tweens.count - 1
+        while index < runners.count {
+            let isLast = index == runners.count - 1
             let t: TimeInterval
             if startsNow {
                 // The previous member ended by its curve: this one starts at this moment (kept as a `Float`).
@@ -192,17 +209,20 @@ private final class SequenceRunner: Runner {
                 t = Double(Float(local)) - start
             }
             startsNow = false
-            let r = current ?? makeRunner(tweens[index], timing: nil, leading: index == 0)
-            current = r
-            switch r.update(node, t) {
+            switch runners[index].update(node, t) {
             case .running: return .running
             case .ended(let end): start += end   // whatever is left of `local` carries into the next one
             case .endedNow: startsNow = true
             }
             index += 1
-            current = nil
         }
         return startsNow ? .endedNow : .ended(at: start)
+    }
+
+    func reset() {
+        index = 0
+        start = 0
+        runners.forEach { $0.reset() }
     }
 }
 
@@ -230,37 +250,77 @@ private final class GroupRunner: Runner {
         }
         return .ended(at: latest)
     }
+
+    func reset() {
+        for i in ends.indices { ends[i] = nil }
+        runners.forEach { $0.reset() }
+    }
+}
+
+/// The node properties tweens write, for measuring what one loop cycle does to them.
+private struct NodeState {
+    var x, y, rotation, alpha, xScale, yScale: CGFloat
+    init(_ n: SceneNode) {
+        (x, y, rotation, alpha, xScale, yScale) = (n.position.x, n.position.y, n.zRotation, n.alpha, n.xScale, n.yScale)
+    }
 }
 
 private final class RepeatRunner: Runner {
-    private let inner: Tween
-    private let period: TimeInterval
+    private let current: Runner
+    /// Blocks must run once per cycle, as SpriteKit runs them, so such loops are never fast-forwarded.
+    private let hasBlocks: Bool
     private var cycleStart: TimeInterval = 0
-    private var current: Runner
 
     init(_ t: Tween) {
-        inner = t
-        period = spriteKitDuration(t.duration)
         current = makeRunner(t, timing: nil, leading: true)
+        hasBlocks = t.containsBlocks
     }
 
+    /// Catches up every cycle that fits in `local`, like SpriteKit (after a long pause too, leaving the loop
+    /// at the same phase). The cycle's runner is reused. Without blocks, a long catch-up runs two cycles,
+    /// measures what one cycle does to the node — each property is either reset by an absolute tween or
+    /// shifted by a fixed amount by `moveBy` — and applies the rest arithmetically.
     func update(_ node: SceneNode, _ local: TimeInterval) -> Progress {
-        for _ in 0..<10_000 {
-            let before = cycleStart
+        var previous: (state: NodeState, length: TimeInterval)?
+        while true {
+            let length: TimeInterval
             switch current.update(node, local - cycleStart) {
             case .running: return .running
-            case .ended(let end): cycleStart += end
-            case .endedNow: cycleStart = local
+            case .ended(let end): length = end; cycleStart += end
+            case .endedNow: length = local - cycleStart; cycleStart = local
             }
-            current = makeRunner(inner, timing: nil, leading: true)
+            current.reset()
             // A cycle that took no time runs once per step rather than forever within one.
-            if cycleStart <= before { break }
+            if length <= 0 { return .running }
+            guard !hasBlocks else { continue }
+            let state = NodeState(node)
+            let remaining = local - cycleStart
+            if let p = previous, p.length == length, remaining > 2 * length {
+                let n = (remaining / length).rounded(.down) - 1
+                let k = CGFloat(n)
+                node.position.x += k * (state.x - p.state.x)
+                node.position.y += k * (state.y - p.state.y)
+                node.zRotation += k * (state.rotation - p.state.rotation)
+                node.alpha += k * (state.alpha - p.state.alpha)
+                node.xScale += k * (state.xScale - p.state.xScale)
+                node.yScale += k * (state.yScale - p.state.yScale)
+                cycleStart += n * length
+                previous = nil
+            } else {
+                previous = (state, length)
+            }
         }
-        return .running
+    }
+
+    func reset() {
+        cycleStart = 0
+        current.reset()
     }
 }
 
-/// `timed` around a sequence or group: runs the inner tween's clock through the timing curve.
+/// `timed` around a sequence or group (measured against SpriteKit): the curve remaps the inner clock, a curve
+/// that reaches 1 early ends it then, and — unlike a single action — once its time has passed (strictly) it
+/// finishes regardless of the curve, running the inner tween to its end and carrying the rest.
 private final class TimedContainerRunner: Runner {
     private let inner: Runner
     private let duration: TimeInterval
@@ -274,10 +334,16 @@ private final class TimedContainerRunner: Runner {
 
     func update(_ node: SceneNode, _ local: TimeInterval) -> Progress {
         let t = max(0, local)
-        let u = duration > 0 ? min(t / duration, 1) : 1
+        if t > duration {
+            _ = inner.update(node, duration)
+            return .ended(at: duration)
+        }
+        let u = duration > 0 ? t / duration : 1
         let (p, done) = eased(u, timing)
         _ = inner.update(node, duration * p)
         guard done else { return .running }
         return u >= 1 ? .ended(at: duration) : .endedNow
     }
+
+    func reset() { inner.reset() }
 }

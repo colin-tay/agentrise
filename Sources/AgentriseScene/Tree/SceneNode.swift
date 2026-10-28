@@ -69,26 +69,35 @@ package final class SceneNode {
     }
 
     /// SpriteKit's search syntax, without wildcards:
-    /// - `name`: a direct child; `a/b`: a path of direct children;
+    /// - `name`: a direct child; `a/b`: a path of direct children (any child named `a` that has a `b`);
     /// - `.//name`: any descendant of this node;
     /// - `//name`: any node in the tree below the root;
     /// - `/name`: a direct child of the root.
-    /// Recursive searches go depth first, children in order.
+    /// Recursive searches go as SpriteKit's do (checked against `SKNode` in `SceneNodeSearchTests`): a node's
+    /// own children first, in order, then each child's subtree in turn. So a direct child beats anything
+    /// deeper, but this is not a level-by-level search: a match deep in the first subtree beats a shallower
+    /// one in a later subtree.
     package func childNode(withName query: String) -> SceneNode? {
         if query.hasPrefix(".//") { return descendant(named: String(query.dropFirst(3))) }
         if query.hasPrefix("//") { return root.descendant(named: String(query.dropFirst(2))) }
         if query.hasPrefix("/") { return root.childNode(withName: String(query.dropFirst())) }
-        var node: SceneNode? = self
-        for part in query.split(separator: "/", omittingEmptySubsequences: false) {
-            node = node?.children.first { $0.name == String(part) }
+        return path(query.split(separator: "/", omittingEmptySubsequences: false).map(String.init)[...])
+    }
+
+    /// `a/b/c`: like SpriteKit, every child named `a` is tried in order, not only the first.
+    private func path(_ parts: ArraySlice<String>) -> SceneNode? {
+        guard let first = parts.first else { return nil }
+        for c in children where c.name == first {
+            if parts.count == 1 { return c }
+            if let hit = c.path(parts.dropFirst()) { return hit }
         }
-        return node
+        return nil
     }
 
     private func descendant(named name: String) -> SceneNode? {
+        if let hit = children.first(where: { $0.name == name }) { return hit }
         for c in children {
-            if c.name == name { return c }
-            if let d = c.descendant(named: name) { return d }
+            if let hit = c.descendant(named: name) { return hit }
         }
         return nil
     }

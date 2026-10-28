@@ -29,7 +29,19 @@ package indirect enum Tween {
     /// Calls the block once, taking no time.
     case run(() -> Void)
     /// `SKAction.timingFunction`: maps the wrapped tween's linear progress (0…1) to the progress it shows.
+    /// Ignored around `repeatForever`, as SpriteKit ignores it; not allowed around a sequence or group that
+    /// contains `repeatForever`.
     case timed(Tween, timing: (Double) -> Double)
+
+    /// Whether running it calls blocks (`custom` or `run`).
+    package var containsBlocks: Bool {
+        switch self {
+        case .custom, .run: return true
+        case let .sequence(ts), let .group(ts): return ts.contains { $0.containsBlocks }
+        case let .repeatForever(t), let .timed(t, _): return t.containsBlocks
+        default: return false
+        }
+    }
 
     /// Seconds for one run; `.infinity` for `repeatForever`.
     package var duration: TimeInterval {

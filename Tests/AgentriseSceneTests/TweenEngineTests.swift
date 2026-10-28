@@ -12,11 +12,14 @@ import Foundation
     /// Durations are `Float`s, as in SpriteKit, so exact-looking values land within ~1e-7.
     private func near(_ a: CGFloat, _ b: CGFloat, _ tol: CGFloat = 1e-6) -> Bool { abs(a - b) <= tol }
 
-    /// A root with one child that runs `t`, returned as (root, child).
+    /// A root with one child that runs `t`, returned as (root, child), after the step that starts it (where
+    /// the tween is at local time 0, like SpriteKit's first frame of an action), so each later
+    /// `step(dt:)` moves it on by `dt`.
     private func tree(_ t: Tween, key: String? = nil) -> (SceneNode, SceneNode) {
         let root = SceneNode(name: "root"), n = SceneNode(name: "n")
         root.addChild(n)
         n.run(t, withKey: key)
+        TweenEngine.step(root, dt: 0)
         return (root, n)
     }
 
@@ -53,7 +56,11 @@ import Foundation
         #expect(root.childNode(withName: "rig") === rig)
         #expect(root.childNode(withName: "head") == nil)
         #expect(head.childNode(withName: "eyes") === eyes)
-        // ".//name": any descendant of self.
+        // ".//name": any descendant of self; direct children before anything deeper.
+        let dup = SceneNode(name: "eyes")
+        rig.addChild(dup)
+        #expect(rig.childNode(withName: ".//eyes") === dup)
+        dup.removeFromParent()
         #expect(rig.childNode(withName: ".//eyes") === eyes)
         #expect(rig.childNode(withName: ".//deep") == nil)
         #expect(rig.childNode(withName: ".//rig") == nil)
@@ -71,6 +78,7 @@ import Foundation
         root.addChild(a); a.addChild(b)
         a.isHidden = true
         for n in [root, a, b] { n.run(.moveBy(dx: 1, dy: 0, duration: 1)) }
+        TweenEngine.step(root, dt: 0.5)   // starts them
         TweenEngine.step(root, dt: 0.5)
         #expect([root, a, b].allSatisfy { near($0.position.x, 0.5) })
     }
@@ -79,6 +87,7 @@ import Foundation
         let (root, n) = tree(.moveBy(dx: 1, dy: 0, duration: 1), key: "k")
         n.run(.moveBy(dx: 10, dy: 0, duration: 1), withKey: "k")
         n.run(.fadeAlpha(to: 0, duration: 1))
+        TweenEngine.step(root, dt: 0.25)   // starts both
         TweenEngine.step(root, dt: 0.5)
         #expect(near(n.position.x, 5) && near(n.alpha, 0.5))
         n.removeTween(forKey: "k")
@@ -133,8 +142,11 @@ import Foundation
     }
 
     @Test func fadeAlphaGoesFromTheCurrentAlpha() {
-        let (root, n) = tree(.fadeAlpha(to: 0, duration: 2))
-        n.alpha = 0.8
+        let root = SceneNode(), n = SceneNode()
+        root.addChild(n)
+        n.run(.fadeAlpha(to: 0, duration: 2))
+        n.alpha = 0.8   // before the step that starts it
+        TweenEngine.step(root, dt: 0)
         TweenEngine.step(root, dt: 0.5)
         #expect(near(n.alpha, 0.6))
     }
@@ -156,18 +168,46 @@ import Foundation
     }
 
     @Test func zeroDurationTweenAppliesOnTheFirstStep() {
-        let (root, n) = tree(.sequence([.moveBy(dx: 0, dy: 3, duration: 0), .wait(1)]))
-        TweenEngine.step(root, dt: 0)
+        let (_, n) = tree(.sequence([.moveBy(dx: 0, dy: 3, duration: 0), .wait(1)]))
         #expect(n.position.y == 3)
-        let (r2, m) = tree(.rotateTo(1, duration: 0))
-        TweenEngine.step(r2, dt: 0)
+        let (_, m) = tree(.rotateTo(1, duration: 0))
         #expect(m.zRotation == 1 && !m.hasTweens)
+    }
+
+    @Test func aTweenRunBetweenStepsStartsAtZeroOnTheNextStep() {
+        // SpriteKit: an action run between two frames shows progress 0 on the next frame, then moves on.
+        let root = SceneNode(), n = SceneNode()
+        root.addChild(n)
+        TweenEngine.step(root, dt: 1.0 / 60)
+        TweenEngine.step(root, dt: 1.0 / 60)
+        n.run(.moveBy(dx: 60, dy: 0, duration: 1))
+        var xs: [CGFloat] = []
+        for _ in 0..<3 { TweenEngine.step(root, dt: 1.0 / 60); xs.append(n.position.x) }
+        #expect(near(xs[0], 0) && near(xs[1], 1) && near(xs[2], 2))
+    }
+
+    @Test func aLongPauseCatchesUpToTheSamePhaseQuickly() {
+        // One 3600 s step on a 0.01 s loop: 360 000 cycles, fast-forwarded rather than run one by one.
+        let (root, n) = tree(.repeatForever(.sequence([.moveBy(dx: 1, dy: 0, duration: 0.004),
+                                                       .moveTo(x: nil, y: 5, duration: 0.006)])))
+        let clock = Date()
+        TweenEngine.step(root, dt: 3600)
+        #expect(Date().timeIntervalSince(clock) < 0.5)
+        #expect(abs(n.position.x - 360_000) < 0.5)   // `Float` durations drift a little, as in SpriteKit
+        #expect(n.position.y == 5 || n.position.y < 5)
+        var calls = 0
+        let (r2, _) = tree(.repeatForever(.sequence([.wait(0.5), .run { calls += 1 }])))
+        TweenEngine.step(r2, dt: 3600)
+        // Blocks still run once per cycle, as SpriteKit runs them: 7199, as the 7200th `run` completes only
+        // 1e-6 s after the 3600 s mark (see `zeroDurationTweenLaterInASequenceNeedsAMicrosecond`).
+        #expect(calls == 7199)
     }
 
     @Test func zeroDurationTweenLaterInASequenceNeedsAMicrosecond() {
         // SpriteKit: anywhere but first, a zero-duration action is done once 1e-6 s of its clock has passed,
         // showing `elapsed / 1e-6` until then, and takes no time from what follows.
         let (root, n) = tree(.sequence([.wait(1), .fadeAlpha(to: 0, duration: 0), .moveBy(dx: 1, dy: 0, duration: 1)]))
+        #expect(n.alpha == 1)
         TweenEngine.step(root, dt: 1)
         #expect(n.alpha == 1)
         let (r2, m) = tree(.sequence([.wait(1), .fadeAlpha(to: 0, duration: 0)]))
@@ -200,7 +240,7 @@ import Foundation
         let (root, n) = tree(.repeatForever(.run { count += 1 }))
         TweenEngine.step(root, dt: 1.0 / 60)
         TweenEngine.step(root, dt: 1.0 / 60)
-        #expect(count == 2)
+        #expect(count == 3)   // once per step, the starting one included
         #expect(n.hasTweens)
     }
 
@@ -211,7 +251,7 @@ import Foundation
         #expect(near(n.alpha, 0.25))
         TweenEngine.step(root, dt: 1)
         #expect(near(n.alpha, 1))   // clamped to the duration
-        #expect(seen.count == 2 && !n.hasTweens)
+        #expect(seen == [0, 0.25, 1] && !n.hasTweens)
     }
 
     @Test func runFiresOnceWhenReached() {
@@ -234,10 +274,9 @@ import Foundation
         #expect(near(n.position.x, 1.25))  // 1 + 0.5²
         TweenEngine.step(root, dt: 0.5)
         #expect(near(n.position.x, 2))
-        // Absolute tweens too, and a timing curve that leaves 0…1 overshoots like SpriteKit's.
-        let (r2, m) = tree(.timed(.fadeAlpha(to: 0, duration: 1), timing: { 1 - $0 }))
-        TweenEngine.step(r2, dt: 0.25)
-        #expect(near(m.alpha, 0.25))
+        // Absolute tweens too; and a curve that starts at 1 ends the tween at once (SpriteKit's rule).
+        let (_, m) = tree(.timed(.fadeAlpha(to: 0, duration: 1), timing: { 1 - $0 }))
+        #expect(m.alpha == 0 && !m.hasTweens)
     }
 
     @Test func timedEndsWhenItsCurveReachesOne() {
@@ -297,6 +336,24 @@ import Foundation
             worst = max(worst, abs(n.position.y - m.position.y), abs(n.alpha - m.alpha))
         }
         #expect(worst < 1e-6)
+    }
+
+    @Test func timedAroundAContainerRemapsItsClock() {
+        // SpriteKit: the curve paces the sequence as a whole; once its time has passed it finishes even if
+        // the curve fell short.
+        let seq = Tween.sequence([.moveBy(dx: 1, dy: 0, duration: 0.5), .moveBy(dx: 10, dy: 0, duration: 0.5)])
+        let (root, n) = tree(.timed(seq, timing: { $0 * $0 }))
+        TweenEngine.step(root, dt: 0.8)   // inner clock 0.64: first done, second 0.14 in
+        #expect(near(n.position.x, 3.8))
+        let (r2, m) = tree(.sequence([.timed(seq, timing: { 0.5 * $0 }), .moveBy(dx: 100, dy: 0, duration: 1)]))
+        TweenEngine.step(r2, dt: 1)
+        #expect(near(m.position.x, 1))
+        TweenEngine.step(r2, dt: 0.1)
+        #expect(near(m.position.x, 21))
+        // And around repeatForever the curve is ignored.
+        let (r3, k) = tree(.timed(.repeatForever(.moveBy(dx: 1, dy: 0, duration: 0.5)), timing: { $0 * $0 }))
+        TweenEngine.step(r3, dt: 0.7)
+        #expect(near(k.position.x, 1.4))
     }
 
     @Test func runCanEditTheTreeMidStep() {
