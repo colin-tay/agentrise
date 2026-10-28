@@ -17,7 +17,7 @@ package struct FontSpec: Hashable, Sendable {
 
 /// A shadow under a piece of text, computed from the text as a whole (one transparency layer).
 /// `blur` is in points, like `Pen.shadowed`.
-package struct TextShadow: Hashable, Sendable {
+package struct TextShadow {
     package var offset: CGSize
     package var blur: CGFloat
     package var color: Color
