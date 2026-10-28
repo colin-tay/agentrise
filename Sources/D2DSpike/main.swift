@@ -14,6 +14,11 @@
 import CD2DSpike
 import Foundation
 import WinSDK
+// D2D1_PIXEL_FORMAT (dcommon.h, reached through WinSDK.WIC) holds a DXGI_FORMAT, whose
+// definition belongs to the explicit WinSDK.DirectX submodule. Without importing it,
+// the 6.1.2 asserts compiler can't find DXGI_FORMAT when it round-trips debug types
+// ("Failed to reconstruct type for $sSo11DXGI_FORMATVmD") and crashes.
+import WinSDK.DirectX
 
 typealias COMObject = UnsafeMutableRawPointer
 
