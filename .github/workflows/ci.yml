@@ -38,3 +38,30 @@ jobs:
 
       - name: Build app bundle
         run: scripts/build-app.sh debug
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Swift 6.1.2
+        uses: compnerd/gha-setup-swift@9ff1ee4c44888c5817fc14d1b257ac8cabb4935f # v0.5.1
+        with:
+          swift-version: swift-6.1.2-release
+          swift-build: 6.1.2-RELEASE
+
+      - name: Check Swift version
+        shell: pwsh
+        run: |
+          $version = swift --version 2>&1 | Out-String
+          Write-Output $version
+          if ($version -notmatch 'Swift version 6\.1') { exit 1 }
+
+      - name: Build
+        shell: pwsh
+        run: swift build
+
+      - name: Test
+        shell: pwsh
+        run: swift test

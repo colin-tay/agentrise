@@ -1,0 +1,4 @@
+# Copyright (c) 2026 Colin Tay
+# SPDX-License-Identifier: MIT
+# Golden and recorded fixtures are compared byte for byte; never convert their line endings.
+Tests/**/Fixtures/** -text
