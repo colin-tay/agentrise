@@ -75,12 +75,12 @@ import TowerKit
     }
 
     @Test func codexSharedDaemonIsNotTheSessionsProcess() throws {
-        // A stand-in "codex" process: a copy of sh named codex, once plain and once as the TUI's shared daemon.
+        // A stand-in "codex" process: a copy of bash named codex (not sh: macOS /bin/sh may re-exec another shell, renaming the process), once plain and once as the TUI's shared daemon.
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("codex-pid-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
         let bin = dir.appendingPathComponent("codex")
-        try FileManager.default.copyItem(atPath: "/bin/sh", toPath: bin.path)
+        try FileManager.default.copyItem(atPath: "/bin/bash", toPath: bin.path)
         var started: [Process] = []
         var keepOpen: [Pipe] = []
         defer { for p in started { p.terminate() }; for pipe in keepOpen { try? pipe.fileHandleForWriting.close() } }
@@ -95,12 +95,12 @@ import TowerKit
         guard let plain = run(["-c", "read x; :"]),
               let daemon = run(["-c", "read x; :", "codex", "app-server", "--listen", "unix://", "--managed-daemon"]) else {
             // Some systems refuse to launch a copied system binary; nothing to verify then.
-            print("skipped: could not launch the copied sh")
+            print("skipped: could not launch the copied bash")
             return
         }
         usleep(200_000)
         guard plain.isRunning, daemon.isRunning else {
-            print("skipped: the copied sh was killed on launch")
+            print("skipped: the copied bash was killed on launch")
             return
         }
         #expect(ProcessAncestry.agentPid(for: .codex, from: plain.processIdentifier) == plain.processIdentifier)
