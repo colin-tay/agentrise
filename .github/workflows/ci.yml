@@ -36,6 +36,16 @@ jobs:
       - name: Test
         run: swift test
 
+      # The art and motion baselines take CI's renders as the reference: when the tests fail, hand over what
+      # this job actually rendered (replace the fixtures with it if the difference is a CI image change).
+      - name: Upload rendered scene snapshots
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: scene-snapshots
+          path: .build/scene-snapshots/
+          if-no-files-found: warn
+
       - name: Build app bundle
         run: scripts/build-app.sh debug
 
