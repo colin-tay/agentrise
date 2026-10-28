@@ -28,23 +28,23 @@ if mode == "story" {
     for s in [a, b, c, d] { ev(.userPromptSubmit, s) }
     tool(a, "Agent")
     for i in 1...3 { ev(.subagentStart, a) { $0.agentId = "sub\(i)"; $0.agentType = "T3-17\(["a","b","c"][i-1])" } }
-    sleep(2)
+    Thread.sleep(forTimeInterval: TimeInterval(2))
     tool(a, "Read", agent: "sub1"); tool(a, "Bash", agent: "sub2", cmd: "npm test"); tool(a, "WebSearch", agent: "sub3")
     tool(a, "Edit")
     tool(a, "Bash", cmd: "npm run build -- --watch", bg: true)
     tool(b, "Grep"); tool(c, "Write"); tool(d, "TodoWrite")
-    sleep(3)
+    Thread.sleep(forTimeInterval: TimeInterval(3))
     ev(.stop, b) { $0.lastAssistantMessage = "接口文档整理好了。要不要把内部接口也写进去？" }
     tool(c, "Bash", cmd: "npm test")
-    sleep(2)
+    Thread.sleep(forTimeInterval: TimeInterval(2))
     ev(.stop, c) { $0.lastAssistantMessage = "已完成全部修改，测试通过。" }
     tool(d, "WebFetch")
-    sleep(3)
+    Thread.sleep(forTimeInterval: TimeInterval(3))
     ev(.subagentStop, a) { $0.agentId = "sub1"; $0.lastAssistantMessage = "读完了" }
     tool(d, "Bash", cmd: "rm -rf /nope"); ev(.postToolUseFailure, d) { $0.toolName = "Bash"; $0.error = "exit 1" }
-    sleep(3)
+    Thread.sleep(forTimeInterval: TimeInterval(3))
     ev(.subagentStop, a) { $0.agentId = "sub2"; $0.lastAssistantMessage = "" }
-    sleep(20)
+    Thread.sleep(forTimeInterval: TimeInterval(20))
     for s in [a, b, c, d] { ev(.sessionEnd, s) }
     print("story done")
 } else {
@@ -63,7 +63,7 @@ if mode == "story" {
         let i = Int.random(in: 0..<bosses)
         if Bool.random() { tool("load\(i)", tools.randomElement()!) }
         else { tool("load\(i)", tools.randomElement()!, agent: "ls\(Int.random(in: 0..<subs) / bosses * bosses + i)") }
-        usleep(UInt32(1_000_000 * Double(bosses) / Double(bosses) / 3))
+        Thread.sleep(forTimeInterval: TimeInterval(UInt32(1_000_000 * Double(bosses) / Double(bosses) / 3)) / 1_000_000)
     }
     for i in 0..<bosses { ev(.sessionEnd, "load\(i)") }
     print("load done")
