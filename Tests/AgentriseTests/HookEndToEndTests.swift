@@ -62,6 +62,10 @@ private func childEnvironment(dataRoot dir: String) -> [String: String] {
     for key in env.keys where key.uppercased() == "LOCALAPPDATA" { env.removeValue(forKey: key) }
     env["LOCALAPPDATA"] = dir
     #else
+    // macOS: `homeDirectoryForCurrentUser` (what `TowerPaths` uses) ignores `HOME` and reads the
+    // user database; CoreFoundation's `CFFIXED_USER_HOME` overrides it. `HOME` is set as well so
+    // anything else in the child agrees. The hook's own path logic is untouched.
+    env["CFFIXED_USER_HOME"] = dir
     env["HOME"] = dir
     #endif
     return env
@@ -113,21 +117,11 @@ private func codexStopFixture() throws -> Data {
 
 private let claudeStop = Data(#"{"hook_event_name":"Stop","session_id":"s1"}"#.utf8)
 
-/// Whether the child hook's data directory follows the environment set by `childEnvironment`.
-/// On macOS it does not: `FileManager.default.homeDirectoryForCurrentUser` (what `TowerPaths` uses)
-/// comes from the user database and ignores `HOME` (checked: a child run with `HOME=/tmp/zz` still
-/// reports `/Users/<me>`). Running there would send fake events to the real Agentrise socket, so the
-/// suite is off on macOS; the hook's path logic is deliberately left as it is.
-#if os(macOS)
-private let childFollowsDataRoot = false
-#else
-private let childFollowsDataRoot = true
-#endif
-
 /// Runs the real `agentrise-hook` against a real `SocketServer`, with the hook's data directory
-/// moved into a fresh temporary one (`HOME` on macOS, `LOCALAPPDATA` on Windows).
-@Suite(.serialized, .enabled(if: childFollowsDataRoot, "macOS: the hook ignores HOME, see childFollowsDataRoot"))
-struct HookEndToEndTests {
+/// moved into a fresh temporary one (`CFFIXED_USER_HOME` + `HOME` on macOS, `LOCALAPPDATA` on
+/// Windows), so the tests never reach a real running Agentrise. If the override ever stops working,
+/// the two delivery tests fail visibly (their temp server receives nothing).
+@Suite(.serialized) struct HookEndToEndTests {
     /// Sends `stdin` through the hook to a listening server and checks the one line that arrives
     /// matches what `EventSlimmer` makes of the same input and environment.
     private func deliver(_ stdin: Data, args: [String], agent: AgentKind) async throws -> HookRun {
@@ -168,10 +162,13 @@ struct HookEndToEndTests {
     }
 
     @Test func hookExitsQuicklyWithNoListener() throws {
+        // Its own fresh root with no server: never the real data directory.
         let dir = try makeTempDir()
         defer { try? FileManager.default.removeItem(atPath: dir) }
         let run = try runHook([], stdin: claudeStop, env: childEnvironment(dataRoot: dir))
         #expect(run.status == 0)
-        #expect(run.elapsed < 2)
+        // Bounds "returns promptly": margin over the 200 ms connect timeout plus process spawn
+        // (Windows Defender may scan a freshly built exe on first launch).
+        #expect(run.elapsed < 5)
     }
 }
