@@ -14,12 +14,17 @@
 //   explicit DirectX submodule).
 // - dwrite.h is C++-only.
 //
-// So this header declares everything itself: the D2D1_* value types and enums the
-// spike uses (same names, layouts and values as the SDK; DXGI_FORMAT fields are
-// UINT32), and the vtables, slot for slot in the order the C++ interfaces declare
-// their virtual methods. Methods the spike calls are typed; the rest are `void *`
-// placeholders that only keep the slot count right. Every interface pointer is
-// `void *`, so Swift sees UnsafeMutableRawPointer and reads a vtable with
+// The geometry types in dcommon.h (D2D1_POINT_2F, D2D1_RECT_F, D2D1_SIZE_F/U,
+// D2D1_MATRIX_3X2_F, D2D_VECTOR_4F, D2D1_PIXEL_FORMAT, D2D1_ALPHA_MODE,
+// DWRITE_MEASURING_MODE) are already in WinSDK, because wincodec.h includes
+// dcommon.h; redeclaring them here fails ("incompatible definitions in different
+// translation units"). So this header includes wincodec.h for those and declares
+// the rest itself: the other D2D1_* value types and enums the spike uses (same
+// names, layouts and values as the SDK, minus the *_FORCE_DWORD enumerators), and
+// the vtables, slot for slot in the order the C++ interfaces declare their virtual
+// methods. Methods the spike calls are typed; the rest are `void *` placeholders
+// that only keep the slot count right. Every interface pointer is `void *`, so
+// Swift sees UnsafeMutableRawPointer and reads a vtable with
 // `p.load(as: UnsafePointer<Vtbl>.self).pointee`.
 
 #pragma once
@@ -27,16 +32,12 @@
 #ifdef _WIN32
 
 #include <windows.h>
+#include <wincodec.h>   // WinSDK.WIC; brings dcommon.h
 
-// ---- Direct2D value types (d2d1.h, d2d1_1.h, d2d1effects.h, dcommon.h) ----
+// ---- Direct2D value types (d2d1.h, d2d1_1.h, d2d1effects.h) ----
 
-typedef struct D2D1_COLOR_F { FLOAT r, g, b, a; } D2D1_COLOR_F;
-typedef struct D2D1_POINT_2F { FLOAT x, y; } D2D1_POINT_2F;
-typedef struct D2D1_SIZE_F { FLOAT width, height; } D2D1_SIZE_F;
-typedef struct D2D1_SIZE_U { UINT32 width, height; } D2D1_SIZE_U;
-typedef struct D2D1_RECT_F { FLOAT left, top, right, bottom; } D2D1_RECT_F;
-typedef struct D2D1_VECTOR_4F { FLOAT x, y, z, w; } D2D1_VECTOR_4F;
-typedef struct D2D1_MATRIX_3X2_F { FLOAT _11, _12, _21, _22, _31, _32; } D2D1_MATRIX_3X2_F;
+typedef struct D2D1_COLOR_F { FLOAT r, g, b, a; } D2D1_COLOR_F;   // D3DCOLORVALUE in the SDK
+typedef D2D_VECTOR_4F D2D1_VECTOR_4F;
 typedef struct D2D1_ROUNDED_RECT { D2D1_RECT_F rect; FLOAT radiusX, radiusY; } D2D1_ROUNDED_RECT;
 typedef struct D2D1_ELLIPSE { D2D1_POINT_2F point; FLOAT radiusX, radiusY; } D2D1_ELLIPSE;
 typedef UINT64 D2D1_TAG;
@@ -44,12 +45,6 @@ typedef UINT64 D2D1_TAG;
 typedef enum D2D1_FACTORY_TYPE { D2D1_FACTORY_TYPE_SINGLE_THREADED = 0, D2D1_FACTORY_TYPE_MULTI_THREADED = 1 } D2D1_FACTORY_TYPE;
 typedef enum D2D1_DEBUG_LEVEL { D2D1_DEBUG_LEVEL_NONE = 0 } D2D1_DEBUG_LEVEL;
 typedef struct D2D1_FACTORY_OPTIONS { D2D1_DEBUG_LEVEL debugLevel; } D2D1_FACTORY_OPTIONS;
-
-typedef enum D2D1_ALPHA_MODE {
-    D2D1_ALPHA_MODE_UNKNOWN = 0, D2D1_ALPHA_MODE_PREMULTIPLIED = 1,
-    D2D1_ALPHA_MODE_STRAIGHT = 2, D2D1_ALPHA_MODE_IGNORE = 3
-} D2D1_ALPHA_MODE;
-typedef struct D2D1_PIXEL_FORMAT { UINT32 format /* DXGI_FORMAT */; D2D1_ALPHA_MODE alphaMode; } D2D1_PIXEL_FORMAT;
 
 typedef enum D2D1_RENDER_TARGET_TYPE {
     D2D1_RENDER_TARGET_TYPE_DEFAULT = 0, D2D1_RENDER_TARGET_TYPE_SOFTWARE = 1, D2D1_RENDER_TARGET_TYPE_HARDWARE = 2
@@ -92,9 +87,6 @@ typedef enum D2D1_DRAW_TEXT_OPTIONS {
     D2D1_DRAW_TEXT_OPTIONS_NONE = 0, D2D1_DRAW_TEXT_OPTIONS_NO_SNAP = 1, D2D1_DRAW_TEXT_OPTIONS_CLIP = 2,
     D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT = 4, D2D1_DRAW_TEXT_OPTIONS_DISABLE_COLOR_BITMAP_SNAPPING = 8
 } D2D1_DRAW_TEXT_OPTIONS;
-typedef enum DWRITE_MEASURING_MODE {
-    DWRITE_MEASURING_MODE_NATURAL = 0, DWRITE_MEASURING_MODE_GDI_CLASSIC = 1, DWRITE_MEASURING_MODE_GDI_NATURAL = 2
-} DWRITE_MEASURING_MODE;
 
 typedef enum D2D1_INTERPOLATION_MODE {
     D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR = 0, D2D1_INTERPOLATION_MODE_LINEAR = 1, D2D1_INTERPOLATION_MODE_CUBIC = 2,
