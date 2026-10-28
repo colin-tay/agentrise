@@ -288,6 +288,15 @@ ctx.DrawText_!(dc, name, UInt32(name.count), nameFormat, &nameRect, white,
                D2D1_DRAW_TEXT_OPTIONS_NONE, DWRITE_MEASURING_MODE_NATURAL)
 check(ctx.EndDraw!(dc, nil, nil), "ID2D1DeviceContext::EndDraw")
 
+// Struct-returning method through the hidden out-pointer ABI (see CD2DSpike.h).
+var pixelSize = D2D1_SIZE_U(width: 0, height: 0)
+_ = ctx.GetPixelSize!(dc, &pixelSize)
+guard pixelSize.width == pixelWidth, pixelSize.height == pixelHeight else {
+    print("ID2D1RenderTarget::GetPixelSize returned \(pixelSize.width)x\(pixelSize.height), expected \(pixelWidth)x\(pixelHeight)")
+    exit(1)
+}
+print("D2DSpike: ID2D1RenderTarget::GetPixelSize = \(pixelSize.width)x\(pixelSize.height)")
+
 // Encode the WIC bitmap as PNG (PNG has no premultiplied format, so convert to BGRA first).
 let converter = createdWIC("IWICImagingFactory::CreateFormatConverter", IWICFormatConverter.self) {
     wic.CreateFormatConverter(wicFactory, $0)

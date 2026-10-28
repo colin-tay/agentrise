@@ -27,6 +27,16 @@
 // Swift sees UnsafeMutableRawPointer and reads a vtable with
 // `p.load(as: UnsafePointer<Vtbl>.self).pointee`.
 //
+// Methods that return a struct by value (GetSize, GetPixelSize, GetPixelFormat,
+// GetColor, GetDpi-style getters, ...) are an ABI trap. On MSVC x64 a C++ member
+// function returning ANY struct by value takes a hidden pointer to the return slot
+// after `this` and returns that pointer, while a C function pointer returning an
+// 8-byte struct would expect it in RAX. Declaring `D2D1_SIZE_F (*GetSize)(void *)`
+// silently reads garbage. Declare them the way the SDK's MIDL C definitions do
+// (e.g. d3d12.h's GetDesc): `RET *(STDMETHODCALLTYPE *M)(void *This, RET *out)`,
+// and read the result from `out`. GetPixelSize below is declared this way, and the
+// spike checks it returns 240x200.
+//
 // Swift code using this module must also `import WinSDK.DirectX`: D2D1_PIXEL_FORMAT
 // holds a DXGI_FORMAT, which belongs to that explicit submodule, and without it
 // the 6.1.2 asserts compiler crashes in its debug-type round trip.
@@ -221,7 +231,8 @@ typedef struct CD2D_ID2D1FactoryVtbl {
     CD2D_SLOT(SetDpi);                                                                   \
     CD2D_SLOT(GetDpi);                                                                   \
     CD2D_SLOT(GetSize);                                                                  \
-    CD2D_SLOT(GetPixelSize);                                                             \
+    /* Struct return: hidden out-pointer after This (see the top of this file). */      \
+    D2D1_SIZE_U *(STDMETHODCALLTYPE *GetPixelSize)(void *This, D2D1_SIZE_U *out);        \
     CD2D_SLOT(GetMaximumBitmapSize);                                                     \
     CD2D_SLOT(IsSupported);
 
