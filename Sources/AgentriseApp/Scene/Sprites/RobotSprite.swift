@@ -6,7 +6,7 @@ import SpriteKit
 import Agentrise
 import AgentriseScene
 
-/// A robot assembled from `RobotArt`'s baked parts, animated with `RobotMotion`'s SKActions.
+/// A robot assembled from `RobotArt`'s baked parts, animated with `RobotMotion`'s tweens (bridged to SKActions).
 ///
 /// The node's origin is the robot's bottom centre (the pre-SpriteKit robot layer's anchor (0.5, 1) on its 60×84
 /// layer); the scene owns `position`, `xScale`/`yScale` (`setRobotScale`) and `zPosition`. Everything else
@@ -139,7 +139,7 @@ final class RobotSprite: SKNode {
             parts[n.name!] = n
             rest[n.name!] = Pose(n)
         }
-        idle = Dictionary(RobotMotion.idle(phase: phase).map { ($0.part, $0.action) }, uniquingKeysWith: { a, _ in a })
+        idle = Dictionary(RobotMotion.idle(phase: phase).map { ($0.part, SKAction.from($0.tween)) }, uniquingKeysWith: { a, _ in a })
         for name in idle.keys where name != "eyes" { startIdle(name) }
         applyFace()
     }
@@ -238,8 +238,8 @@ final class RobotSprite: SKNode {
         touched = now
 
         for (i, p) in RobotMotion.props(a).enumerated() { prop.addChild(makeProp(p, z: CGFloat(i) * 0.0001)) }
-        for (part, action) in acts {
-            (parts[part] ?? prop.childNode(withName: part))?.run(action, withKey: "act")
+        for (part, tween) in acts {
+            (parts[part] ?? prop.childNode(withName: part))?.run(.from(tween), withKey: "act")
         }
     }
 
@@ -264,7 +264,7 @@ final class RobotSprite: SKNode {
         n.position = RobotMotion.robotPoint(p.at)
         n.zPosition = z
         if let tint = p.tint {
-            n.color = tint
+            n.color = NSColor(tint)
             n.colorBlendFactor = 1
         }
         return n
@@ -292,7 +292,7 @@ final class RobotSprite: SKNode {
             let pad = RobotArt.bubbleGlowPadding
             bind(bubbleGlow, art.bubbleGlow(text, color: color))
             bubbleGlow.size = CGSize(width: size.width + pad * 2, height: size.height + pad * 2)
-            bubbleGlow.run(RobotMotion.pulse(), withKey: "pulse")
+            bubbleGlow.run(.from(RobotMotion.pulse()), withKey: "pulse")
         }
     }
 

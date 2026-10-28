@@ -1,15 +1,17 @@
 // Copyright (c) 2026 Colin Tay
 // SPDX-License-Identifier: MIT
 
-import AppKit
-import SpriteKit
+import Foundation
+#if canImport(CoreGraphics)
+import CoreGraphics
+#endif
 import Agentrise
 
 /// The old Core Animation `loop(...)` calls (`Robot.swift` @ 6535b39: `build()` idle loops, `setFace` blink,
-/// `setBubble` pulse and `setAction`) ported one-to-one to SKActions.
+/// `setBubble` pulse and `setAction`) ported one-to-one to `Tween`s (SpriteKit semantics; the App bridges them to SKActions).
 ///
 /// Values are written exactly as in the old code, in robot design space (y down, `P()` adds the 14 pt
-/// headroom); the channels convert them to the robot node's SpriteKit space (origin at the bottom centre of
+/// headroom); the channels convert them to the robot node's scene space (origin at the bottom centre of
 /// the 60×84 canvas, y up), so y translations and z rotations change sign there.
 ///
 /// Every old loop was a `CAKeyframeAnimation` with one `easeInEaseOut` timing function over the whole
@@ -17,26 +19,26 @@ import Agentrise
 /// `phase` seconds into its cycle (`timeOffset`). `loop(...)` reproduces all of that: the keyframes land
 /// where CA's eased clock put them, each segment carries the matching slice of CA's ease curve, and the
 /// phase starts the action mid-cycle instead of waiting.
-enum RobotMotion {
+package enum RobotMotion {
     /// Old `P(x, y)`: design point with the 14 pt headroom added.
-    static func P(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x, y: y + 14) }
+    package static func P(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x, y: y + 14) }
 
     /// Robot design space (60×84 canvas, y down) → the robot node's space (bottom centre, y up).
-    static func robotPoint(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x - 30, y: 84 - p.y) }
+    package static func robotPoint(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x - 30, y: 84 - p.y) }
 
     /// Sleeping: old `floatGroup.transform = translate(3, 6) · scale(0.9)` about the canvas centre (30, 42),
     /// i.e. q ↦ (30, 42) + 0.9·(q − (30, 42)) + (2.7, 5.4). But the float group's idle bob animates
     /// `transform.translation.y`, which replaces that y translation on screen, so what the old robot actually
     /// showed was q ↦ (30, 42) + 0.9·(q − (30, 42)) + (2.7, bob). With the float node's children in robot
     /// space and the node scaled about its own position, that is scale 0.9 at (2.7, 4.2), plus the bob.
-    static let sleepingFloatScale: CGFloat = 0.9
-    static let sleepingFloatPosition = CGPoint(x: 2.7, y: 4.2)
+    package static let sleepingFloatScale: CGFloat = 0.9
+    package static let sleepingFloatPosition = CGPoint(x: 2.7, y: 4.2)
 
     // MARK: Idle
 
     /// Loops that run all the time: ears breathe, the neck ring glows, the body bobs, hands bob
     /// out of step, and open eyes blink (RobotSprite runs `eyes` only for the focused/calm faces).
-    static func idle(phase p: TimeInterval) -> [(part: String, action: SKAction)] {
+    package static func idle(phase p: TimeInterval) -> [(part: String, tween: Tween)] {
         [("ears", loop(Ch.alpha, [1, 0.35], 1.6, autoreverse: true, phase: p)),
          ("ring", loop(Ch.alpha, [1, 0.4], 1.6, autoreverse: true, phase: p)),
          ("float", loop(Ch.ty, [0, -2.5, 0], 2.6, phase: p)),
@@ -46,20 +48,20 @@ enum RobotMotion {
     }
 
     /// The status bubble's glow: old `shadowOpacity [0, 1]` over 0.6 s, autoreversed.
-    static func pulse() -> SKAction { loop(Ch.alpha, [0, 1], 0.6, autoreverse: true) }
+    package static func pulse() -> Tween { loop(Ch.alpha, [0, 1], 0.6, autoreverse: true) }
 
     // MARK: Room actions
 
     /// A prop shown during an action, centred on `at` (design space, like the old layer `position`).
-    struct Prop {
-        enum Art { case emoji(String, size: CGFloat), doorSign }
-        let name: String
-        let art: Art
-        let at: CGPoint
-        var tint: NSColor? = nil
+    package struct Prop {
+        package enum Art { case emoji(String, size: CGFloat), doorSign }
+        package let name: String
+        package let art: Art
+        package let at: CGPoint
+        package var tint: Color? = nil
     }
 
-    static func props(_ a: Activity) -> [Prop] {
+    package static func props(_ a: Activity) -> [Prop] {
         switch a {
         case .reading: return [Prop(name: "book", art: .emoji("📖", size: 15), at: P(30, 50))]
         case .searching: return [Prop(name: "lens", art: .emoji("🔍", size: 13), at: P(30, 8))]
@@ -80,7 +82,7 @@ enum RobotMotion {
         case .sleeping:
             return (0..<2).map { i in
                 Prop(name: "z\(i)", art: .emoji("z", size: CGFloat(10 + i * 3)), at: P(44 + CGFloat(i) * 4, 20),
-                     tint: NSColor(hex: 0xCFC8FF))
+                     tint: Color(hex: 0xCFC8FF))
             }
         case .briefing, .standby: return []
         }
@@ -88,7 +90,7 @@ enum RobotMotion {
 
     /// Parts whose idle loop the action replaces. The old act animation used the same key path as the
     /// idle one (`transform.translation.y`), so it overrode it rather than adding to it.
-    static func replacesIdle(_ a: Activity) -> Set<String> {
+    package static func replacesIdle(_ a: Activity) -> Set<String> {
         switch a {
         case .coding, .other: return ["leftHand", "rightHand"]
         case .planning, .delegating, .reporting, .thinking: return ["rightHand"]
@@ -99,8 +101,8 @@ enum RobotMotion {
 
     /// The action loops, keyed by part name (fixed parts, `rig` for the whole robot, or a prop's name).
     /// A part with several loops gets them as one group.
-    static func act(_ a: Activity, waitingLong: Bool) -> [(part: String, action: SKAction)] {
-        var list: [(String, SKAction)] = []
+    package static func act(_ a: Activity, waitingLong: Bool) -> [(part: String, tween: Tween)] {
+        var list: [(String, Tween)] = []
         switch a {
         case .reading:
             list = [("head", loop(Ch.rotation, [-0.1, 0.1], 1.2, autoreverse: true)),
@@ -159,14 +161,14 @@ enum RobotMotion {
             break
         }
         var order: [String] = []
-        var byPart: [String: [SKAction]] = [:]
-        for (part, action) in list {
+        var byPart: [String: [Tween]] = [:]
+        for (part, tween) in list {
             if byPart[part] == nil { order.append(part) }
-            byPart[part, default: []].append(action)
+            byPart[part, default: []].append(tween)
         }
         return order.map { part in
-            let actions = byPart[part]!
-            return (part, actions.count == 1 ? actions[0] : .group(actions))
+            let tweens = byPart[part]!
+            return (part, tweens.count == 1 ? tweens[0] : .group(tweens))
         }
     }
 
@@ -175,7 +177,7 @@ enum RobotMotion {
     /// `kCAMediaTimingFunctionEaseInEaseOut`, the cubic Bézier (0.42, 0) (0.58, 1): progress at time `x`.
     /// Every running loop calls this each frame, so it reads a precomputed table (linear interpolation;
     /// error < 1e-6) instead of solving the Bézier.
-    static func caEase(_ x: Double) -> Double {
+    package static func caEase(_ x: Double) -> Double {
         if x <= 0 { return 0 }
         if x >= 1 { return 1 }
         let f = x * Double(easeSteps)
@@ -185,7 +187,7 @@ enum RobotMotion {
     }
 
     /// The exact curve, by bisection (builds the table; the tests compare against it).
-    static func caEaseExact(_ x: Double) -> Double {
+    package static func caEaseExact(_ x: Double) -> Double {
         if x <= 0 { return 0 }
         if x >= 1 { return 1 }
         return bezierY(solve(x, bezierX))
@@ -195,7 +197,7 @@ enum RobotMotion {
     private static let easeTable: [Double] = (0...easeSteps).map { caEaseExact(Double($0) / Double(easeSteps)) }
 
     /// The time at which the CA ease curve reaches progress `y`.
-    static func caEaseInverse(_ y: Double) -> Double {
+    package static func caEaseInverse(_ y: Double) -> Double {
         if y <= 0 { return 0 }
         if y >= 1 { return 1 }
         return bezierX(solve(y, bezierY))
@@ -216,10 +218,10 @@ enum RobotMotion {
 
     // MARK: Keyframe loops
 
-    /// Old `loop(key, values, duration, times:, autoreverse:, phase:)` as an endless SKAction on `ch`.
+    /// Old `loop(key, values, duration, times:, autoreverse:, phase:)` as an endless tween on `ch`.
     fileprivate static func loop<V: KeyValue>(_ ch: Channel<V>, _ values: [V], _ duration: TimeInterval,
                                                times: [Double]? = nil, autoreverse: Bool = false,
-                                               phase: TimeInterval = 0) -> SKAction {
+                                               phase: TimeInterval = 0) -> Tween {
         let n = values.count
         let k = times ?? (0..<n).map { Double($0) / Double(n - 1) }
         let t = k.map(caEaseInverse)   // where CA's eased clock reaches each keyframe
@@ -258,16 +260,13 @@ enum RobotMotion {
                 acc += s.duration
             }
         }
-        let cycle = SKAction.repeatForever(.sequence(segs.map { action(ch, $0) }))
-        return .sequence([ch.make(.zero, start, 0)] + lead.map { action(ch, $0) } + [cycle])
+        let cycle = Tween.repeatForever(.sequence(segs.map { tween(ch, $0) }))
+        return .sequence([ch.make(.zero, start, 0)] + lead.map { tween(ch, $0) } + [cycle])
     }
 
-    private static func action<V>(_ ch: Channel<V>, _ s: Segment<V>) -> SKAction {
-        if s.from == s.to { return .wait(forDuration: s.duration) }
-        let a = ch.make(s.from, s.to, s.duration)
-        let timing = s.timing
-        a.timingFunction = { Float(timing(Double($0))) }
-        return a
+    private static func tween<V>(_ ch: Channel<V>, _ s: Segment<V>) -> Tween {
+        if s.from == s.to { return .wait(s.duration) }
+        return .timed(ch.make(s.from, s.to, s.duration), timing: s.timing)
     }
 }
 
@@ -297,27 +296,30 @@ fileprivate struct Segment<V: KeyValue> {
 }
 
 /// How a keyframe value drives a node. Relative channels (translations) move by the difference, so the
-/// action leaves the node where it found it after each cycle; the rest set absolute values.
+/// tween leaves the node where it found it after each cycle; the rest set absolute values.
 /// `make(.zero, v, 0)` is the initial jump to `v`.
 fileprivate struct Channel<V: KeyValue> {
-    let make: (_ from: V, _ to: V, _ duration: TimeInterval) -> SKAction
+    let make: (_ from: V, _ to: V, _ duration: TimeInterval) -> Tween
 }
 
 /// The old key paths. Design space is y down, so y translations and z rotations flip sign.
 fileprivate enum Ch {
     /// `transform.translation.y`
-    static let ty = Channel<CGFloat> { a, b, d in .moveBy(x: 0, y: -(b - a), duration: d) }
+    static let ty = Channel<CGFloat> { a, b, d in .moveBy(dx: 0, dy: -(b - a), duration: d) }
     /// `transform.translation.x`
-    static let tx = Channel<CGFloat> { a, b, d in .moveBy(x: b - a, y: 0, duration: d) }
+    static let tx = Channel<CGFloat> { a, b, d in .moveBy(dx: b - a, dy: 0, duration: d) }
     /// `transform.rotation.z`
-    static let rotation = Channel<CGFloat> { _, b, d in .rotate(toAngle: -b, duration: d, shortestUnitArc: false) }
+    static let rotation = Channel<CGFloat> { _, b, d in .rotateTo(-b, duration: d) }
     /// `opacity`
     static let alpha = Channel<CGFloat> { _, b, d in .fadeAlpha(to: b, duration: d) }
     /// `transform.scale.x` / `transform.scale.y`
     static let scaleX = Channel<CGFloat> { _, b, d in .scaleX(to: b, duration: d) }
     static let scaleY = Channel<CGFloat> { _, b, d in .scaleY(to: b, duration: d) }
     /// `position.x` / `position.y` / `position` of a prop, in design space.
-    static let posX = Channel<CGFloat> { _, b, d in .moveTo(x: b - 30, duration: d) }
-    static let posY = Channel<CGFloat> { _, b, d in .moveTo(y: 84 - b, duration: d) }
-    static let pos = Channel<CGPoint> { _, b, d in .move(to: RobotMotion.robotPoint(b), duration: d) }
+    static let posX = Channel<CGFloat> { _, b, d in .moveTo(x: b - 30, y: nil, duration: d) }
+    static let posY = Channel<CGFloat> { _, b, d in .moveTo(x: nil, y: 84 - b, duration: d) }
+    static let pos = Channel<CGPoint> { _, b, d in
+        let p = RobotMotion.robotPoint(b)
+        return .moveTo(x: p.x, y: p.y, duration: d)
+    }
 }

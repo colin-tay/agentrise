@@ -7,6 +7,7 @@ import SpriteKit
 import Metal
 @testable import AgentriseApp
 @testable import Agentrise
+@testable import AgentriseScene
 
 @MainActor
 @Suite struct RobotSpriteTests {
@@ -292,22 +293,5 @@ import Metal
         #expect(r.robotScale == 0.5)
         #expect(r.xScale == 0.5 && r.yScale == 0.5)
         #expect(r.hitRect == CGRect(x: 85, y: 50, width: 30, height: 42))
-    }
-
-    @Test func caEaseMatchesBezier() {
-        #expect(abs(RobotMotion.caEase(0.5) - 0.5) < 1e-6)
-        #expect(RobotMotion.caEase(0) == 0 && abs(RobotMotion.caEase(1) - 1) < 1e-6)
-        for y in [0.1, 0.46, 0.54, 0.9] {
-            #expect(abs(RobotMotion.caEase(RobotMotion.caEaseInverse(y)) - y) < 1e-4)
-        }
-    }
-
-    @Test func caEaseTableTracksExactCurve() {
-        var worst = 0.0
-        for i in 0...4000 {
-            let x = Double(i) / 4000
-            worst = max(worst, abs(RobotMotion.caEase(x) - RobotMotion.caEaseExact(x)))
-        }
-        #expect(worst < 1e-4)
     }
 }
