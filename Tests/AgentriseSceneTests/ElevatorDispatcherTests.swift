@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import Testing
-@testable import AgentriseApp
+@testable import AgentriseScene
 @testable import Agentrise
 
 @Suite struct ElevatorDispatcherTests {

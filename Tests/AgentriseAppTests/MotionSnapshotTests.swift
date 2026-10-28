@@ -52,6 +52,7 @@ import Metal
 import SpriteKit
 @testable import AgentriseApp
 @testable import Agentrise
+@testable import AgentriseScene
 
 /// Records a node subtree's state every 1/60 s frame (see the file header for the format).
 @MainActor final class MotionTrace {
@@ -301,7 +302,7 @@ import SpriteKit
 
     // MARK: Single robots
 
-    static let robotName = (text: "⚡ 修复登录\n高级工程师", small: false, stripe: Optional(Rank.seniorEngineer.stripe))
+    static let robotName = (text: "⚡ 修复登录\n高级工程师", small: false, stripe: Optional(NSColor(Rank.seniorEngineer.stripe)))
 
     /// A boss (senior engineer, team 0) at robot-art scale 2.5, as the scene bakes them at 2×.
     static func robot(phase: TimeInterval) -> RobotSprite {
@@ -365,7 +366,7 @@ import SpriteKit
         // The names the scene can give these robots (bosses at any rank: A is promoted).
         var names: [(text: String, small: Bool, stripe: NSColor?)] = [("Explore", true, nil), ("Plan", true, nil), ("外包·跑测试", true, nil)]
         for s in [a, b] {
-            for r in Rank.allCases { names.append(("\(Team.glyph(s.teamIndex)) \(s.title)\n\(r.title)", false, r.stripe)) }
+            for r in Rank.allCases { names.append(("\(Team.glyph(s.teamIndex)) \(s.title)\n\(r.title)", false, NSColor(r.stripe))) }
         }
         scene.render([], animated: false)
         let trace = MotionTrace(scene: scene, root: scene, rootName: nil, textures: TextureKeys(names: names, header: { scene.headerText }))

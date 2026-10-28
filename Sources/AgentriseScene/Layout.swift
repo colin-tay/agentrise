@@ -2,49 +2,51 @@
 // SPDX-License-Identifier: MIT
 
 import Foundation
+#if canImport(CoreGraphics)
 import CoreGraphics
+#endif
 import Agentrise
 
-enum DoorSide { case left, right }
+package enum DoorSide { case left, right }
 
-enum TowerOrientation { case landscape, portrait
-    static func of(_ size: CGSize) -> TowerOrientation { size.width >= size.height * 1.1 ? .landscape : .portrait }
+package enum TowerOrientation { case landscape, portrait
+    package static func of(_ size: CGSize) -> TowerOrientation { size.width >= size.height * 1.1 ? .landscape : .portrait }
 }
 
 /// Geometry of the building in a top-left-origin coordinate space.
-struct BuildingLayout {
-    let size: CGSize
-    let orientation: TowerOrientation
-    let header: CGRect
-    let panel: CGRect
-    let building: CGRect
-    let floors: [Int: CGRect]
-    let rooms: [Room: [CGRect]]
-    let elevator: CGRect
+package struct BuildingLayout {
+    package let size: CGSize
+    package let orientation: TowerOrientation
+    package let header: CGRect
+    package let panel: CGRect
+    package let building: CGRect
+    package let floors: [Int: CGRect]
+    package let rooms: [Room: [CGRect]]
+    package let elevator: CGRect
     /// Robot scale for this window size (1 = 60x70 pt robot).
-    let unit: CGFloat
+    package let unit: CGFloat
 
     /// The floor whose slab band contains `p.y`; between/outside floors, the vertically nearest one.
-    func floorOf(_ p: CGPoint) -> Int {
+    package func floorOf(_ p: CGPoint) -> Int {
         func gap(_ r: CGRect) -> CGFloat { p.y < r.minY ? r.minY - p.y : (p.y > r.maxY ? p.y - r.maxY : 0) }
         return floors.min { (gap($0.value), $0.key) < (gap($1.value), $1.key) }?.key ?? 2
     }
 
-    func elevatorStop(floor: Int) -> CGPoint {
+    package func elevatorStop(floor: Int) -> CGPoint {
         let f = floors[floor] ?? .zero
         return CGPoint(x: elevator.midX, y: f.maxY - 18)
     }
 
     /// Waiting point just outside the shaft on the given side, standing on the floor slab.
-    func elevatorDoor(floor: Int, side: DoorSide) -> CGPoint {
+    package func elevatorDoor(floor: Int, side: DoorSide) -> CGPoint {
         let f = floors[floor] ?? .zero
         let x = side == .left ? elevator.minX - 14 : elevator.maxX + 14
         return CGPoint(x: x, y: f.maxY - 18)
     }
 
-    func doorSide(for p: CGPoint) -> DoorSide { p.x < elevator.midX ? .left : .right }
+    package func doorSide(for p: CGPoint) -> DoorSide { p.x < elevator.midX ? .left : .right }
 
-    static func make(size: CGSize) -> BuildingLayout {
+    package static func make(size: CGSize) -> BuildingLayout {
         let o = TowerOrientation.of(size)
         let pad: CGFloat = 12
         let header = CGRect(x: 0, y: 0, width: size.width, height: 34)
@@ -110,10 +112,10 @@ struct BuildingLayout {
     }
 }
 
-enum SlotAllocator {
+package enum SlotAllocator {
     /// Grid positions (bottom-center of each robot) inside the room rects.
     /// Shrinks down to minScale when crowded; never overlaps.
-    static func slots(in rects: [CGRect], count: Int, base: CGSize, minCellWidth: CGFloat = 0, minScale: CGFloat = 0.42) -> (points: [CGPoint], scale: CGFloat) {
+    package static func slots(in rects: [CGRect], count: Int, base: CGSize, minCellWidth: CGFloat = 0, minScale: CGFloat = 0.42) -> (points: [CGPoint], scale: CGFloat) {
         guard count > 0, !rects.isEmpty else { return ([], 1) }
         var scale: CGFloat = 1
         while true {

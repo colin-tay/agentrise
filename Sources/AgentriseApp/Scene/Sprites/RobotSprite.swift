@@ -4,6 +4,7 @@
 import AppKit
 import SpriteKit
 import Agentrise
+import AgentriseScene
 
 /// A robot assembled from `RobotArt`'s baked parts, animated with `RobotMotion`'s SKActions.
 ///
@@ -303,7 +304,7 @@ final class RobotSprite: SKNode {
         guard s != lastName else { return }
         lastName = s
         let small = look.kind == .sub || look.kind == .contractor
-        bind(nameSprite, art.name(s, small: small, stripe: look.rank?.stripe))
+        bind(nameSprite, art.name(s, small: small, stripe: look.rank.map { NSColor($0.stripe) }))
         nameSprite.size = RobotArt.nameImageSize(s, small: small)
     }
 

@@ -10,18 +10,21 @@ var products: [Product] = [
 var targets: [Target] = [
     .target(name: "TowerKit"),
     .target(name: "Agentrise", dependencies: ["TowerKit"], swiftSettings: [.swiftLanguageMode(.v5)]),
+    .target(name: "AgentriseScene", dependencies: ["Agentrise"], swiftSettings: [.swiftLanguageMode(.v5)]),
     .executableTarget(name: "TowerHook", dependencies: ["TowerKit"]),
     .executableTarget(name: "TowerSim", dependencies: ["TowerKit"]),
     .testTarget(name: "AgentriseTests", dependencies: ["Agentrise", "TowerKit"],
                 exclude: ["Fixtures"],   // read from the source tree via #filePath
                 swiftSettings: [.swiftLanguageMode(.v5)]),
+    .testTarget(name: "AgentriseSceneTests", dependencies: ["AgentriseScene", "Agentrise"],
+                swiftSettings: [.swiftLanguageMode(.v5)]),
 ]
 #if os(macOS)
 products.append(.executable(name: "Agentrise", targets: ["AgentriseApp"]))
 targets += [
-    .executableTarget(name: "AgentriseApp", dependencies: ["Agentrise", "TowerKit"],
+    .executableTarget(name: "AgentriseApp", dependencies: ["Agentrise", "AgentriseScene", "TowerKit"],
                       swiftSettings: [.swiftLanguageMode(.v5)]),
-    .testTarget(name: "AgentriseAppTests", dependencies: ["AgentriseApp", "Agentrise", "TowerKit"],
+    .testTarget(name: "AgentriseAppTests", dependencies: ["AgentriseApp", "Agentrise", "AgentriseScene", "TowerKit"],
                 exclude: ["Fixtures"],   // read from the source tree via #filePath
                 swiftSettings: [.swiftLanguageMode(.v5)]),
 ]

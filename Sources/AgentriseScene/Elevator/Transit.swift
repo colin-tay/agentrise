@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: MIT
 
 import Foundation
+#if canImport(CoreGraphics)
 import CoreGraphics
+#endif
 
-enum TransitPhase: Equatable { case idle, walking, waiting, riding }
+package enum TransitPhase: Equatable { case idle, walking, waiting, riding }
 
 /// 行人移动系统：同层步行、跨层走到电梯门口等候、乘坐轿厢、出门走向目标。
 /// 纯逻辑（只依赖 CoreGraphics），由场景每帧调用 `step(dt)` 推进；坐标为布局坐标（左上原点）。
-final class Transit {
+package final class Transit {
     private struct Walker {
         var position: CGPoint
         var phase: TransitPhase
@@ -20,20 +22,20 @@ final class Transit {
         var boarding = false
     }
 
-    static let maxStep: TimeInterval = 0.1
-    static let capacity = 4
-    static let doorDwell: TimeInterval = 0.6
-    static let cabSpeedPerUnit: CGFloat = 260
+    package static let maxStep: TimeInterval = 0.1
+    package static let capacity = 4
+    package static let doorDwell: TimeInterval = 0.6
+    package static let cabSpeedPerUnit: CGFloat = 260
 
-    private(set) var layout: BuildingLayout
-    private(set) var cabPosition: CGPoint
+    package private(set) var layout: BuildingLayout
+    package private(set) var cabPosition: CGPoint
     /// 开门计时未完，或还有乘客正在走进轿厢。
-    var cabDoorsOpen: Bool { doorTimer > 0 || anyoneBoarding }
-    var onArrive: ((String) -> Void)?
-    private(set) var tripCount = 0
+    package var cabDoorsOpen: Bool { doorTimer > 0 || anyoneBoarding }
+    package var onArrive: ((String) -> Void)?
+    package private(set) var tripCount = 0
     /// Bumped whenever a reported position (a walker's or the cab's) may have changed, so the scene can
     /// skip frames in which nothing moved.
-    private(set) var revision = 0
+    package private(set) var revision = 0
 
     private var walkers: [String: Walker] = [:]
     /// 插入顺序，保证每帧处理顺序（从而呼叫顺序）确定。
@@ -47,29 +49,29 @@ final class Transit {
     /// Walkers with `boarding` set (kept in step with it, so the per-frame check is O(1)).
     private var boarders: Set<String> = []
 
-    init(layout: BuildingLayout) {
+    package init(layout: BuildingLayout) {
         self.layout = layout
         self.cabPosition = layout.elevatorStop(floor: 3)
     }
 
     // MARK: - 查询
 
-    func position(of id: String) -> CGPoint? {
+    package func position(of id: String) -> CGPoint? {
         guard let w = walkers[id] else { return nil }
         return w.phase == .riding ? cabPosition : w.position
     }
 
-    func phase(of id: String) -> TransitPhase? { walkers[id]?.phase }
+    package func phase(of id: String) -> TransitPhase? { walkers[id]?.phase }
 
     /// The floor the cab is at, or is travelling to (the next stop).
-    var cabHeading: Int { cabTarget ?? cabFloor }
+    package var cabHeading: Int { cabTarget ?? cabFloor }
 
-    func target(of id: String) -> CGPoint? { walkers[id]?.target }
+    package func target(of id: String) -> CGPoint? { walkers[id]?.target }
 
     // MARK: - 指令
 
     /// 无动画放置/吸附；会取消该行人的电梯请求，不触发 `onArrive`。
-    func place(_ id: String, at p: CGPoint) {
+    package func place(_ id: String, at p: CGPoint) {
         dispatcher.remove(rider: id)
         if walkers[id] == nil { order.append(id) }
         walkers[id] = Walker(position: p, phase: .idle, target: p)
@@ -78,7 +80,7 @@ final class Transit {
     }
 
     /// 从当前位置出发去 `target`：同层直走，跨层走电梯。未知 id 视为在目标处放置。
-    func send(_ id: String, to target: CGPoint) {
+    package func send(_ id: String, to target: CGPoint) {
         guard var w = walkers[id] else { place(id, at: target); return }
         w.target = target
         let targetFloor = layout.floorOf(target)
@@ -101,7 +103,7 @@ final class Transit {
         revision += 1
     }
 
-    func remove(_ id: String) {
+    package func remove(_ id: String) {
         dispatcher.remove(rider: id)
         walkers[id] = nil
         boarders.remove(id)
@@ -110,7 +112,7 @@ final class Transit {
     }
 
     /// 换布局：清空电梯，所有人吸附到新目标（不在 `targets` 里的吸附到原目标）。
-    func relayout(_ layout: BuildingLayout, targets: [String: CGPoint]) {
+    package func relayout(_ layout: BuildingLayout, targets: [String: CGPoint]) {
         self.layout = layout
         dispatcher.clear()
         cabTarget = nil
@@ -128,7 +130,7 @@ final class Transit {
     // MARK: - 推进
 
     /// 推进 dt 秒。按裁定：超过 0.1 秒的部分直接丢弃（不切片补算）。
-    func step(_ dt: TimeInterval) {
+    package func step(_ dt: TimeInterval) {
         let dt = min(Transit.maxStep, max(0, dt))
         guard dt > 0 else { return }
         var arrived: [(id: String, target: CGPoint)] = []

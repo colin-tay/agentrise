@@ -4,6 +4,7 @@
 import AppKit
 import TowerKit
 import Agentrise
+import AgentriseScene
 
 final class TowerViewModel: ObservableObject {
     @Published var sessions: [Session] = []

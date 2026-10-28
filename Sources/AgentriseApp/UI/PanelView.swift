@@ -3,6 +3,10 @@
 
 import SwiftUI
 import Agentrise
+import AgentriseScene
+
+/// AgentriseScene also declares a `Color`; in this SwiftUI file the name means SwiftUI's.
+private typealias Color = SwiftUI.Color
 
 private let amber = Color(red: 1, green: 0.79, blue: 0.36)
 private let green = Color(red: 0.44, green: 0.94, blue: 0.66)
@@ -93,7 +97,7 @@ struct PanelView: View {
         Button { onOpen(s.id) } label: {
             HStack(spacing: 5) {
                 Text(Team.glyph(s.teamIndex)).font(.system(size: 9, weight: .black)).foregroundColor(Color(red: 0.04, green: 0.06, blue: 0.15))
-                    .frame(width: 14, height: 14).background(Circle().fill(Color(nsColor: Team.color(s.teamIndex))))
+                    .frame(width: 14, height: 14).background(Circle().fill(Color(nsColor: NSColor(Team.color(s.teamIndex)))))
                 Text(s.title).font(.system(size: 11, weight: .semibold)).foregroundColor(ink).lineLimit(1)
                 if s.isLark || s.larkSent { lark }
                 Spacer(minLength: 4)
@@ -101,7 +105,7 @@ struct PanelView: View {
                     .font(.system(size: 9.5)).foregroundColor(sub)
             }
             .padding(.horizontal, 5).padding(.vertical, 3)
-            .background(RoundedRectangle(cornerRadius: 6).fill(vm.hovered == s.id ? Color(nsColor: Team.color(s.teamIndex)).opacity(0.2) : .clear))
+            .background(RoundedRectangle(cornerRadius: 6).fill(vm.hovered == s.id ? Color(nsColor: NSColor(Team.color(s.teamIndex))).opacity(0.2) : .clear))
         }
         .buttonStyle(.plain)
         .onHover { onHover($0 ? s.id : nil) }

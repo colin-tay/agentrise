@@ -1,9 +1,12 @@
 // Copyright (c) 2026 Colin Tay
 // SPDX-License-Identifier: MIT
 
+import Foundation
 import Testing
+#if canImport(CoreGraphics)
 import CoreGraphics
-@testable import AgentriseApp
+#endif
+@testable import AgentriseScene
 @testable import Agentrise
 
 @Suite struct LayoutTests {

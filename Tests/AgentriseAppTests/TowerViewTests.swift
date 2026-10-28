@@ -6,6 +6,7 @@ import AppKit
 import SpriteKit
 @testable import AgentriseApp
 @testable import Agentrise
+@testable import AgentriseScene
 
 @MainActor
 @Suite struct TowerViewTests {

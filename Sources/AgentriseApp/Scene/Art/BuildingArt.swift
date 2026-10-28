@@ -5,6 +5,7 @@ import AppKit
 import CoreGraphics
 import SpriteKit
 import Agentrise
+import AgentriseScene
 
 /// The building baked into bitmaps — `6535b39`'s Core Animation drawing code (`drawBuilding()/decorate()/roomBox()`)
 /// moved onto CGContext. Everything here is static; the elevator cab and the server-room LEDs are

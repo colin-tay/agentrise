@@ -3,40 +3,40 @@
 
 import Foundation
 
-enum TravelDirection { case up, down, idle }
+package enum TravelDirection { case up, down, idle }
 
-struct ElevatorRequest: Equatable {
-    let rider: String
-    var from: Int
-    var to: Int
+package struct ElevatorRequest: Equatable {
+    package let rider: String
+    package var from: Int
+    package var to: Int
 
     /// 该请求想去的方向（from == to 的请求不会存在）。
-    var direction: TravelDirection { to > from ? .up : .down }
+    package var direction: TravelDirection { to > from ? .up : .down }
 }
 
-struct ElevatorStop: Equatable {
-    let floor: Int
-    let alight: [String]
-    let board: [String]
+package struct ElevatorStop: Equatable {
+    package let floor: Int
+    package let alight: [String]
+    package let board: [String]
 }
 
 /// 电梯集体控制（collective control）调度器：纯逻辑，不含任何 UI / 时间。
 /// 楼层为整数（0 = B1 … 3 = 3F）。
-struct ElevatorDispatcher {
-    let capacity: Int
+package struct ElevatorDispatcher {
+    package let capacity: Int
     /// 按呼叫先后排列的等候者。
-    private(set) var waiting: [ElevatorRequest] = []
-    private(set) var riding: [ElevatorRequest] = []
-    private(set) var direction: TravelDirection = .idle
+    package private(set) var waiting: [ElevatorRequest] = []
+    package private(set) var riding: [ElevatorRequest] = []
+    package private(set) var direction: TravelDirection = .idle
 
-    init(capacity: Int = 4) {
+    package init(capacity: Int = 4) {
         self.capacity = capacity
     }
 
     // MARK: - 请求管理
 
     /// from == to 时忽略；同一 rider 重复呼叫视为 retarget（等候中保留队列位置）。
-    mutating func call(rider: String, from: Int, to: Int) {
+    package mutating func call(rider: String, from: Int, to: Int) {
         guard from != to else { return }
         if let i = riding.firstIndex(where: { $0.rider == rider }) {
             riding[i].to = to
@@ -49,7 +49,7 @@ struct ElevatorDispatcher {
     }
 
     /// 等待中改 to（保留队列位置）；乘坐中改 to。等待中改成与 from 相同则视为取消。
-    mutating func retarget(rider: String, to: Int) {
+    package mutating func retarget(rider: String, to: Int) {
         if let i = riding.firstIndex(where: { $0.rider == rider }) {
             riding[i].to = to
         } else if let i = waiting.firstIndex(where: { $0.rider == rider }) {
@@ -61,12 +61,12 @@ struct ElevatorDispatcher {
         }
     }
 
-    mutating func remove(rider: String) {
+    package mutating func remove(rider: String) {
         waiting.removeAll { $0.rider == rider }
         riding.removeAll { $0.rider == rider }
     }
 
-    mutating func clear() {
+    package mutating func clear() {
         waiting.removeAll()
         riding.removeAll()
         direction = .idle
@@ -75,7 +75,7 @@ struct ElevatorDispatcher {
     // MARK: - 调度
 
     /// 轿厢下一个应停靠的楼层；没有任务返回 nil。纯查询。
-    func nextStopFloor(cabFloor: Int) -> Int? {
+    package func nextStopFloor(cabFloor: Int) -> Int? {
         if riding.isEmpty {
             return waiting.first?.from
         }
@@ -85,7 +85,7 @@ struct ElevatorDispatcher {
     }
 
     /// 到达 `floor`：先下后上，并更新 direction。
-    mutating func arrive(at floor: Int) -> ElevatorStop {
+    package mutating func arrive(at floor: Int) -> ElevatorStop {
         // 1. 下车
         let alighted = riding.filter { $0.to == floor }
         riding.removeAll { $0.to == floor }

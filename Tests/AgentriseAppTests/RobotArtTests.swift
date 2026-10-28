@@ -7,6 +7,7 @@ import CoreGraphics
 import QuartzCore
 @testable import AgentriseApp
 @testable import Agentrise
+@testable import AgentriseScene
 
 @Suite struct RobotArtTests {
     private let look = RobotLook(kind: .boss(.seniorEngineer), teamIndex: 0, larkSession: false)
@@ -129,9 +130,9 @@ import QuartzCore
         let b1 = art.bubble("等你回复", color: NSColor(hex: 0xFFC95C))
         #expect(b1 === art.bubble("等你回复", color: NSColor(hex: 0xFFC95C)))
         #expect(b1.height == 38)   // 15 pt × 2.5 = 37.5 px, rounded up
-        let n = art.name("⚡ 主线\n高级专家", small: false, stripe: Rank.seniorExpert.stripe)
-        #expect(n === art.name("⚡ 主线\n高级专家", small: false, stripe: Rank.seniorExpert.stripe))
-        #expect(n !== art.name("⚡ 主线\n高级专家", small: true, stripe: Rank.seniorExpert.stripe))
+        let n = art.name("⚡ 主线\n高级专家", small: false, stripe: NSColor(Rank.seniorExpert.stripe))
+        #expect(n === art.name("⚡ 主线\n高级专家", small: false, stripe: NSColor(Rank.seniorExpert.stripe)))
+        #expect(n !== art.name("⚡ 主线\n高级专家", small: true, stripe: NSColor(Rank.seniorExpert.stripe)))
         #expect(art.emoji("💻", size: 14) === art.emoji("💻", size: 14))
         #expect(art.emoji("💻", size: 14).width > 0)
     }

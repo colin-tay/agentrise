@@ -6,6 +6,7 @@ import AppKit
 import SpriteKit
 @testable import AgentriseApp
 @testable import Agentrise
+@testable import AgentriseScene
 
 @MainActor
 @Suite struct TowerSceneTests {
@@ -698,7 +699,7 @@ import SpriteKit
         #expect(tethers.children.count == 2)
         let shape = tethers.children.first as? SKShapeNode
         #expect(shape?.glowWidth == 2 && shape?.lineWidth == 2)
-        #expect(shape?.strokeColor == Team.color(0))
+        #expect(shape?.strokeColor == NSColor(Team.color(0)))
         #expect(shape?.path?.boundingBoxOfPath.isEmpty == false)
         scene.highlight(nil)
         for k in ["s:a", "s:b", "s:c", "a:a:x", "a:a:y"] { #expect(scene.robot(k)?.alpha == 1, "\(k)") }

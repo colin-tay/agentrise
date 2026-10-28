@@ -4,6 +4,7 @@
 import AppKit
 import CoreGraphics
 import Agentrise
+import AgentriseScene
 
 enum RobotKind: Hashable { case boss(Rank), sub, contractor }
 enum RobotFace: Hashable { case focused, happy, waiting, error, asleep, calm }
@@ -15,7 +16,7 @@ struct RobotLook: Hashable {
     let larkSession: Bool
 
     var rank: Rank? { if case let .boss(r) = kind { return r }; return nil }
-    var teamColor: NSColor { Team.color(teamIndex) }
+    var teamColor: NSColor { NSColor(Team.color(teamIndex)) }
     /// Bosses wear their team's glyph on the neck ring.
     var emblem: String? { rank == nil ? nil : Team.glyph(teamIndex) }
     /// Director's visor band and expert's monocle sit on top of the eyes, so they get their own layer.
@@ -365,7 +366,7 @@ final class RobotArt {
         }
         pen.chrome(rounded(R(19, 41, 22, 17), 8.5))
         let stripe = CGMutablePath(); stripe.move(to: P(23, 52)); stripe.addLine(to: P(37, 52))
-        pen.shape(stripe, stroke: rank?.stripe ?? look.teamColor, width: 2.5)
+        pen.shape(stripe, stroke: rank.map { NSColor($0.stripe) } ?? look.teamColor, width: 2.5)
         if let rank { drawBodyAccessories(rank, pen) }
         if let emblem = look.emblem {   // team emblem pendant on the neck ring
             pen.shape(poly((0..<6).map { i in let a = CGFloat(i) * .pi / 3; return (30 + 4.6 * cos(a), 38.5 + 4.6 * sin(a)) }),

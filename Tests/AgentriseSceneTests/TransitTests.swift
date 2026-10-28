@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: MIT
 
 import Testing
+#if canImport(CoreGraphics)
 import CoreGraphics
+#endif
 import Foundation
-@testable import AgentriseApp
+@testable import AgentriseScene
 @testable import Agentrise
 
 @Suite struct TransitTests {

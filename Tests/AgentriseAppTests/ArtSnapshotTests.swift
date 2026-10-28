@@ -28,6 +28,7 @@ import SpriteKit
 import UniformTypeIdentifiers
 @testable import AgentriseApp
 @testable import Agentrise
+@testable import AgentriseScene
 
 // MARK: - Shared snapshot plumbing (also used by MotionSnapshotTests)
 
@@ -168,11 +169,11 @@ enum SnapshotPaths {
             return "\(Team.glyph(team)) \(t)\n\(Self.title(rank))"
         }
         for (rank, rankName) in ranks {
-            add("name-stripe-\(rankName)") { art.name(bossName("修复登录", team: 0, rank: rank), small: false, stripe: rank.stripe) }
+            add("name-stripe-\(rankName)") { art.name(bossName("修复登录", team: 0, rank: rank), small: false, stripe: NSColor(rank.stripe)) }
         }
         add("name-short-no-stripe") { art.name("⚡ 修复登录", small: false, stripe: nil) }
         add("name-long-truncated") {
-            art.name(bossName("重构整个支付网关的回调处理逻辑", team: 1, rank: .seniorEngineer), small: false, stripe: Rank.seniorEngineer.stripe)
+            art.name(bossName("重构整个支付网关的回调处理逻辑", team: 1, rank: .seniorEngineer), small: false, stripe: NSColor(Rank.seniorEngineer.stripe))
         }
         add("name-long-clipped") { art.name("✚ 一个特别特别特别特别特别特别长的名字", small: false, stripe: nil) }
         add("name-small-sub") { art.name("Explore", small: true, stripe: nil) }

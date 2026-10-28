@@ -4,6 +4,7 @@
 import AppKit
 import SpriteKit
 import Agentrise
+import AgentriseScene
 
 /// The SpriteKit tower. Layout and `Transit` coordinates are top-left origin (y down);
 /// `scenePoint(_:)` flips them for SpriteKit when assigning to nodes.
@@ -476,7 +477,7 @@ final class TowerScene: SKScene {
                 robots[e.key] = sprite
                 owner[e.key] = e.sessionId
             } else {
-                sprite = RobotSprite(look: look, teamColor: Team.color(s.teamIndex), art: art, phase: idlePhase(e.key))
+                sprite = RobotSprite(look: look, teamColor: NSColor(Team.color(s.teamIndex)), art: art, phase: idlePhase(e.key))
                 robots[e.key] = sprite
                 owner[e.key] = e.sessionId
                 drawOrder[e.key] = nextDrawOrder
@@ -706,7 +707,7 @@ final class TowerScene: SKScene {
         for key in keys {
             let n = SKShapeNode()
             n.name = Self.tetherPrefix + key
-            n.strokeColor = Team.color(s.teamIndex)
+            n.strokeColor = NSColor(Team.color(s.teamIndex))
             n.lineWidth = 2
             n.glowWidth = 2
             n.path = tetherPath(from: bossKey, to: key, phase: 0)
@@ -789,7 +790,7 @@ final class TowerScene: SKScene {
             box = existing
         } else {
             tooltip.removeAllChildren()
-            let (texture, size) = Self.tooltipTexture(lines, color: Team.color(s.teamIndex), scale: scale)
+            let (texture, size) = Self.tooltipTexture(lines, color: NSColor(Team.color(s.teamIndex)), scale: scale)
             box = SKSpriteNode(texture: texture, size: size)
             scheduleRelief()
             box.anchorPoint = CGPoint(x: 0, y: 1)   // top-left, like the old layer in the flipped view
