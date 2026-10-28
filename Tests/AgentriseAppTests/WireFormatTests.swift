@@ -6,6 +6,7 @@ import Testing
 import TowerKit
 @testable import AgentriseApp
 @testable import Agentrise
+@testable import AgentriseScene
 
 @Suite struct WireFormatTests {
     private let oldLine = Data("""
@@ -55,8 +56,8 @@ import TowerKit
     @Test func claudeInstallerNeverAddsPermissionRequest() throws {
         let out = try HookInstaller.merged([:], hookPath: "/x")
         let hooks = try #require(out["hooks"] as? [String: Any])
-        #expect(Set(hooks.keys) == Set(HookInstaller.claudeEvents.map(\.rawValue)))
-        #expect(HookInstaller.claudeEvents.count == 12)
+        #expect(Set(hooks.keys) == Set(HookPlan.claudeEvents.map(\.rawValue)))
+        #expect(HookPlan.claudeEvents.count == 12)
         for n in ["PermissionRequest", "Interrupt", "PostCompact"] { #expect(hooks[n] == nil) }
         let group = try #require((hooks["Stop"] as? [Any])?.first as? [String: Any])
         let cmd = try #require((group["hooks"] as? [[String: Any]])?.first?["command"] as? String)

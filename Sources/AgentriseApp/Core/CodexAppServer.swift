@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import Foundation
+import AgentriseScene
 
 /// One JSON-RPC request/response with `codex app-server`.
 protocol RPCTransport {
@@ -225,5 +226,5 @@ struct CodexAppServer {
     }
 
     private func isIn(_ paths: Set<String>, _ h: [String: Any]) -> Bool { (h["sourcePath"] as? String).map(paths.contains) ?? false }
-    private func isAgentrise(_ h: [String: Any]) -> Bool { (h["command"] as? String)?.contains(HookInstaller.marker) == true }
+    private func isAgentrise(_ h: [String: Any]) -> Bool { (h["command"] as? String)?.contains(HookPlan.marker) == true }
 }

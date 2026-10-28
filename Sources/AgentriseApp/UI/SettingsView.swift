@@ -4,6 +4,10 @@
 import SwiftUI
 import ServiceManagement
 import Agentrise
+import AgentriseScene
+
+/// AgentriseScene also declares a `Color`; in this SwiftUI file the name means SwiftUI's.
+private typealias Color = SwiftUI.Color
 
 struct SettingsView: View {
     var onSaved: () -> Void
@@ -12,7 +16,7 @@ struct SettingsView: View {
     @State private var preview: String?
     @State private var hookStatus = ""
     private let codexPresent = FileManager.default.fileExists(atPath: HookInstaller.codexHome().path)
-    @AppStorage(HookInstaller.codexSeenKey) private var codexSeen = false
+    @AppStorage(HookPlan.codexSeenKey) private var codexSeen = false
     @State private var codexInstalled = HookInstaller.codex.isInstalled()
     @State private var codexPreview: String?
     @State private var codexStatus = ""

@@ -4,7 +4,6 @@
 import Foundation
 import Testing
 import TowerKit
-@testable import AgentriseApp
 @testable import Agentrise
 @testable import AgentriseScene
 
@@ -86,7 +85,7 @@ import TowerKit
             #"{"thread_name":"没有 id"}"#,
             #"{"id":"a","thread_name":"新名字","updated_at":"2026-10-24T02:00:00Z"}"#,
         ]
-        try (lines.joined(separator: "\n") + "\n").write(to: url, atomically: true, encoding: .utf8)
+        try (lines.joined(separator: "\n") + "\n").write(to: url, atomically: false, encoding: .utf8)
         #expect(CodexSessionIndex.load(from: url) == ["a": "新名字", "b": "另一个"])
         #expect(CodexSessionIndex.load(from: dir.appendingPathComponent("missing.jsonl")).isEmpty)
     }
@@ -97,11 +96,11 @@ import TowerKit
         defer { try? FileManager.default.removeItem(at: dir) }
         let url = dir.appendingPathComponent("session_index.jsonl")
         #expect(CodexSessionIndex.stamp(of: url) == .init(modified: nil, size: nil))
-        try "a\n".write(to: url, atomically: true, encoding: .utf8)
+        try "a\n".write(to: url, atomically: false, encoding: .utf8)
         let first = CodexSessionIndex.stamp(of: url)
         #expect(first.size == 2)
         #expect(CodexSessionIndex.stamp(of: url) == first)
-        try "a\nb\n".write(to: url, atomically: true, encoding: .utf8)
+        try "a\nb\n".write(to: url, atomically: false, encoding: .utf8)
         #expect(CodexSessionIndex.stamp(of: url) != first)
     }
 
@@ -143,15 +142,6 @@ import TowerKit
         #expect(store.removeExited(isRunning: { $0 != 4242 }) == [.sessionLeft(sessionId: "cx")])
         #expect(store.sessions["cx"] == nil)
         #expect(store.sessions["cx2"] != nil && store.sessions["cc"] != nil)
-    }
-
-    @Test func probeSeesLiveAndExitedProcesses() throws {
-        #expect(ProcessProbe.isRunning(getpid()))
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/true")
-        try p.run()
-        p.waitUntilExit()
-        #expect(!ProcessProbe.isRunning(p.processIdentifier))
     }
 
     @Test func interruptedCodexTurnLeavesNoSubsBehind() {
@@ -198,10 +188,12 @@ import TowerKit
         var s = Session(id: "cx", title: "t", source: .terminal(bundleId: nil), rank: .seniorEngineer,
                         status: .working, activity: .coding, teamIndex: 0, statusSince: Date(), lastActivityAt: Date())
         s.subs["a"] = SubAgent(id: "a", type: "explorer", activity: .coding, startedAt: Date())
-        #expect(PanelView.countsText(for: s) == "小弟 1 · 外包 0")
+        #expect(PanelEntry(s).countsText == "小弟 1 · 外包 0")
         s.agent = .codex
-        #expect(PanelView.countsText(for: s) == "小弟 1")
+        #expect(PanelEntry(s).countsText == "小弟 1")
         s.status = .standby
-        #expect(PanelView.countsText(for: s) == "待命")
+        #expect(PanelEntry(s).countsText == "待命")
+        s.status = .sleeping
+        #expect(PanelEntry(s).countsText == "睡觉")
     }
 }

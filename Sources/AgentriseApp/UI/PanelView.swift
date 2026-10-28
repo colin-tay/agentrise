@@ -20,17 +20,17 @@ struct PanelView: View {
     var onHover: (String?) -> Void
     @State private var showSleepers = false
 
-    var waiting: [Session] { vm.sessions.filter { $0.status == .waiting || $0.status == .error }.sorted { $0.statusSince < $1.statusSince } }
-    var done: [Session] { vm.sessions.filter { $0.status == .done }.sorted { $0.statusSince > $1.statusSince } }
-    var working: [Session] { vm.sessions.filter { $0.status == .working || $0.status == .standby } }
-    var sleeping: [Session] { vm.sessions.filter { $0.status == .sleeping } }
+    var waiting: [PanelEntry] { vm.panel.waiting }
+    var done: [PanelEntry] { vm.panel.done }
+    var working: [PanelEntry] { vm.panel.working }
+    var sleeping: [PanelEntry] { vm.panel.sleeping }
 
     var body: some View {
         Group {
             if vm.orientation == .landscape { column } else { strip }
         }
         .overlay(alignment: .bottom) {
-            if let t = vm.toast {
+            if let t = vm.panel.toast {
                 Text(t).font(.system(size: 11, weight: .semibold)).foregroundColor(.white)
                     .padding(.horizontal, 10).padding(.vertical, 6)
                     .background(Capsule().fill(Color(red: 0.2, green: 0.44, blue: 1)))
@@ -47,7 +47,7 @@ struct PanelView: View {
                     Text("没有需要你处理的").font(.system(size: 11)).foregroundColor(sub)
                 }
                 ForEach(waiting, id: \.id) { s in card(s, color: s.status == .error ? .red : amber, icon: s.status == .error ? "⚠️" : "🙋",
-                                                       detail: (s.waitingSummary ?? (s.status == .error ? "出错了" : "在等你回复")) + " · \(minutes(s))") }
+                                                       detail: (s.summary ?? (s.status == .error ? "出错了" : "在等你回复")) + " · \(minutes(s))") }
                 ForEach(done, id: \.id) { s in card(s, color: green, icon: "✓", detail: "做完了 · \(minutes(s))") }
                 Text("干活中").font(.system(size: 10.5)).foregroundColor(sub).padding(.top, 6)
                 ForEach(working, id: \.id) { s in row(s) }
@@ -74,13 +74,13 @@ struct PanelView: View {
         .background(RoundedRectangle(cornerRadius: 10).fill(Color(red: 0.04, green: 0.055, blue: 0.15).opacity(0.9)))
     }
 
-    private func card(_ s: Session, color: Color, icon: String, detail: String) -> some View {
+    private func card(_ s: PanelEntry, color: Color, icon: String, detail: String) -> some View {
         Button { onOpen(s.id) } label: {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     Text(icon)
                     Text(s.title).font(.system(size: 11.5, weight: .bold)).foregroundColor(ink).lineLimit(1)
-                    if s.larkSent || s.isLark { lark }
+                    if s.lark { lark }
                 }
                 Text(detail).font(.system(size: 10.5)).foregroundColor(sub).lineLimit(2)
             }
@@ -93,15 +93,15 @@ struct PanelView: View {
         .onHover { onHover($0 ? s.id : nil) }
     }
 
-    private func row(_ s: Session) -> some View {
+    private func row(_ s: PanelEntry) -> some View {
         Button { onOpen(s.id) } label: {
             HStack(spacing: 5) {
                 Text(Team.glyph(s.teamIndex)).font(.system(size: 9, weight: .black)).foregroundColor(Color(red: 0.04, green: 0.06, blue: 0.15))
                     .frame(width: 14, height: 14).background(Circle().fill(Color(nsColor: NSColor(Team.color(s.teamIndex)))))
                 Text(s.title).font(.system(size: 11, weight: .semibold)).foregroundColor(ink).lineLimit(1)
-                if s.isLark || s.larkSent { lark }
+                if s.lark { lark }
                 Spacer(minLength: 4)
-                Text(Self.countsText(for: s))
+                Text(s.countsText)
                     .font(.system(size: 9.5)).foregroundColor(sub)
             }
             .padding(.horizontal, 5).padding(.vertical, 3)
@@ -111,21 +111,13 @@ struct PanelView: View {
         .onHover { onHover($0 ? s.id : nil) }
     }
 
-    /// Right-hand text of a row; agents that cannot report contractors show no contractor count.
-    static func countsText(for s: Session) -> String {
-        if s.status == .standby { return "待命" }
-        if s.status == .sleeping { return "睡觉" }
-        let subs = "小弟 \(s.subs.count)"
-        return s.capabilities.contains(.contractors) ? "\(subs) · 外包 \(s.contractors.count)" : subs
-    }
-
     private var lark: some View {
         Text("飞").font(.system(size: 8.5, weight: .bold)).foregroundColor(.white).padding(.horizontal, 3)
             .background(RoundedRectangle(cornerRadius: 3).fill(Color(red: 0.2, green: 0.44, blue: 1)))
     }
 
-    private func minutes(_ s: Session) -> String {
-        let m = Int(Date().timeIntervalSince(s.statusSince) / 60)
+    private func minutes(_ s: PanelEntry) -> String {
+        let m = Int(Date().timeIntervalSince(s.since) / 60)
         return m < 1 ? "刚刚" : m < 60 ? "\(m) 分钟" : "\(m / 60) 小时"
     }
 }

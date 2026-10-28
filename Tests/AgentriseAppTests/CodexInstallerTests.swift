@@ -6,6 +6,7 @@ import Testing
 import TowerKit
 @testable import AgentriseApp
 @testable import Agentrise
+@testable import AgentriseScene
 
 /// A scripted app-server: answers each method from `responses` and records every call.
 private final class FakeRPC: RPCTransport {
@@ -29,77 +30,6 @@ private final class FakeRPC: RPCTransport {
         return d
     }
 
-    private func json(_ url: URL) throws -> NSDictionary {
-        try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? NSDictionary)
-    }
-
-    private func codexFile(_ url: URL) -> HookFile {
-        let c = HookInstaller.codex
-        return HookFile(url: url, events: c.events, command: c.command, backupTag: c.backupTag, timeout: c.timeout, syncEvents: c.syncEvents)
-    }
-
-    @Test func codexInstallKeepsUserHooks() throws {
-        let dir = try tempDir()
-        let url = dir.appendingPathComponent("hooks.json")
-        let original = #"{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"echo bye"}]}],"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"lint.sh"}]}]},"other":1}"#
-        try Data(original.utf8).write(to: url)
-        let file = codexFile(url)
-        #expect(!file.isInstalled())
-
-        let backup = try file.install(hookPath: hookPath)
-        #expect(file.isInstalled())
-        #expect(backup?.lastPathComponent.hasPrefix("hooks.json.agentrise-backup-") == true)
-        let out = try json(url)
-        #expect(out["other"] as? Int == 1)
-        let hooks = try #require(out["hooks"] as? [String: [[String: Any]]])
-        let events = ["SessionStart", "SessionEnd", "UserPromptSubmit", "PreToolUse", "PermissionRequest", "PostToolUse",
-                      "PreCompact", "PostCompact", "SubagentStart", "SubagentStop", "Stop", "Interrupt"]
-        #expect(HookInstaller.codex.events == events)
-        #expect(Set(hooks.keys) == Set(events))
-        for ev in events {
-            let ours = try #require(hooks[ev]).filter { HookInstaller.isOurs($0) }
-            #expect(ours.count == 1, "\(ev)")
-            let h = try #require((ours.first?["hooks"] as? [[String: Any]])?.first)
-            #expect(h["type"] as? String == "command")
-            #expect(h["command"] as? String == "\"\(hookPath)\" --agent codex")
-            #expect((h["command"] as? String)?.hasSuffix("--agent codex") == true)
-            // Codex 0.164 warns on every session start about an async SessionEnd and a timeout over 3 s.
-            #expect(h["async"] as? Bool == (ev == "SessionEnd" ? nil : true), "\(ev)")
-            #expect(h["timeout"] as? Int == 3)
-            #expect(ours.first?["matcher"] == nil)
-        }
-        #expect((hooks["Stop"]?.first?["hooks"] as? [[String: Any]])?.first?["command"] as? String == "echo bye")
-        #expect(hooks["PreToolUse"]?.first?["matcher"] as? String == "Bash")
-
-        // Installing twice still leaves one entry per event.
-        _ = try file.install(hookPath: hookPath)
-        let again = try #require(try json(url)["hooks"] as? [String: [Any]])
-        #expect(again["Stop"]?.filter(HookInstaller.isOurs).count == 1)
-
-        try file.uninstall()
-        #expect(!file.isInstalled())
-        #expect(try json(url) == (try JSONSerialization.jsonObject(with: Data(original.utf8)) as! NSDictionary))
-    }
-
-    @Test(arguments: ["[1,2]", #"{"hooks": 3}"#, "not json"])
-    func codexInstallRejectsBadFile(_ content: String) throws {
-        let dir = try tempDir()
-        let url = dir.appendingPathComponent("hooks.json")
-        try Data(content.utf8).write(to: url)
-        let file = codexFile(url)
-        #expect(throws: InstallerError.self) { try file.install(hookPath: hookPath) }
-        #expect(throws: InstallerError.self) { try file.preview(hookPath: hookPath) }
-        #expect(String(data: try Data(contentsOf: url), encoding: .utf8) == content)
-        #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path) == ["hooks.json"])
-    }
-
-    @Test func codexErrorsNameHooksJSON() {
-        #expect(InstallerError.invalidJSON("hooks.json").errorDescription == "hooks.json 不是有效的 JSON，没有改动它")
-        #expect(InstallerError.invalidJSON("settings.json").errorDescription == "settings.json 不是有效的 JSON，没有改动它")
-        #expect(InstallerError.unexpectedHooksShape("settings.json").errorDescription == "settings.json 里的 hooks 结构不认识，没有改动它")
-        #expect(InstallerError.changedSinceRead("settings.json").errorDescription == "settings.json 刚刚被别的程序改过，请重试")
-    }
-
     /// Recorded from `HookInstaller.merged` before it was moved into `HookFile`.
     @Test func claudeInstallerUnchanged() throws {
         let golden = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
@@ -112,24 +42,13 @@ private final class FakeRPC: RPCTransport {
         let m = try HookInstaller.merged(obj, hookPath: hookPath)
         #expect(String(data: try JSONSerialization.data(withJSONObject: m, options: opts), encoding: .utf8) == golden)
 
-        // The same file through `HookInstaller.claude`, written to disk.
+        // `HookInstaller.claude` is `HookPlan.claude` in the user's home (writing it is `HookPlanTests`).
         let c = HookInstaller.claude
         #expect(c.url == HookInstaller.settingsURL)
-        #expect(c.url.path.hasSuffix("/.claude/settings.json"))
-        #expect(c.events == HookInstaller.claudeEvents.map(\.rawValue))
-        let dir = try tempDir()
-        let url = dir.appendingPathComponent("settings.json")
-        try Data(input.utf8).write(to: url)
-        let file = HookFile(url: url, events: c.events, command: c.command, backupTag: c.backupTag, timeout: c.timeout, syncEvents: c.syncEvents)
-        #expect(try file.preview(hookPath: hookPath) == golden)
-        let backup = try file.install(hookPath: hookPath)
-        #expect(backup?.lastPathComponent.hasPrefix("settings.json.agentrise-backup-") == true)
-        #expect(try Data(contentsOf: try #require(backup)) == Data(input.utf8))
-        let written = try Data(contentsOf: url)
-        #expect(written.last == UInt8(ascii: "\n"))
-        let back = try JSONSerialization.jsonObject(with: written)
-        #expect(String(data: try JSONSerialization.data(withJSONObject: back, options: opts), encoding: .utf8) == golden)
-        #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted() == ["settings.json", backup!.lastPathComponent].sorted())
+        #expect(c.url == FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/settings.json"))
+        #expect(c.events == HookPlan.claudeEvents.map(\.rawValue))
+        #expect(c.command(hookPath) == "\"\(hookPath)\"")
+        #expect(HookInstaller.codex.url == HookInstaller.codexHome().appendingPathComponent("hooks.json"))
     }
 
     // MARK: - Trust through the app-server
@@ -289,7 +208,7 @@ private final class FakeRPC: RPCTransport {
     @Test func codexHomeHonoursEnvironment() {
         #expect(HookInstaller.codexHome(env: ["CODEX_HOME": "/tmp/cx"]).path == "/tmp/cx")
         #expect(HookInstaller.codexHome(env: ["CODEX_HOME": ""]).path.hasSuffix("/.codex"))
-        #expect(HookInstaller.codexHome(env: [:]).path.hasSuffix("/.codex"))
+        #expect(HookInstaller.codexHome(env: [:]) == FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex"))
     }
 
     // MARK: - Locating codex and talking to it
@@ -345,14 +264,15 @@ private final class FakeRPC: RPCTransport {
         #expect(throws: CodexRPCError.self) { try rpc.call("hooks/list", [:]) }
     }
 
+    /// Through `UserDefaults` (the Mac's settings store), under the key Settings' `@AppStorage` reads.
     @Test func firstCodexEventMarksCodexSeen() throws {
         let name = "agentrise-test-\(UUID().uuidString)"
         let d = try #require(UserDefaults(suiteName: name))
         defer { d.removePersistentDomain(forName: name) }
-        HookInstaller.noteEvent(from: nil, defaults: d)
-        HookInstaller.noteEvent(from: .claude, defaults: d)
-        #expect(d.bool(forKey: HookInstaller.codexSeenKey) == false)
-        HookInstaller.noteEvent(from: .codex, defaults: d)
+        HookPlan.noteEvent(from: nil, settings: d)
+        HookPlan.noteEvent(from: .claude, settings: d)
+        #expect(d.bool(forKey: HookPlan.codexSeenKey) == false)
+        HookPlan.noteEvent(from: .codex, settings: d)
         #expect(d.bool(forKey: "codexSeen") == true)
     }
 }

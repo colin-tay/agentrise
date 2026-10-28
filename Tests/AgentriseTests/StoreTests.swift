@@ -161,8 +161,8 @@ import TowerKit
     }
 
     /// Pins that the Store's departure rule needs no registry change: the same unchanged registry, fed again as time
-    /// passes, removes the session once past the grace. (TowerController calls this on every refresh, before its
-    /// `guard changed` early return; that call site is not covered here.)
+    /// passes, removes the session once past the grace. (TowerAppModel calls this on every refresh, before its
+    /// `guard changed` early return; `TowerAppModelTests.departedSessionLeavesOnAnUnchangedRefresh` pins that call site.)
     @Test func removalDoesNotDependOnTheRegistryChanging() {
         var s = store(seen: 0)
         var left: [TowerEffect] = []

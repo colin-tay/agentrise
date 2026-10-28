@@ -10,7 +10,7 @@ import Agentrise
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let vm = TowerViewModel()
-    lazy var controller = TowerController(vm: vm)
+    var controller: TowerController!
     var window: NSWindow!
     var building: (NSView & TowerDisplay)!
     var panelHost: NSHostingView<PanelView>!
@@ -20,7 +20,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ note: Notification) {
         let frame = NSRect(x: 0, y: 0, width: 1280, height: 800)
-        building = TowerView(frame: frame)
+        let view = TowerView(frame: frame)
+        building = view
+        controller = TowerController(vm: vm, view: view)
         panelHost = NSHostingView(rootView: PanelView(vm: vm, onOpen: { [weak self] in self?.controller.open(sessionId: $0) },
                                                       onHover: { [weak self] id in self?.vm.hovered = id; self?.building.highlight(id) }))
         let container = NSView(frame: building.frame)
@@ -67,7 +69,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.makeKeyAndOrderFront(nil)
         savesFrame = devFrame == nil
 
-        controller.building = building
         controller.onNewWaiting = { [weak self] in self?.blinkStatusItem() }
         controller.start()
         setUpStatusItem()
@@ -157,7 +158,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             panelHost.cacheDisplay(in: panelHost.bounds, to: rep)
             if let img = rep.cgImage { ctx.draw(img, in: panelHost.frame) }
         }
-        let dump = vm.sessions.map { "\($0.id) | \($0.title) | \($0.source) | \($0.status) | \($0.activity) | cwd=\($0.cwd ?? "-")" }.joined(separator: "\n")
+        let dump = controller.model.visibleSessions.map { "\($0.id) | \($0.title) | \($0.source) | \($0.status) | \($0.activity) | cwd=\($0.cwd ?? "-")" }.joined(separator: "\n")
         try? dump.write(to: TowerPaths.supportDir().appendingPathComponent("sessions.txt"), atomically: true, encoding: .utf8)
         guard let image = ctx.makeImage() else { return }
         let url = TowerPaths.supportDir().appendingPathComponent("snapshot.png")
@@ -194,7 +195,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func updateStatusTitle() {
-        let c = vm.counts
+        let c = vm.panel.counts
         let s = NSMutableAttributedString(string: "🏢 ", attributes: [.font: NSFont.systemFont(ofSize: 12)])
         s.append(NSAttributedString(string: "等你 \(c.waiting)", attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: c.waiting > 0 ? .bold : .regular),
                                                                               .foregroundColor: c.waiting > 0 ? NSColor(hex: 0xE0A02C) : NSColor.labelColor]))
