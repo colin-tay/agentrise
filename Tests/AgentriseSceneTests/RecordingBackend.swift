@@ -70,6 +70,9 @@ final class RecordingPen: Pen {
     func text(_ runs: [TextRun], shadow: TextShadow?, in rect: CGRect, maxLines: Int) {
         log("text \(runs.map(\.text)) \(String(describing: shadow)) \(rect) \(maxLines)")
     }
+    func textLine(_ runs: [TextRun], in rect: CGRect, truncatesTail: Bool) {
+        log("line \(runs.map(\.text)) \(rect) \(truncatesTail)")
+    }
     func emoji(_ s: String, size: CGFloat, center: CGPoint) { log("emoji \(s) \(size) \(center)") }
     func setFontSmoothing(_ on: Bool) { log("smoothing \(on)") }
     func measure(_ runs: [TextRun], maxWidth: CGFloat, maxLines: Int) -> CGSize { RecordingBackend.measure(runs) }

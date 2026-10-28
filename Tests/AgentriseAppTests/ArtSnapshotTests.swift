@@ -7,8 +7,8 @@
 // first) and compares them with the decoded baseline, channel by channel, allowing a difference of 1. Robot
 // parts, labels, bubbles, signs and emoji come straight from a fresh `RobotArt(scale: 2)`; building pieces
 // from `BuildingArt` at scale 2 (both the portable recipes, drawn by `CGArtBackend` through `CGPen`) for a landscape (1200×800) and a portrait (700×1100) layout; the header,
-// tooltip and report card, which only the scene bakes, from a `TowerScene` at backing scale 2 (the report is
-// baked at the scene's robot-art scale, 2 × 1.25 = 2.5).
+// tooltip and report card, which only the scene draws, from a `TowerSceneModel` at backing scale 2 as its
+// `SpriteKitDisplay` draws them into textures (the report is drawn at the model's robot-art scale, 2 × 1.25 = 2.5).
 //
 // Recording: `scripts/record-art-baselines.sh` (or `AGENTRISE_RECORD_ART=1 swift test --filter ArtSnapshotTests`)
 // rewrites every baseline and `Fixtures/art/RECORDED.txt` (macOS and Xcode versions, SHA-256 of each PNG).
@@ -231,38 +231,42 @@ enum SnapshotPaths {
                 activity: .coding, teamIndex: team, statusSince: fixedDate, lastActivityAt: fixedDate)
     }
 
-    static func scene() -> TowerScene {
-        let scene = TowerScene(size: layouts[0].size)
-        scene.clock = { fixedDate }
-        scene.backingScaleChanged(scale)
-        return scene
+    /// A tower model at backing scale 2 with the display that draws it.
+    static func scene() -> (model: TowerSceneModel, display: SpriteKitDisplay) {
+        let model = TowerSceneModel(size: layouts[0].size, scale: scale, art: CGArtBackend.shared, clock: { fixedDate })
+        return (model, SpriteKitDisplay(model: model))
+    }
+
+    /// The texture the display drew for a model node.
+    static func texture(_ node: SceneNode?, _ display: SpriteKitDisplay) -> CGImage {
+        display.sync()
+        return (display.skNode(for: node!) as! SKSpriteNode).texture!.cgImage()
     }
 
     static func header(_ counts: TowerCounts) -> CGImage {
-        let scene = scene()
-        scene.setHeader(counts)
-        return (scene.childNode(withName: "header") as! SKSpriteNode).texture!.cgImage()
+        let (model, display) = scene()
+        model.setHeader(counts)
+        return texture(model.root.childNode(withName: "header"), display)
     }
 
     static func tooltip(_ s: Session) -> CGImage {
         var s = s
         s.statusSince = Date()
-        let scene = scene()
-        scene.render([s], animated: false)
-        scene.showTooltip(s.id, at: CGPoint(x: 100, y: 100))
-        return (scene.childNode(withName: "tooltip")!.children.first as! SKSpriteNode).texture!.cgImage()
+        let (model, display) = scene()
+        model.render([s], animated: false)
+        return texture(model.showTooltip(s.id, at: CGPoint(x: 100, y: 100)), display)
     }
 
     /// The card a finished sub carries back to its boss.
     static func report() -> CGImage {
-        let scene = scene()
+        let (model, display) = scene()
         var s = session("b", title: "带小弟", status: .working, team: 0, rank: .seniorEngineer)
         s.subs = ["x": SubAgent(id: "x", type: "Explore", activity: .coding, startedAt: fixedDate)]
-        scene.render([s], animated: false)
-        scene.noteSubResult(sessionId: "b", subId: "x", success: true)
+        model.render([s], animated: false)
+        model.noteSubResult(sessionId: "b", subId: "x", success: true)
         s.subs = [:]
-        scene.render([s])
-        return (scene.robot("a:b:x")!.childNode(withName: "report") as! SKSpriteNode).texture!.cgImage()
+        model.render([s], animated: true)
+        return texture(model.robot("a:b:x")!.root.childNode(withName: "report"), display)
     }
 
     // MARK: Pixels and PNGs

@@ -37,7 +37,7 @@ package enum RobotMotion {
     // MARK: Idle
 
     /// Loops that run all the time: ears breathe, the neck ring glows, the body bobs, hands bob
-    /// out of step, and open eyes blink (RobotSprite runs `eyes` only for the focused/calm faces).
+    /// out of step, and open eyes blink (`RobotRig` runs `eyes` only for the focused/calm faces).
     package static func idle(phase p: TimeInterval) -> [(part: String, tween: Tween)] {
         [("ears", loop(Ch.alpha, [1, 0.35], 1.6, autoreverse: true, phase: p)),
          ("ring", loop(Ch.alpha, [1, 0.4], 1.6, autoreverse: true, phase: p)),

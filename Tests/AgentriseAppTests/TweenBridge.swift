@@ -4,8 +4,9 @@
 import SpriteKit
 import AgentriseScene
 
-/// Temporary: runs the portable `Tween`s on today's SKNode tree, built from the very SKActions
-/// `RobotMotion` used to build itself. Goes away when the scene moves onto `SceneNode`.
+/// Test-only: turns a portable `Tween` into the SKAction it stands for (the very SKActions `RobotMotion` used to
+/// build itself), so `TweenParityTests` can run both and compare. The app has no bridge: `TweenEngine` runs
+/// every tween and SpriteKit only draws.
 extension SKAction {
     static func from(_ t: Tween) -> SKAction {
         switch t {

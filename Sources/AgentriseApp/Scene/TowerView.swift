@@ -19,31 +19,36 @@ protocol TowerDisplay: AnyObject {
     func snapshot() -> CGImage?
 }
 
-/// The SpriteKit tower view.
+/// The SpriteKit tower view: hosts the `SpriteKitDisplay` that draws the portable `TowerSceneModel`.
 final class TowerView: SKView, TowerDisplay {
     var onClickSession: ((String) -> Void)? {
-        get { towerScene.onClickSession }
-        set { towerScene.onClickSession = newValue }
+        get { model.onClickSession }
+        set { model.onClickSession = newValue }
     }
     var onHoverSession: ((String?) -> Void)? {
-        get { towerScene.onHoverSession }
-        set { towerScene.onHoverSession = newValue }
+        get { model.onHoverSession }
+        set { model.onHoverSession = newValue }
     }
-    /// Assigning delivers the current layout right away: the scene may already have been laid out
+    /// Assigning delivers the current layout right away: the model may already have been laid out
     /// for this size, and the window would otherwise never learn where the panel goes.
     var onLayout: ((BuildingLayout) -> Void)? {
-        didSet { onLayout?(towerScene.geo) }
+        didSet { onLayout?(model.geo) }
     }
 
-    let towerScene: TowerScene
+    let model: TowerSceneModel
+    let display: SpriteKitDisplay
+
+    /// Robots are baked at this backing scale until the view is in a window.
+    static let fallbackScale: CGFloat = 2
 
     override init(frame: NSRect) {
-        towerScene = TowerScene(size: frame.size)
+        model = TowerSceneModel(size: frame.size, scale: Self.fallbackScale, art: CGArtBackend.shared)
+        display = SpriteKitDisplay(model: model)
         super.init(frame: frame)
         ignoresSiblingOrder = true
         allowsTransparency = false
-        towerScene.onLayout = { [weak self] in self?.onLayout?($0) }
-        presentScene(towerScene)
+        display.onLayout = { [weak self] in self?.onLayout?($0) }
+        presentScene(display)
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -60,37 +65,40 @@ final class TowerView: SKView, TowerDisplay {
         tracking = t
     }
 
-    /// View points (bottom-left origin) → the scene's layout coordinates (top-left origin).
+    /// View points (bottom-left origin) → the model's layout coordinates (top-left origin).
     private func layoutPoint(of event: NSEvent) -> CGPoint {
-        towerScene.layoutPoint(convert(event.locationInWindow, from: nil))
+        model.layoutPoint(convert(event.locationInWindow, from: nil))
     }
 
-    override func mouseMoved(with event: NSEvent) { towerScene.hover(at: layoutPoint(of: event)) }
-    override func mouseExited(with event: NSEvent) { towerScene.hover(at: nil) }
-    override func mouseDown(with event: NSEvent) { towerScene.click(at: layoutPoint(of: event)) }
+    override func mouseMoved(with event: NSEvent) { model.hover(at: layoutPoint(of: event)) }
+    override func mouseExited(with event: NSEvent) { model.hover(at: nil) }
+    override func mouseDown(with event: NSEvent) { model.click(at: layoutPoint(of: event)) }
 
     /// Robots rendered before the view had a window were baked at the fallback scale.
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        if let w = window { towerScene.backingScaleChanged(w.backingScaleFactor) }
+        if let w = window { display.backingScaleChanged(w.backingScaleFactor) }
     }
 
     override func viewDidChangeBackingProperties() {
         super.viewDidChangeBackingProperties()
-        towerScene.backingScaleChanged(window?.backingScaleFactor)
+        if let w = window { display.backingScaleChanged(w.backingScaleFactor) }
     }
 
     /// While the window is covered no frames run, so departures and fade-ins would never finish: render
     /// without animation then (robots that are gone vanish at once).
-    func render(_ sessions: [Session]) { towerScene.render(sessions, animated: !isPaused) }
-    func setHeader(_ c: TowerCounts) { towerScene.setHeader(c) }
-    func highlight(_ sessionId: String?) { towerScene.highlight(sessionId) }
+    func render(_ sessions: [Session]) { model.render(sessions, animated: !isPaused) }
+    func setHeader(_ c: TowerCounts) { model.setHeader(c) }
+    func highlight(_ sessionId: String?) { model.highlight(sessionId) }
     func noteSubResult(sessionId: String, subId: String, success: Bool) {
-        towerScene.noteSubResult(sessionId: sessionId, subId: subId, success: success)
+        model.noteSubResult(sessionId: sessionId, subId: subId, success: success)
     }
 
-    /// A fully occluded window needs no frames; everything else keeps running.
+    /// A fully occluded window needs no frames (the model doesn't step either); everything else keeps running.
     func setOccluded(_ o: Bool) { isPaused = o }
 
-    func snapshot() -> CGImage? { texture(from: towerScene)?.cgImage() }
+    func snapshot() -> CGImage? {
+        display.sync()
+        return texture(from: display)?.cgImage()
+    }
 }

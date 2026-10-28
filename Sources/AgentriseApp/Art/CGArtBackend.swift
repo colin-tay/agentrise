@@ -125,6 +125,21 @@ final class CGArtBackend: ArtBackend {
         return text.attributedSubstring(from: chars)
     }
 
+    /// `runs` as a plain attributed string (natural alignment), cut with an ellipsis where it overflows when
+    /// `truncatesTail`: what the header and the tooltip rows drew before the art went through `Pen`.
+    static func line(_ runs: [TextRun], truncatesTail: Bool) -> NSAttributedString {
+        let text = NSMutableAttributedString()
+        for r in runs {
+            text.append(NSAttributedString(string: r.text, attributes: [.font: font(r.font), .foregroundColor: NSColor(r.color)]))
+        }
+        if truncatesTail {
+            let para = NSMutableParagraphStyle()
+            para.lineBreakMode = .byTruncatingTail
+            text.addAttribute(.paragraphStyle, value: para, range: NSRange(location: 0, length: text.length))
+        }
+        return text
+    }
+
     static func measure(_ runs: [TextRun], maxWidth: CGFloat, maxLines: Int) -> CGSize {
         let width = maxWidth.isFinite ? maxWidth : .greatestFiniteMagnitude
         return attributed(runs, width: width, maxLines: maxLines)
@@ -137,12 +152,6 @@ final class CGArtBackend: ArtBackend {
         NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: true)
         s.draw(with: rect, options: [.usesLineFragmentOrigin])
         NSGraphicsContext.restoreGraphicsState()
-    }
-
-    /// The bounds the old `textLayer(...)` gave a string (see `ArtKit.labelSize`), for the scene's own bitmaps.
-    static func labelSize(_ s: String, size: CGFloat, weight: NSFont.Weight) -> CGSize {
-        let attr = NSAttributedString(string: s, attributes: [.font: NSFont.systemFont(ofSize: size, weight: weight)])
-        return CGSize(width: ceil(attr.size().width) + 2, height: ceil(size * 1.3))
     }
 }
 
@@ -157,17 +166,4 @@ extension RobotArt {
 
     /// `shared(scale:backend:)` with Core Graphics.
     static func shared(scale: CGFloat) -> RobotArt { shared(scale: scale, backend: CGArtBackend.shared) }
-
-    private static let atlasLock = NSLock()
-    private static var atlasKey: UInt8 = 0
-
-    /// Where this art's images are packed for batched drawing (see `RobotSprite.rebindTextures`): one atlas
-    /// per `RobotArt`, living as long as it does.
-    var atlas: TextureAtlas {
-        Self.atlasLock.lock(); defer { Self.atlasLock.unlock() }
-        if let a = objc_getAssociatedObject(self, &Self.atlasKey) as? TextureAtlas { return a }
-        let a = TextureAtlas()
-        objc_setAssociatedObject(self, &Self.atlasKey, a, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        return a
-    }
 }

@@ -2,57 +2,60 @@
 // SPDX-License-Identifier: MIT
 
 import Testing
-import AppKit
-import SpriteKit
-import Metal
-@testable import AgentriseApp
+import Foundation
+#if canImport(CoreGraphics)
+import CoreGraphics
+#endif
 @testable import Agentrise
 @testable import AgentriseScene
 
-@MainActor
-@Suite struct RobotSpriteTests {
-    private let art = RobotArt(scale: 2.5)
+@Suite struct RobotRigTests {
+    private let art = RobotArt(scale: 2.5, backend: RecordingBackend())
     private let look = RobotLook(kind: .boss(.seniorDirector), teamIndex: 1, larkSession: false)
 
-    private func robot(_ look: RobotLook? = nil) -> RobotSprite {
+    private func robot(_ look: RobotLook? = nil, phase: TimeInterval = 0.7) -> RobotRig {
         let l = look ?? self.look
-        return RobotSprite(look: l, teamColor: NSColor(l.teamColor), art: art, phase: 0.7)
+        return RobotRig(look: l, teamColor: l.teamColor, art: art, phase: phase)
     }
 
-    private func node(_ r: RobotSprite, _ name: String) -> SKNode {
-        let n = r.childNode(withName: ".//" + name)
+    private func node(_ r: RobotRig, _ name: String) -> SceneNode {
+        let n = r.root.childNode(withName: ".//" + name)
         #expect(n != nil, "missing \(name)")
-        return n ?? SKNode()
+        return n ?? SceneNode()
     }
 
     @Test func buildsNamedParts() {
         let r = robot()
         for name in ["halo", "float", "torso", "head", "headOverlay", "eyes", "leftHand", "rightHand", "ears",
                      "ring", "prop", "pod", "bubble", "bubbleGlow", "name", "lark"] {
-            #expect(r.childNode(withName: ".//" + name) != nil, "missing \(name)")
+            #expect(r.root.childNode(withName: ".//" + name) != nil, "missing \(name)")
         }
         // The overlay (visor band / monocle) and the eyes turn with the head.
         #expect(node(r, "head").childNode(withName: "headOverlay") != nil)
         #expect(node(r, "head").childNode(withName: "eyes") != nil)
         #expect(node(r, "bubble").childNode(withName: "bubbleGlow") != nil)
+        // Containers are plain nodes; parts are sprites.
+        #expect(!node(r, "rig").isSprite && !node(r, "float").isSprite && !node(r, "prop").isSprite)
+        #expect(node(r, "torso").isSprite && node(r, "bubbleGlow").isSprite)
+        // The halo takes the team colour.
+        #expect(node(r, "halo").color == look.teamColor && node(r, "halo").colorBlendFactor == 1)
     }
 
     @Test func partsAreSizedInDesignPoints() {
         let r = robot()
-        #expect((node(r, "torso") as? SKSpriteNode)?.size == CGSize(width: 60, height: 84))
-        #expect((node(r, "halo") as? SKSpriteNode)?.size == CGSize(width: 80, height: 96))
+        #expect(node(r, "torso").size == CGSize(width: 60, height: 84))
+        #expect(node(r, "halo").size == CGSize(width: 80, height: 96))
         // Head pivots at the neck (design y 14 + 34), eyes at their centre (14 + 19.5).
-        let head = node(r, "head") as? SKSpriteNode
-        #expect(abs((head?.anchorPoint.y ?? 0) - (1 - 48.0 / 84)) < 1e-6)
-        #expect(head?.position == CGPoint(x: 0, y: 36))
-        let eyes = node(r, "eyes") as? SKSpriteNode
-        #expect(abs((eyes?.anchorPoint.y ?? 0) - (1 - 33.5 / 84)) < 1e-6)
+        let head = node(r, "head")
+        #expect(abs(head.anchorPoint.y - (1 - 48.0 / 84)) < 1e-6)
+        #expect(head.position == CGPoint(x: 0, y: 36))
+        #expect(abs(node(r, "eyes").anchorPoint.y - (1 - 33.5 / 84)) < 1e-6)
     }
 
     @Test func idleLoopsRun() {
         let r = robot()
         for name in ["float", "leftHand", "rightHand", "ears", "ring", "eyes"] {
-            #expect(node(r, name).action(forKey: "idle") != nil, "\(name) should idle")
+            #expect(node(r, name).hasTween(forKey: "idle"), "\(name) should idle")
         }
     }
 
@@ -60,10 +63,10 @@ import Metal
         let r = robot()
         r.setAction(.coding)
         #expect(r.action == .coding)
-        #expect(node(r, "leftHand").action(forKey: "act") != nil)
-        #expect(node(r, "rightHand").action(forKey: "act") != nil)
+        #expect(node(r, "leftHand").hasTween(forKey: "act"))
+        #expect(node(r, "rightHand").hasTween(forKey: "act"))
         // Typing replaces the hands' idle bob, as the old same-key-path animation did.
-        #expect(node(r, "leftHand").action(forKey: "idle") == nil)
+        #expect(!node(r, "leftHand").hasTween(forKey: "idle"))
         #expect(!node(r, "prop").children.isEmpty)
     }
 
@@ -71,8 +74,8 @@ import Metal
         let r = robot()
         r.setAction(.browsing)
         // The old act moved translation.x, the bob translation.y: both ran.
-        #expect(node(r, "leftHand").action(forKey: "act") != nil)
-        #expect(node(r, "leftHand").action(forKey: "idle") != nil)
+        #expect(node(r, "leftHand").hasTween(forKey: "act"))
+        #expect(node(r, "leftHand").hasTween(forKey: "idle"))
     }
 
     @Test func standbyClearsActionAndProps() {
@@ -80,9 +83,9 @@ import Metal
         r.setAction(.coding)
         r.setAction(.standby)
         for name in ["leftHand", "rightHand", "head", "float"] {
-            #expect(node(r, name).action(forKey: "act") == nil)
+            #expect(!node(r, name).hasTween(forKey: "act"))
         }
-        #expect(node(r, "leftHand").action(forKey: "idle") != nil)
+        #expect(node(r, "leftHand").hasTween(forKey: "idle"))
         #expect(node(r, "leftHand").position == .zero)
         #expect(node(r, "prop").children.isEmpty)
     }
@@ -104,31 +107,32 @@ import Metal
     @Test func waitingAtDoorReplacesTheBob() {
         let r = robot()
         r.setAction(.waitingAtDoor)
-        #expect(node(r, "float").action(forKey: "act") != nil)
-        #expect(node(r, "float").action(forKey: "idle") == nil)
-        #expect(r.childNode(withName: ".//sign") != nil)
+        #expect(node(r, "float").hasTween(forKey: "act"))
+        #expect(!node(r, "float").hasTween(forKey: "idle"))
+        #expect(r.root.childNode(withName: ".//sign") != nil)
     }
 
-    // MARK: Motion, stepped headlessly with SKRenderer
+    // MARK: Motion, stepped by the tween engine
 
-    /// Drives a scene's actions without a view. `at(t)` advances to `t` seconds after the first frame.
-    @MainActor private final class Stepper {
-        let renderer = SKRenderer(device: MTLCreateSystemDefaultDevice()!)
-        let scene = SKScene(size: CGSize(width: 200, height: 200))
-        private let base: TimeInterval = 1000
-        init(_ nodes: SKNode...) {
-            renderer.scene = scene
-            nodes.forEach(scene.addChild)
-            renderer.update(atTime: base)
+    /// Drives a rig's tweens. `at(t)` advances to `t` seconds after the first frame.
+    private final class Stepper {
+        private let roots: [SceneNode]
+        private var now: TimeInterval = 0
+        init(_ rigs: RobotRig...) {
+            roots = rigs.map(\.root)
+            for r in roots { TweenEngine.step(r, dt: 0) }
         }
-        func at(_ t: TimeInterval) { renderer.update(atTime: base + t) }
+        func at(_ t: TimeInterval) {
+            for r in roots { TweenEngine.step(r, dt: t - now) }
+            now = t
+        }
     }
 
     private func near(_ a: CGFloat, _ b: CGFloat, _ tol: CGFloat = 0.02) -> Bool { abs(a - b) <= tol }
 
     @Test func bobMatchesTheOldKeyframes() {
         // phase 0: float [0, -2.5, 0] over 2.6 s, eased over the whole loop (peak at 1.3 s).
-        let r = RobotSprite(look: look, teamColor: NSColor(look.teamColor), art: art, phase: 0)
+        let r = robot(phase: 0)
         let s = Stepper(r)
         let float = node(r, "float")
         s.at(1.3); #expect(near(float.position.y, 2.5))
@@ -141,7 +145,7 @@ import Metal
 
     @Test func phaseStartsMidLoop() {
         // The old `timeOffset = phase`: at t = 0 the bob is already 1.3 s in, i.e. at its peak.
-        let r = RobotSprite(look: look, teamColor: NSColor(look.teamColor), art: art, phase: 1.3)
+        let r = robot(phase: 1.3)
         let s = Stepper(r)
         s.at(0.001); #expect(near(node(r, "float").position.y, 2.5))
         s.at(1.3); #expect(near(node(r, "float").position.y, 0))
@@ -149,7 +153,7 @@ import Metal
 
     @Test func blinkFollowsKeyTimes() {
         // scale.y [1, 1, 0.1, 1, 1] over 4 s at keyTimes [0, .46, .5, .54, 1]: shut at 2 s, open well before/after.
-        let r = RobotSprite(look: look, teamColor: NSColor(look.teamColor), art: art, phase: 0)
+        let r = robot(phase: 0)
         let s = Stepper(r)
         let eyes = node(r, "eyes")
         s.at(1.5); #expect(near(eyes.yScale, 1))
@@ -173,7 +177,7 @@ import Metal
     @Test func sleepingShiftsLikeTheOldTransform() {
         // Old floatGroup.transform = translate(3, 6) then scale 0.9 about the canvas centre, with the y
         // translation replaced on screen by the bob's `transform.translation.y` (see `sleepingFloatPosition`).
-        let r = RobotSprite(look: look, teamColor: NSColor(look.teamColor), art: art, phase: 0)
+        let r = robot(phase: 0)
         r.setAction(.sleeping)
         let s = Stepper(r)
         s.at(2.6)   // bob back at rest
@@ -182,7 +186,7 @@ import Metal
     }
 
     @Test func handsTypeAndReturnHome() {
-        let r = RobotSprite(look: look, teamColor: NSColor(look.teamColor), art: art, phase: 0)
+        let r = robot(phase: 0)
         r.setAction(.coding)
         let s = Stepper(r)
         s.at(0.18)
@@ -193,11 +197,11 @@ import Metal
 
     @Test func commandFailedShakesTheWholeRobotNotItsPosition() {
         let r = robot()
-        r.position = CGPoint(x: 50, y: 60)
+        r.root.position = CGPoint(x: 50, y: 60)
         r.setAction(.commandFailed)
         let s = Stepper(r)
         s.at(0.06)
-        #expect(r.position == CGPoint(x: 50, y: 60))   // the scene owns `position`
+        #expect(r.root.position == CGPoint(x: 50, y: 60))   // the scene owns `position`
         r.setAction(.standby)
         #expect(node(r, "rig").position == .zero)
     }
@@ -205,73 +209,73 @@ import Metal
     @Test func bubbleNilHides() {
         let r = robot()
         #expect(node(r, "bubble").isHidden)
-        r.setBubble("等你回复", color: NSColor(hex: 0xFFC95C), pulse: true)
+        r.setBubble("等你回复", color: Color(hex: 0xFFC95C), pulse: true)
         #expect(!node(r, "bubble").isHidden)
-        #expect(node(r, "bubbleGlow").action(forKey: "pulse") != nil)
-        r.setBubble("思考中", color: .systemBlue, pulse: false)
-        #expect(node(r, "bubbleGlow").action(forKey: "pulse") == nil)
+        #expect(node(r, "bubbleGlow").hasTween(forKey: "pulse"))
+        r.setBubble("思考中", color: Color(hex: 0x24477A), pulse: false)
+        #expect(!node(r, "bubbleGlow").hasTween(forKey: "pulse"))
         #expect(node(r, "bubbleGlow").alpha == 0)
-        r.setBubble(nil, color: .systemBlue, pulse: false)
+        r.setBubble(nil, color: Color(hex: 0x24477A), pulse: false)
         #expect(node(r, "bubble").isHidden)
     }
 
     @Test func nameSitsUnderTheFeet() {
         let r = robot()
         r.setName("项目A\n资深总监")
-        let name = node(r, "name") as? SKSpriteNode
-        #expect(name?.texture != nil)
-        #expect(name?.size == art.nameImageSize("项目A\n资深总监", small: false))
+        let name = node(r, "name")
+        #expect(name.image != nil)
+        #expect(name.size == art.nameImageSize("项目A\n资深总监", small: false))
         // Old label top at design y 82 → 2 pt above the feet, minus the shadow padding.
-        #expect(name.map { $0.frame.maxY } == 2 + RobotArt.namePadding)
+        #expect(name.frame.maxY == 2 + RobotArt.namePadding)
     }
 
     @Test func dimSetsAlphaImmediately() {
         let r = robot()
         r.setDimmed(true)
-        #expect(near(r.alpha, 0.18, 1e-6))
-        #expect(!r.hasActions())
+        #expect(near(r.root.alpha, 0.18, 1e-6))
+        #expect(!r.root.hasTweens)
         r.setDimmed(false)
-        #expect(r.alpha == 1)
+        #expect(r.root.alpha == 1)
     }
 
     @Test func fadeAndDimComposeInEitherOrder() {
         let r = robot()
         r.fade = 0.5
-        #expect(r.alpha == 0.5)
+        #expect(r.root.alpha == 0.5)
         r.setDimmed(true)
-        #expect(near(r.alpha, 0.5 * 0.18, 1e-6))
+        #expect(near(r.root.alpha, 0.5 * 0.18, 1e-6))
         r.fade = 1
-        #expect(near(r.alpha, 0.18, 1e-6))
+        #expect(near(r.root.alpha, 0.18, 1e-6))
         r.fade = 0.25
         r.setDimmed(false)
-        #expect(r.alpha == 0.25)
+        #expect(r.root.alpha == 0.25)
         // Re-baking keeps both.
         r.setDimmed(true)
-        let copy = r.rebaked(with: RobotArt(scale: 1.25))
+        let copy = r.rebaked(with: RobotArt(scale: 1.25, backend: RecordingBackend()))
         #expect(copy.fade == 0.25 && copy.dimmed)
-        #expect(near(copy.alpha, 0.25 * 0.18, 1e-6))
+        #expect(near(copy.root.alpha, 0.25 * 0.18, 1e-6))
     }
 
-    @Test func faceSwapUsesEyesTexture() {
+    @Test func faceSwapUsesEyesImage() {
         let r = robot()
-        let eyes = node(r, "eyes") as? SKSpriteNode
-        let focused = RobotSprite.texture(art.image(.eyes(.focused)))
-        #expect(eyes?.texture === focused)        // calm reuses the focused image
-        #expect(eyes?.alpha == 0.75)
+        let eyes = node(r, "eyes")
+        let focused = art.image(.eyes(.focused))
+        #expect(eyes.image === focused)           // calm reuses the focused image
+        #expect(r.sourceImage(of: eyes) === focused)
+        #expect(eyes.alpha == 0.75)
         r.setFace(.happy)
         #expect(r.face == .happy)
-        #expect(eyes?.texture !== focused)
-        #expect(eyes?.alpha == 1)
-        #expect(eyes?.action(forKey: "idle") == nil)   // only open eyes blink
+        #expect(eyes.image !== focused)
+        #expect(eyes.alpha == 1)
+        #expect(!eyes.hasTween(forKey: "idle"))   // only open eyes blink
         r.setFace(.focused)
-        #expect(eyes?.texture === focused)
-        #expect(eyes?.action(forKey: "idle") != nil)
+        #expect(eyes.image === focused)
+        #expect(eyes.hasTween(forKey: "idle"))
     }
 
-    @Test func texturesAreShared() {
+    @Test func imagesAreShared() {
         let a = robot(), b = robot()
-        let ta = (node(a, "torso") as? SKSpriteNode)?.texture
-        let tb = (node(b, "torso") as? SKSpriteNode)?.texture
+        let ta = node(a, "torso").image, tb = node(b, "torso").image
         #expect(ta != nil && ta === tb)
     }
 
@@ -285,13 +289,25 @@ import Metal
     }
 
     @Test func scaleAndHitRect() {
-        let scene = SKScene(size: CGSize(width: 400, height: 300))
         let r = robot()
-        scene.addChild(r)
-        r.position = CGPoint(x: 100, y: 50)
+        r.root.position = CGPoint(x: 100, y: 50)
         r.setRobotScale(0.5)
         #expect(r.robotScale == 0.5)
-        #expect(r.xScale == 0.5 && r.yScale == 0.5)
+        #expect(r.root.xScale == 0.5 && r.root.yScale == 0.5)
         #expect(r.hitRect == CGRect(x: 85, y: 50, width: 30, height: 42))
+    }
+
+    /// Every image a rig shows is handed to its atlas, so the display can draw it from a shared page.
+    @Test func boundImagesAreQueuedOnTheAtlas() {
+        let atlas = TextureAtlas(backend: art.backend)
+        let r = robot()
+        r.atlas = atlas
+        r.setName("项目A\n资深总监")
+        #expect(atlas.commit())
+        #expect(atlas.isPacked(art.image(.torso(look))))
+        #expect(atlas.isPacked(node(r, "name").image!))
+        r.setFace(.happy)
+        #expect(atlas.commit())
+        #expect(atlas.isPacked(art.image(.eyes(.happy))))
     }
 }

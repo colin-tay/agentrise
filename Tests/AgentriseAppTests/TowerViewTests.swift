@@ -24,7 +24,7 @@ import SpriteKit
         var got: [BuildingLayout] = []
         view.onLayout = { got.append($0) }
         #expect(got.count == 1)
-        #expect(got.first?.size == view.towerScene.geo.size)
+        #expect(got.first?.size == view.model.geo.size)
         #expect(got.first?.size == frame.size)
     }
 
@@ -47,7 +47,7 @@ import SpriteKit
 
     @Test func occludedRendersLeaveNoDepartingRobots() {
         let view = TowerView(frame: frame)
-        let scene = view.towerScene
+        let scene = view.model
         view.render([session("a", subs: ["x"]), session("b", status: .sleeping)])
         view.setOccluded(true)
         // While covered `update` doesn't run, but the controller keeps rendering.
@@ -67,7 +67,7 @@ import SpriteKit
 
     @Test func robotsLeavingWhenTheWindowGetsCoveredAreFinishedByTheNextRender() {
         let view = TowerView(frame: frame)
-        let scene = view.towerScene
+        let scene = view.model
         view.render([session("a", subs: ["x"])])
         view.render([session("a")])              // x starts leaving
         #expect(scene.robot("a:a:x") != nil)

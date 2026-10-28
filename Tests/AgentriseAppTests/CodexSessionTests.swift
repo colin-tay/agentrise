@@ -6,6 +6,7 @@ import Testing
 import TowerKit
 @testable import AgentriseApp
 @testable import Agentrise
+@testable import AgentriseScene
 
 @Suite struct CodexSessionTests {
     private let t0 = Date(timeIntervalSince1970: 1_800_000_000)
@@ -184,11 +185,11 @@ import TowerKit
         var s = Session(id: "cx", title: "修复登录", source: .terminal(bundleId: nil), rank: .seniorEngineer,
                         status: .working, activity: .coding, teamIndex: 0, statusSince: Date(), lastActivityAt: Date())
         #expect(s.capabilities.contains(.contractors))
-        #expect(TowerScene.tooltipLines(for: s).count == 5)
-        #expect(TowerScene.tooltipLines(for: s).last?.hasPrefix("外包") == true)
+        #expect(TowerSceneModel.tooltipLines(for: s).count == 5)
+        #expect(TowerSceneModel.tooltipLines(for: s).last?.hasPrefix("外包") == true)
         s.agent = .codex
         #expect(!s.capabilities.contains(.contractors))
-        let lines = TowerScene.tooltipLines(for: s)
+        let lines = TowerSceneModel.tooltipLines(for: s)
         #expect(lines.count == 4)
         #expect(!lines.contains { $0.contains("外包") })
     }

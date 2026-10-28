@@ -1,34 +1,49 @@
 // Copyright (c) 2026 Colin Tay
 // SPDX-License-Identifier: MIT
 
-import AppKit
-import SpriteKit
+import Foundation
+#if canImport(CoreGraphics)
+import CoreGraphics
+#endif
 import Agentrise
-import AgentriseScene
 
-/// The SpriteKit tower. Layout and `Transit` coordinates are top-left origin (y down);
-/// `scenePoint(_:)` flips them for SpriteKit when assigning to nodes.
-final class TowerScene: SKScene {
-    private(set) var geo: BuildingLayout
-    let transit: Transit
-    var onLayout: ((BuildingLayout) -> Void)?
+/// The tower: who stands where, who walks, rides, fades and dims, as a `SceneNode` tree that a platform
+/// display draws (`SpriteKitDisplay` on macOS). The display calls `step(dt:)` once per frame and then copies
+/// the tree; it owns no logic. Layout and `Transit` coordinates are top-left origin (y down); `scenePoint(_:)`
+/// flips them into the tree's SpriteKit convention (y up).
+///
+/// Nodes, bottom to top: `background`, `leds`, `cab`, `elevatorLabel`, `tethers`, `actors` (one `RobotRig` root
+/// per robot), `header`, `tooltip`. Bitmaps are baked only when something they show changes (a robot's look, a
+/// name or bubble, the size or scale, the header copy, the tooltip): frames only step tweens and move nodes.
+package final class TowerSceneModel {
+    package let root = SceneNode()
+    package private(set) var geo: BuildingLayout
+    package let transit: Transit
+    /// Backing scale (pixels per point) the building, header and tooltip are drawn at; robots at 1.25 × that.
+    package private(set) var scale: CGFloat
+    /// Scene size in points (the layout's).
+    package var size: CGSize { geo.size }
 
-    private let backgroundSprite = SKSpriteNode()
-    private let cab = SKSpriteNode()
-    private let elevatorLabel = SKSpriteNode()
-    private let leds = SKNode()
-    private let actors = SKNode()
-    private let tethers = SKNode()
-    private let tooltip = SKNode()
-    /// The header copy, baked into a texture (an `SKLabelNode` re-laid out its text on every frame).
-    private let header = SKSpriteNode()
-    private var headerString: NSAttributedString?
+    private let backend: CountingBackend
+    /// Every bitmap the model asked for: `ArtBackend.bake` calls (robot parts, labels, bubbles, LEDs) plus each
+    /// `ArtDrawing` it made (the display draws each of those once). Constant while nothing changes.
+    package var bakeCount: Int { backend.bakes + drawings }
+    private var drawings = 0
+
+    private let background = SceneNode(name: "background", sprite: true)
+    private let cab = SceneNode(name: "cab", sprite: true)
+    private let elevatorLabel = SceneNode(name: "elevatorLabel", sprite: true)
+    private let leds = SceneNode(name: "leds")
+    private let actors = SceneNode(name: "actors")
+    private let tetherLayer = SceneNode(name: "tethers")
+    private let tooltip = SceneNode(name: "tooltip")
+    /// The header copy, drawn into a bitmap (an `SKLabelNode` re-laid out its text on every frame).
+    private let header = SceneNode(name: "header", sprite: true)
+    private var headerRuns: [TextRun]?
     private var headerBakedScale: CGFloat = 0
-    private var lastUpdate: TimeInterval?
-    private var bakedScale: CGFloat = 0
 
-    // Robots: one sprite per entity key ("s:<id>", "a:<id>:<sub>", "c:<id>:<contractor>").
-    private var robots: [String: RobotSprite] = [:]
+    // Robots: one rig per entity key ("s:<id>", "a:<id>:<sub>", "c:<id>:<contractor>").
+    private var robots: [String: RobotRig] = [:]
     private var owner: [String: String] = [:]           // entity key → session id
     private var signatures: [String: String] = [:]
     private var lastSessions: [Session] = []
@@ -39,104 +54,90 @@ final class TowerScene: SKScene {
     /// Stable per-key creation order: the draw-order tie-break for robots at the same height.
     private var drawOrder: [String: Int] = [:]
     private var nextDrawOrder = 0
-    private var reportTextures: [CGFloat: SKTexture] = [:]
-    /// `transit.revision` the sprites were last put in place for (nil = never).
+    private var reportDrawings: [CGFloat: ArtDrawing] = [:]
+    /// `transit.revision` the robots were last put in place for (nil = never).
     private var syncedRevision: Int?
-    /// The robot atlas version the sprites' textures were last bound against. Versions count per atlas
-    /// (one per scale), so a scale change resets this.
+    /// The atlas version the robots last queued their images for.
     private var atlasVersion = -1
-    /// LED sprites and their images, rebound with the robots when the atlas changes.
-    private var ledSources: [(node: SKSpriteNode, image: BakedImage)] = []
     private var ledImages: [Color: BakedImage] = [:]
     private var ledImagesScale: CGFloat = 0
 
     /// A robot on its way out: (sub/contractor) to its boss, then to its floor's elevator door, then fading out.
     private struct Departure {
-        let sprite: RobotSprite
+        let rig: RobotRig
         var leg: Leg
     }
     private enum Leg { case toBoss, toDoor, fading(TimeInterval) }
 
-    static let fadeInDuration: TimeInterval = 0.4
-    static let fadeOutDuration: TimeInterval = 0.5
+    package static let fadeInDuration: TimeInterval = 0.4
+    package static let fadeOutDuration: TimeInterval = 0.5
 
-    /// Z layers (the view sorts by zPosition only: `ignoresSiblingOrder`). Robots sit inside `actors` at
-    /// `rank × robotZStep` (see `syncSprites`), so the header and tooltip stay far above them.
+    /// Z layers (the display sorts by zPosition only). Robots sit inside `actors` at `rank × robotZStep` (see
+    /// `syncRobots`), so the header and tooltip stay far above them.
     private enum Z {
         static let background: CGFloat = 0, leds: CGFloat = 1, cab: CGFloat = 2, elevatorLabel: CGFloat = 2.5
         static let tethers: CGFloat = 3, actors: CGFloat = 4, header: CGFloat = 1_000, tooltip: CGFloat = 1_001
     }
 
-    override init(size: CGSize) {
+    /// Injectable for tests.
+    package var clock: () -> Date
+    /// The idle-loop phase a new robot starts at, by entity key (random, so robots don't bob in step).
+    /// Injectable for tests: the motion baselines need fixed phases.
+    package var idlePhase: (_ key: String) -> TimeInterval = { _ in .random(in: 0...2.6) }
+
+    package init(size: CGSize, scale: CGFloat, art: ArtBackend, clock: @escaping () -> Date = Date.init) {
         let size = CGSize(width: max(1, size.width), height: max(1, size.height))
         geo = BuildingLayout.make(size: size)
         transit = Transit(layout: geo)
-        super.init(size: size)
-        scaleMode = .resizeFill
-        anchorPoint = .zero
-        backgroundColor = NSColor(hex: 0x0A0E26)
+        self.scale = scale
+        self.clock = clock
+        backend = CountingBackend(art)
+        self.art = RobotArt(scale: scale * 1.25, backend: backend)
+        atlas = TextureAtlas(backend: art)
 
-        backgroundSprite.name = "background"
-        backgroundSprite.anchorPoint = .zero
-        backgroundSprite.zPosition = Z.background
-        cab.name = "cab"
+        background.anchorPoint = .zero
+        background.zPosition = Z.background
         cab.zPosition = Z.cab
-        elevatorLabel.name = "elevatorLabel"
         elevatorLabel.zPosition = Z.elevatorLabel
-        leds.name = "leds"
         leds.zPosition = Z.leds
-        actors.name = "actors"
         actors.zPosition = Z.actors
-        tethers.name = "tethers"
-        tethers.zPosition = Z.tethers
-        tooltip.name = "tooltip"
+        tetherLayer.zPosition = Z.tethers
         tooltip.zPosition = Z.tooltip
-        header.name = "header"
         header.zPosition = Z.header
         header.anchorPoint = CGPoint(x: 0, y: 1)   // top-left, where the label's top-left alignment put the text
-        for n in [backgroundSprite, leds, cab, elevatorLabel, tethers, actors, header, tooltip] as [SKNode] { addChild(n) }
+        for n in [background, leds, cab, elevatorLabel, tetherLayer, actors, header, tooltip] { root.addChild(n) }
         transit.onArrive = { [weak self] in self?.arrived($0) }
         relayout()
     }
 
-    required init?(coder: NSCoder) { fatalError() }
-
     // MARK: Coordinates
 
     /// Layout (top-left origin) → scene (bottom-left origin).
-    func scenePoint(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x, y: size.height - p.y) }
-    func layoutPoint(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x, y: size.height - p.y) }
+    package func scenePoint(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x, y: size.height - p.y) }
+    package func layoutPoint(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x, y: size.height - p.y) }
 
     // MARK: Layout
 
-    override func didChangeSize(_ oldSize: CGSize) {
-        super.didChangeSize(oldSize)
-        guard size.width >= 1, size.height >= 1, size != geo.size else { return }
-        relayout()
-        onLayout?(geo)
+    /// The view's size or backing scale changed. A new size re-lays the building out (robots leaving are
+    /// dropped, everyone else snaps to their slots); a new scale re-bakes the building and every robot.
+    package func resize(to size: CGSize, scale: CGFloat) {
+        let size = CGSize(width: max(1, size.width), height: max(1, size.height))
+        let sizeChanged = size != geo.size, scaleChanged = scale != self.scale
+        guard sizeChanged || scaleChanged else { return }
+        self.scale = scale
+        if sizeChanged {
+            relayout(size)
+        } else {
+            bake()
+            rebuildLeds()
+        }
+        if scaleChanged { rebakeRobots() }
     }
 
-    /// The backing scale of the hosting window changed (e.g. dragged to another display, or the view
-    /// entered its first window after robots were made at the fallback scale): rebake the building and
-    /// every robot. `scale` overrides the window's factor (the view passes it; tests have no window).
-    func backingScaleChanged(_ scale: CGFloat? = nil) {
-        if let scale { displayScale = scale }
-        guard currentScale != bakedScale else { return }
-        bake()
-        rebuildLeds()
-        rebakeRobots()
-        // The new scale has its own atlas, whose versions start over.
-        atlasVersion = -1
-    }
-
-    private var displayScale: CGFloat?
-    private var currentScale: CGFloat { displayScale ?? view?.window?.backingScaleFactor ?? 2 }
-
-    /// New size: rebake, drop robots that were leaving, snap everyone else to their slots in the new layout.
-    private func relayout() {
+    private func relayout(_ size: CGSize? = nil) {
         // Room inference for `.thinking` needs the old layout's rooms with the old coordinates.
         let list = entities(lastSessions)
-        geo = BuildingLayout.make(size: size)
+        geo = BuildingLayout.make(size: size ?? geo.size)
         for key in departing.keys { finishDeparture(key) }
         for (key, _) in fadingIn { robot(key)?.fade = 1 }
         fadingIn.removeAll()
@@ -149,39 +150,43 @@ final class TowerScene: SKScene {
         if hasRendered { place(animated: false) }
     }
 
+    private func draw(_ size: CGSize, scale: CGFloat, _ recipe: @escaping (Pen) -> Void) -> ArtDrawing {
+        drawings += 1
+        return ArtDrawing(size: size, scale: scale, draw: recipe)
+    }
+
     private func bake() {
-        let scale = currentScale
-        bakedScale = scale
         if art.scale != artScale {
-            art = RobotArt.shared(scale: artScale)   // the old scale's art goes once its robots are re-baked
-            reportTextures.removeAll()
+            // The old scale's art (and atlas) go once its robots are re-baked.
+            art = RobotArt(scale: artScale, backend: backend)
+            atlas = TextureAtlas(backend: backend.inner)
+            atlasVersion = -1
+            reportDrawings.removeAll()
         }
-        let backend = CGArtBackend.shared
-        backgroundSprite.texture = CGArtBackend.texture(BuildingArt.background(geo, scale: scale, backend: backend))
-        backgroundSprite.size = size
-        backgroundSprite.position = .zero
-        let body = BuildingArt.cabBody(geo), m = BuildingArt.cabMargin
-        cab.texture = CGArtBackend.texture(BuildingArt.cab(geo, scale: scale, backend: backend))
-        cab.size = CGSize(width: body.width + 2 * m, height: body.height + 2 * m)
-        elevatorLabel.texture = CGArtBackend.texture(BuildingArt.elevatorLabel(scale: scale, backend: backend))
-        elevatorLabel.size = BuildingArt.elevatorLabelSize(backend)
-        elevatorLabel.position = scenePoint(CGPoint(x: geo.elevator.midX, y: geo.elevator.midY))
+        let layout = geo
+        background.drawing = draw(layout.size, scale: scale) { BuildingArt.drawBackground(layout, pen: $0) }
+        background.size = layout.size
+        background.position = .zero
+        cab.drawing = draw(BuildingArt.cabSize(layout), scale: scale) { BuildingArt.drawCab(layout, pen: $0) }
+        cab.size = BuildingArt.cabSize(layout)
+        let labelSize = BuildingArt.elevatorLabelSize(backend)
+        elevatorLabel.drawing = draw(labelSize, scale: scale) { BuildingArt.drawElevatorLabel(size: labelSize, pen: $0) }
+        elevatorLabel.size = labelSize
+        elevatorLabel.position = scenePoint(CGPoint(x: layout.elevator.midX, y: layout.elevator.midY))
         bakeHeader()
-        scheduleRelief()
     }
 
     /// LEDs draw from the robot atlas (one batch instead of one draw per LED).
     private func rebuildLeds() {
         leds.removeAllChildren()
-        ledSources.removeAll()
-        let scale = bakedScale
         if ledImagesScale != scale { ledImages.removeAll(); ledImagesScale = scale }   // same images on resize
-        let atlas = art.atlas
         for spec in BuildingArt.ledSpecs(geo) {
-            let image = ledImages[spec.color] ?? BuildingArt.led(color: spec.color, scale: scale, backend: CGArtBackend.shared)
+            let image = ledImages[spec.color] ?? BuildingArt.led(color: spec.color, scale: scale, backend: backend)
             ledImages[spec.color] = image
-            let led = SKSpriteNode(texture: atlas.texture(for: image), size: CGSize(width: 4, height: 4))
-            ledSources.append((led, image))
+            let led = SceneNode(sprite: true)
+            led.image = image
+            led.size = CGSize(width: 4, height: 4)
+            atlas.want(image)
             led.position = scenePoint(spec.center)
             // The old CABasicAnimation: opacity 1 → 0.2, autoreversing, linear.
             led.run(.repeatForever(.sequence([.fadeAlpha(to: 0.2, duration: spec.period), .fadeAlpha(to: 1, duration: spec.period)])))
@@ -196,23 +201,27 @@ final class TowerScene: SKScene {
         if cab.position != sp { cab.position = sp }
     }
 
-    override func update(_ currentTime: TimeInterval) {
-        let dt = lastUpdate.map { currentTime - $0 } ?? 0
-        lastUpdate = currentTime
+    // MARK: Frames
+
+    /// One frame: move everyone, run the fade timers, put the robots where `Transit` says, then run the tweens
+    /// and the tethers' flow (SpriteKit's order: `update`, then actions) and pack newly baked images into the atlas.
+    package func step(dt: TimeInterval) {
         tick(dt)
+        TweenEngine.step(root, dt: max(0, dt))
+        flowTethers(dt)
+        bindAtlas()
     }
 
-    /// Runs the scene for `seconds` in 1/60 s frames without a view (tests).
-    func advance(by seconds: TimeInterval) {
+    /// Runs the scene for `seconds` in 1/60 s frames (tests).
+    package func advance(by seconds: TimeInterval) {
         var left = seconds
         while left > 1e-9 {
             let dt = min(1.0 / 60, left)
-            tick(dt)
+            step(dt: dt)
             left -= dt
         }
     }
 
-    /// One frame: move everyone, run the fade timers, then put the sprites where `Transit` says.
     private func tick(_ dt: TimeInterval) {
         if let due = nextTimedChange, clock() >= due, hasRendered { place(animated: true) }
         let dt = min(Transit.maxStep, max(0, dt))
@@ -227,90 +236,63 @@ final class TowerScene: SKScene {
                 guard case let .fading(t) = d.leg else { continue }
                 let e = t + dt
                 if e >= Self.fadeOutDuration { finishDeparture(key); continue }
-                d.sprite.fade = min(d.sprite.fade, CGFloat(1 - e / Self.fadeOutDuration))
+                d.rig.fade = min(d.rig.fade, CGFloat(1 - e / Self.fadeOutDuration))
                 departing[key]?.leg = .fading(e)
             }
         }
-        // Nothing walked, rode or was placed: the sprites are already where Transit says.
+        // Nothing walked, rode or was placed: the robots are already where Transit says.
         if transit.revision != syncedRevision {
-            syncSprites()
+            syncRobots()
             placeCab()
         }
-        bindAtlas()
-        if let due = reliefDue {
-            reliefDue = due - dt
-            if due - dt <= 0 {
-                CGArtBackend.releaseFreedPixels()
-                reliefRuns += 1
-                // Textures made while this one was pending may not have been uploaded (and freed) yet: once more.
-                reliefDue = reliefRearm ? Self.reliefDelay : nil
-                reliefRearm = false
-            }
-        }
     }
 
-    /// Seconds until memory freed by uploaded textures goes back to the system (nil = nothing pending).
-    private var reliefDue: TimeInterval?
-    /// A texture was made after `reliefDue` was armed.
-    private var reliefRearm = false
-    /// How many reliefs ran. For tests.
-    private(set) var reliefRuns = 0
-    /// Textures made from raw pixels free them once SpriteKit has uploaded them (on a later render), but malloc
-    /// keeps big freed blocks cached (and counted in the footprint) until asked to let go: do that `reliefDelay`
-    /// after an upload. During a burst (a live resize rebakes the background every frame) it runs at most once
-    /// per `reliefDelay`, and once more after the burst, so the last upload's pixels are returned too.
-    /// (Cheap: well under 1 ms.)
-    private func scheduleRelief() {
-        if reliefDue == nil { reliefDue = Self.reliefDelay } else { reliefRearm = true }
-    }
-    static let reliefDelay: TimeInterval = 0.5
+    /// The current scale's atlas: robot parts and LEDs, packed for batched drawing. Held here (not looked up
+    /// per frame); a new scale gets a new one.
+    package private(set) var atlas: TextureAtlas
 
-    /// Packs newly baked robot images into the shared atlas and moves every robot onto it, so their parts
-    /// draw in a few batches. Runs once per frame; it only does work when new images appeared.
+    /// Packs newly baked images into the atlas. When its version changes (new images, or a reset), every robot
+    /// and LED asks for its images again, so anything a reset dropped comes back on the next commit.
     private func bindAtlas() {
-        let atlas = art.atlas
-        if atlas.commit() { scheduleRelief() }   // re-rendered pages free their pixels after the upload
+        atlas.commit()
         guard atlas.version != atlasVersion else { return }
         atlasVersion = atlas.version
-        for (_, r) in robots { r.rebindTextures() }
-        for (_, d) in departing { d.sprite.rebindTextures() }
-        for l in ledSources { l.node.texture = atlas.texture(for: l.image) }
+        for (_, r) in robots { r.requeue() }
+        for (_, d) in departing { d.rig.requeue() }
+        for l in leds.children { if let img = l.image { atlas.want(img) } }
     }
 
     // MARK: Header
 
-    func setHeader(_ c: TowerCounts) {
-        let s = NSMutableAttributedString()
-        func add(_ t: String, _ color: NSColor, bold: Bool = false) {
-            s.append(NSAttributedString(string: t, attributes: [.font: NSFont.systemFont(ofSize: 12, weight: bold ? .heavy : .medium), .foregroundColor: color]))
+    package func setHeader(_ c: TowerCounts) {
+        var runs: [TextRun] = []
+        func add(_ t: String, _ color: Color, bold: Bool = false) {
+            runs.append(TextRun(t, font: FontSpec(size: 12, weight: bold ? .heavy : .medium), color: color))
         }
-        add("AGENTRISE    ", .white, bold: true)
-        add("在岗 \(c.working)    ", NSColor(hex: 0x9FB3FF))
-        add("等你 \(c.waiting)    ", NSColor(hex: 0xFFC95C), bold: c.waiting > 0)
-        add("完成 \(c.done)    ", NSColor(hex: 0x6FF0A8))
-        add("待命 \(c.standby)    ", NSColor(hex: 0x9FB3FF))
-        add("小弟 \(c.subs) · 外包 \(c.contractors)    ", NSColor(hex: 0x9FB3FF))
-        add("睡觉 \(c.sleeping)", NSColor(hex: 0xB8B0FF))
-        guard s != headerString else { return }
-        headerString = s
+        add("AGENTRISE    ", Color(r: 1, g: 1, b: 1), bold: true)
+        add("在岗 \(c.working)    ", Color(hex: 0x9FB3FF))
+        add("等你 \(c.waiting)    ", Color(hex: 0xFFC95C), bold: c.waiting > 0)
+        add("完成 \(c.done)    ", Color(hex: 0x6FF0A8))
+        add("待命 \(c.standby)    ", Color(hex: 0x9FB3FF))
+        add("小弟 \(c.subs) · 外包 \(c.contractors)    ", Color(hex: 0x9FB3FF))
+        add("睡觉 \(c.sleeping)", Color(hex: 0xB8B0FF))
+        guard runs != headerRuns else { return }
+        headerRuns = runs
         headerBakedScale = 0
         bakeHeader()
     }
 
     /// The header's plain text (for tests).
-    var headerText: String { headerString?.string ?? "" }
+    package var headerText: String { headerRuns?.map(\.text).joined() ?? "" }
 
-    /// Renders the header copy into the header sprite's texture (when the copy or the scale changed).
+    /// Draws the header copy (when the copy or the scale changed).
     private func bakeHeader() {
         placeHeader()
-        guard let s = headerString, headerBakedScale != bakedScale, bakedScale > 0 else { return }
-        headerBakedScale = bakedScale
-        let r = s.boundingRect(with: CGSize(width: 10_000, height: 100), options: [.usesLineFragmentOrigin])
-        let size = CGSize(width: max(1, ceil(r.width)), height: max(1, ceil(r.height)))
-        header.texture = CGArtBackend.texture(size: size, scale: bakedScale) { ctx in
-            CGArtBackend.draw(s, in: CGRect(origin: .zero, size: size), ctx: ctx)
-        }
-        scheduleRelief()
+        guard let runs = headerRuns, headerBakedScale != scale else { return }
+        headerBakedScale = scale
+        let m = backend.measure(runs, maxWidth: .infinity, maxLines: 0)
+        let size = CGSize(width: max(1, ceil(m.width)), height: max(1, ceil(m.height)))
+        header.drawing = draw(size, scale: scale) { $0.textLine(runs, in: CGRect(origin: .zero, size: size), truncatesTail: false) }
         header.size = size
     }
 
@@ -327,18 +309,18 @@ final class TowerScene: SKScene {
         var order: Int
         var name: String
         var face: RobotFace
-        var bubble: (String, NSColor, Bool)?
+        var bubble: (String, Color, Bool)?
         var larkBadge: Bool
         var waitingLong: Bool
     }
 
     /// The robot for an entity key, including one that is on its way out.
-    func robot(_ key: String) -> RobotSprite? { robots[key] ?? departing[key]?.sprite }
+    package func robot(_ key: String) -> RobotRig? { robots[key] ?? departing[key]?.rig }
 
-    func noteSubResult(sessionId: String, subId: String, success: Bool) { pendingResults["a:\(sessionId):\(subId)"] = success }
+    package func noteSubResult(sessionId: String, subId: String, success: Bool) { pendingResults["a:\(sessionId):\(subId)"] = success }
 
     /// The first render of a scene places everyone without animation; later ones walk, ride and fade.
-    func render(_ sessions: [Session], animated: Bool = true) {
+    package func render(_ sessions: [Session], animated: Bool) {
         lastSessions = sessions
         place(animated: animated && hasRendered)
         hasRendered = true
@@ -351,14 +333,9 @@ final class TowerScene: SKScene {
     }
 
     /// How long a finished robot stands at the CEO's door with its report before going for coffee.
-    static let reportDuration: TimeInterval = 20 * 60
+    package static let reportDuration: TimeInterval = 20 * 60
     /// After this long at the door, a waiting robot waves more urgently.
-    static let waitingLongAfter: TimeInterval = 600
-    /// Injectable for tests.
-    var clock: () -> Date = Date.init
-    /// The idle-loop phase a new robot starts at, by entity key (random, so robots don't bob in step).
-    /// Injectable for tests: the motion baselines need fixed phases.
-    var idlePhase: (_ key: String) -> TimeInterval = { _ in .random(in: 0...2.6) }
+    package static let waitingLongAfter: TimeInterval = 600
     /// The next moment an entity changes room or pose purely because time passed; the controller only
     /// renders on change, so the scene re-places itself then.
     private var nextTimedChange: Date?
@@ -373,25 +350,25 @@ final class TowerScene: SKScene {
             let current = room(at: transit.target(of: "s:\(s.id)"))
             let room: Room
             var face: RobotFace = .focused
-            var bubble: (String, NSColor, Bool)? = nil
+            var bubble: (String, Color, Bool)? = nil
             var act = s.activity
             switch s.status {
             case .waiting: room = .ceoOffice; face = .waiting; act = .waitingAtDoor
-                bubble = ("等你回复", NSColor(hex: 0xFFC95C), true)
+                bubble = ("等你回复", Color(hex: 0xFFC95C), true)
             case .done:
                 // Report to the CEO first, then rest in the pantry.
                 let reportEnds = s.statusSince.addingTimeInterval(Self.reportDuration)
                 if now < reportEnds { room = .ceoOffice; act = .reporting; dueAt(reportEnds) } else { room = .pantry; act = .resting }
                 face = .happy
-                bubble = ("✓ 做完了", NSColor(hex: 0x1F8F57), false)
+                bubble = ("✓ 做完了", Color(hex: 0x1F8F57), false)
             case .error: room = .serverRoom; face = .error; act = .commandFailed
-                bubble = ("出错了", NSColor(hex: 0xD84545), true)
+                bubble = ("出错了", Color(hex: 0xD84545), true)
             case .standby: room = .desks; face = .calm; act = .standby
             case .sleeping: room = .sleepPods; face = .asleep; act = .sleeping
             case .working:
                 room = ActivityMap.room(for: s.activity) ?? current ?? .desks
                 if s.transientErrorAt != nil { face = .error; act = .commandFailed }
-                bubble = (s.activity.label, NSColor(hex: 0x24477A), false)
+                bubble = (s.activity.label, Color(hex: 0x24477A), false)
             }
             let waitingLong = s.status == .waiting && now.timeIntervalSince(s.statusSince) > Self.waitingLongAfter
             if s.status == .waiting, !waitingLong { dueAt(s.statusSince.addingTimeInterval(Self.waitingLongAfter + 0.001)) }
@@ -430,22 +407,23 @@ final class TowerScene: SKScene {
     }
 
     /// Robot parts bake at the building's scale × 1.25.
-    private var artScale: CGFloat { bakedScale * 1.25 }
-    /// The current scale's robot art (and atlas). Held here so it lives while no robot uses it (the LEDs do).
-    private var art = RobotArt.shared(scale: 2.5)
+    private var artScale: CGFloat { scale * 1.25 }
+    /// The current scale's robot art.
+    private var art: RobotArt
 
     /// Swaps every robot (staying or leaving) for a copy baked at the current scale; positions, alpha,
     /// state and `Transit` are untouched, and a leaving sub gets its report card back.
     private func rebakeRobots() {
-        func swap(_ old: RobotSprite) -> RobotSprite {
+        func swap(_ old: RobotRig) -> RobotRig {
             let new = old.rebaked(with: art)
-            if old.childNode(withName: "report") != nil { attachReport(to: new) }
-            old.removeFromParent()
-            actors.addChild(new)
+            new.atlas = atlas
+            if old.root.childNode(withName: "report") != nil { attachReport(to: new) }
+            old.root.removeFromParent()
+            actors.addChild(new.root)
             return new
         }
-        for (key, old) in robots { robots[key] = swap(old) }
-        for (key, d) in departing { departing[key] = Departure(sprite: swap(d.sprite), leg: d.leg) }
+        for key in robots.keys.sorted() { robots[key] = swap(robots[key]!) }
+        for key in departing.keys.sorted() { departing[key] = Departure(rig: swap(departing[key]!.rig), leg: departing[key]!.leg) }
     }
 
     private func place(animated: Bool) {
@@ -465,44 +443,45 @@ final class TowerScene: SKScene {
         }
         for e in list {
             guard let (pt, scale) = targets[e.key], let s = sessionsById[e.sessionId] else { continue }
-            let sprite: RobotSprite
+            let rig: RobotRig
             var isNew = false
             let look = RobotLook(kind: e.kind, teamIndex: s.teamIndex, larkSession: e.kind != .sub && e.kind != .contractor && s.isLark)
             if let r = robots[e.key] {
-                sprite = r
+                rig = r
             } else if let d = departing.removeValue(forKey: e.key) {
                 // Back before it left: drop the report and fade back in from wherever the fade-out got to.
-                sprite = d.sprite
-                sprite.childNode(withName: "report")?.removeFromParent()
-                if !animated { sprite.fade = 1 } else if sprite.fade < 1 { fadingIn[e.key] = Double(sprite.fade) * Self.fadeInDuration }
-                robots[e.key] = sprite
+                rig = d.rig
+                rig.root.childNode(withName: "report")?.removeFromParent()
+                if !animated { rig.fade = 1 } else if rig.fade < 1 { fadingIn[e.key] = Double(rig.fade) * Self.fadeInDuration }
+                robots[e.key] = rig
                 owner[e.key] = e.sessionId
             } else {
-                sprite = RobotSprite(look: look, teamColor: NSColor(Team.color(s.teamIndex)), art: art, phase: idlePhase(e.key))
-                robots[e.key] = sprite
+                rig = RobotRig(look: look, teamColor: Team.color(s.teamIndex), art: art, phase: idlePhase(e.key))
+                rig.atlas = atlas
+                robots[e.key] = rig
                 owner[e.key] = e.sessionId
                 drawOrder[e.key] = nextDrawOrder
                 nextDrawOrder += 1
-                actors.addChild(sprite)
+                actors.addChild(rig.root)
                 isNew = true
             }
             // A rank changed in Settings: redraw the robot where it stands (no new entrance).
-            if !isNew, sprite.look.kind != look.kind { sprite.setLook(look) }
+            if !isNew, rig.look.kind != look.kind { rig.setLook(look, name: e.name) }
             let sig = "\(e.name)|\(e.face)|\(e.activity)|\(e.waitingLong)|\(e.bubble?.0 ?? "")|\(e.larkBadge)|\(pt.x),\(pt.y)|\(scale)"
             if !isNew, signatures[e.key] == sig { continue }
             signatures[e.key] = sig
-            sprite.setName(e.name)
-            sprite.setFace(e.face)
-            sprite.setAction(e.activity, waitingLong: e.activity == .waitingAtDoor && e.waitingLong)
-            sprite.setBubble(e.bubble?.0, color: e.bubble?.1 ?? .clear, pulse: e.bubble?.2 ?? false)
-            sprite.setLarkBadge(e.larkBadge)
-            if sprite.robotScale != scale { sprite.setRobotScale(scale) }
+            rig.setName(e.name)
+            rig.setFace(e.face)
+            rig.setAction(e.activity, waitingLong: e.activity == .waitingAtDoor && e.waitingLong)
+            rig.setBubble(e.bubble?.0, color: e.bubble?.1 ?? Color(r: 0, g: 0, b: 0, a: 0), pulse: e.bubble?.2 ?? false)
+            rig.setLarkBadge(e.larkBadge)
+            if rig.robotScale != scale { rig.setRobotScale(scale) }
             if isNew {
                 if animated {
                     // Arrive by the elevator: appear at the target floor's door, fade in, walk to the slot.
                     transit.place(e.key, at: geo.elevatorDoor(floor: geo.floorOf(pt), side: geo.doorSide(for: pt)))
                     transit.send(e.key, to: pt)
-                    sprite.fade = 0
+                    rig.fade = 0
                     fadingIn[e.key] = 0
                 } else {
                     transit.place(e.key, at: pt)
@@ -515,44 +494,44 @@ final class TowerScene: SKScene {
                 transit.place(e.key, at: pt)
             }
         }
-        syncSprites()
+        syncRobots()
         applyHighlight()
     }
 
     /// Subs and contractors walk back to their boss (a sub carrying its report, or smoking if it failed),
     /// then everyone leaves by their floor's elevator door and fades out.
     private func depart(_ key: String, wanted: Set<String>) {
-        guard let sprite = robots.removeValue(forKey: key) else { return }
+        guard let rig = robots.removeValue(forKey: key) else { return }
         signatures[key] = nil
         let sid = owner.removeValue(forKey: key) ?? ""
         let success = pendingResults.removeValue(forKey: key) ?? true
         if !success {
-            sprite.setFace(.error)
-            sprite.setAction(.commandFailed)
+            rig.setFace(.error)
+            rig.setAction(.commandFailed)
         } else if key.hasPrefix("a:") {
-            sprite.setFace(.happy)
-            attachReport(to: sprite)
+            rig.setFace(.happy)
+            attachReport(to: rig)
         }
         let boss = "s:\(sid)"
         if key.hasPrefix("a:") || key.hasPrefix("c:"), wanted.contains(boss), let b = transit.target(of: boss) {
-            departing[key] = Departure(sprite: sprite, leg: .toBoss)
+            departing[key] = Departure(rig: rig, leg: .toBoss)
             transit.send(key, to: CGPoint(x: b.x + 22, y: b.y))
         } else {
-            departing[key] = Departure(sprite: sprite, leg: .toDoor)
+            departing[key] = Departure(rig: rig, leg: .toDoor)
             sendToDoor(key)
         }
     }
 
     /// Removes a robot at once, with no walk or fade (a non-animated render).
     private func discard(_ key: String) {
-        guard let sprite = robots.removeValue(forKey: key) else { return }
+        guard let rig = robots.removeValue(forKey: key) else { return }
         signatures[key] = nil
         owner[key] = nil
         pendingResults[key] = nil
         fadingIn[key] = nil
         drawOrder[key] = nil
-        sprite.removeAllActions()
-        sprite.removeFromParent()
+        rig.root.removeAllTweens()
+        rig.root.removeFromParent()
         transit.remove(key)
     }
 
@@ -581,108 +560,132 @@ final class TowerScene: SKScene {
         guard let d = departing.removeValue(forKey: key) else { return }
         fadingIn[key] = nil
         drawOrder[key] = nil
-        d.sprite.removeAllActions()
-        d.sprite.removeFromParent()
+        d.rig.root.removeAllTweens()
+        d.rig.root.removeFromParent()
         transit.remove(key)
     }
 
-    /// Sprites follow `Transit`. Draw order: robots are ranked by layout y (lower on screen in front), ties —
+    /// Robots follow `Transit`. Draw order: robots are ranked by layout y (lower on screen in front), ties —
     /// riders sharing the cab, robots waiting at the same door — broken by a stable per-key creation order,
     /// and each rank gets its own `robotZStep` band. A robot's parts span < 0.015 above its own z, so no
     /// two robots' parts can interleave, whatever their positions.
-    private func syncSprites() {
-        var placed: [(y: CGFloat, order: Int, sprite: RobotSprite)] = []
+    private func syncRobots() {
+        var placed: [(y: CGFloat, order: Int, node: SceneNode)] = []
         placed.reserveCapacity(robots.count + departing.count)
-        func sync(_ key: String, _ sprite: RobotSprite) {
+        func sync(_ key: String, _ rig: RobotRig) {
             guard let p = transit.position(of: key) else { return }
             let sp = scenePoint(p)
-            if sprite.position != sp { sprite.position = sp }
-            placed.append((p.y, drawOrder[key] ?? 0, sprite))
+            if rig.root.position != sp { rig.root.position = sp }
+            placed.append((p.y, drawOrder[key] ?? 0, rig.root))
         }
-        for (key, sprite) in robots { sync(key, sprite) }
-        for (key, d) in departing { sync(key, d.sprite) }
+        for (key, rig) in robots { sync(key, rig) }
+        for (key, d) in departing { sync(key, d.rig) }
         placed.sort { ($0.y, $0.order) < ($1.y, $1.order) }
         for (i, r) in placed.enumerated() {
             let z = CGFloat(i) * Self.robotZStep
-            if r.sprite.zPosition != z { r.sprite.zPosition = z }
+            if r.node.zPosition != z { r.node.zPosition = z }
         }
         syncedRevision = transit.revision
     }
 
     /// z distance between consecutive robots: more than a robot's own part span (0.015).
-    static let robotZStep: CGFloat = 0.02
+    package static let robotZStep: CGFloat = 0.02
 
     // MARK: Report
 
     /// The old report card a finished sub carries back: 10×13, 0xBFE8FF, corner 2, glow 0x7CC4FF radius 5,
     /// centred at design point (52, 58) and drawn above the whole robot.
-    private func attachReport(to sprite: RobotSprite) {
-        guard sprite.childNode(withName: "report") == nil else { return }
-        let n = SKSpriteNode(texture: reportTexture(), size: Self.reportImageSize)
-        n.name = "report"
+    private func attachReport(to rig: RobotRig) {
+        guard rig.root.childNode(withName: "report") == nil else { return }
+        let n = SceneNode(name: "report", sprite: true)
+        n.drawing = reportDrawing()
+        n.size = Self.reportImageSize
         n.position = RobotMotion.robotPoint(CGPoint(x: 52, y: 58))
         n.zPosition = 0.0145
-        sprite.addChild(n)
+        rig.root.addChild(n)
     }
 
     private static let reportPadding: CGFloat = 8
     private static var reportImageSize: CGSize { CGSize(width: 10 + 2 * reportPadding, height: 13 + 2 * reportPadding) }
 
-    private func reportTexture() -> SKTexture {
+    private func reportDrawing() -> ArtDrawing {
         let scale = artScale
-        if let t = reportTextures[scale] { return t }
+        if let d = reportDrawings[scale] { return d }
         let pad = Self.reportPadding
-        let t = CGArtBackend.texture(size: Self.reportImageSize, scale: scale) { ctx in
-            ctx.setShadow(offset: .zero, blur: ArtKit.shadowBlur(radius: 5, scale: scale), color: NSColor(hex: 0x7CC4FF).cgColor)
-            ctx.addPath(CGPath(roundedRect: CGRect(x: pad, y: pad, width: 10, height: 13), cornerWidth: 2, cornerHeight: 2, transform: nil))
-            ctx.setFillColor(NSColor(hex: 0xBFE8FF).cgColor)
-            ctx.fillPath()
+        let d = draw(Self.reportImageSize, scale: scale) { pen in
+            pen.shadowed(offset: .zero, blur: 5, color: Color(hex: 0x7CC4FF)) {
+                pen.fill(.roundedRect(CGRect(x: pad, y: pad, width: 10, height: 13), radius: 2), Color(hex: 0xBFE8FF))
+            }
         }
-        reportTextures[scale] = t
-        return t
+        reportDrawings[scale] = d
+        return d
     }
 
     // MARK: Hit testing, hover, click
 
-    var onClickSession: ((String) -> Void)?
-    var onHoverSession: ((String?) -> Void)?
+    package var onClickSession: ((String) -> Void)?
+    package var onHoverSession: ((String?) -> Void)?
 
     /// The session highlighted by the pointer or by the panel (the old `hovered`).
     private var hovered: String?
-    private(set) var tooltipLines: [String] = []
+    package private(set) var tooltipLines: [String] = []
     private var tooltipSignature = ""
 
     /// The session whose robot is under a layout point: the 60×84 box of every robot standing in the
     /// scene (not the ones leaving); with several hits, the one whose middle is closest to the point.
-    func sessionId(at layoutPoint: CGPoint) -> String? {
+    package func sessionId(at layoutPoint: CGPoint) -> String? {
         let p = scenePoint(layoutPoint)
         var best: (key: String, d: CGFloat)?
-        for (key, sprite) in robots where sprite.hitRect.contains(p) {
-            let d = hypot(sprite.position.x - p.x, sprite.position.y + 42 * sprite.robotScale - p.y)
+        for (key, rig) in robots where rig.hitRect.contains(p) {
+            let at = rig.root.position
+            let d = hypot(at.x - p.x, at.y + 42 * rig.robotScale - p.y)
             if best == nil || d < best!.d || (d == best!.d && key < best!.key) { best = (key, d) }
         }
         return best.flatMap { owner[$0.key] }
     }
 
     /// The pointer moved to a layout point (nil = it left the view): highlight, tooltip and panel follow.
-    func hover(at layoutPoint: CGPoint?) {
+    /// Returns the session under the pointer and the tooltip shown for it.
+    @discardableResult
+    package func hover(at layoutPoint: CGPoint?) -> (sessionId: String?, tooltip: SceneNode?) {
         let sid = layoutPoint.flatMap { sessionId(at: $0) }
         if sid != hovered {
             highlight(sid)
             onHoverSession?(sid)
         }
-        showTooltip(sid, at: layoutPoint ?? .zero)
+        return (sid, showTooltip(sid, at: layoutPoint ?? .zero))
     }
 
-    func click(at layoutPoint: CGPoint) {
+    package func click(at layoutPoint: CGPoint) {
         if let sid = sessionId(at: layoutPoint) { onClickSession?(sid) }
     }
 
     // MARK: Highlight and tethers
 
+    /// A dashed line from the highlighted boss to one of its subs or contractors. `phase` is the dash phase the
+    /// flow is at (−24 pt per 1.2 s, see `flowTethers`); the display draws the line from `tetherCurve`.
+    package final class Tether {
+        package let node: SceneNode
+        package let bossKey: String, key: String
+        package let color: Color
+        package fileprivate(set) var phase: CGFloat = 0
+        /// Seconds into the current flow cycle (nil until the first frame).
+        fileprivate var elapsed: TimeInterval?
+
+        fileprivate init(bossKey: String, key: String, color: Color) {
+            node = SceneNode(name: TowerSceneModel.tetherPrefix + key)
+            self.bossKey = bossKey
+            self.key = key
+            self.color = color
+        }
+    }
+
+    /// The highlighted team's tethers (their nodes hang off `tethers`).
+    package private(set) var tethers: [Tether] = []
+
     /// Dims everyone not on the session's team and ties its subs and contractors to the boss with flowing
     /// dashed lines. Robots on their way out keep fading and are left alone.
-    func highlight(_ sessionId: String?) {
+    package func highlight(_ sessionId: String?) {
         hovered = sessionId
         applyHighlight()
     }
@@ -695,63 +698,58 @@ final class TowerScene: SKScene {
             onHoverSession?(nil)
             showTooltip(nil, at: .zero)
         }
-        for (key, sprite) in robots { sprite.setDimmed(hovered != nil && owner[key] != hovered) }
+        for (key, rig) in robots { rig.setDimmed(hovered != nil && owner[key] != hovered) }
         guard let sid = hovered, let s = lastSessions.first(where: { $0.id == sid }), robots["s:\(sid)"] != nil else {
-            tethers.removeAllChildren()
+            clearTethers()
             return
         }
         let bossKey = "s:\(sid)"
         let keys = robots.keys.sorted().filter { owner[$0] == sid && $0 != bossKey }
         // Unchanged set: keep the nodes, so a re-render doesn't restart the flow.
-        if tethers.children.compactMap(\.name) == keys.map({ Self.tetherPrefix + $0 }) { return }
-        tethers.removeAllChildren()
+        if tethers.map(\.key) == keys { return }
+        clearTethers()
         for key in keys {
-            let n = SKShapeNode()
-            n.name = Self.tetherPrefix + key
-            n.strokeColor = NSColor(Team.color(s.teamIndex))
-            n.lineWidth = 2
-            n.glowWidth = 2
-            n.path = tetherPath(from: bossKey, to: key, phase: 0)
-            // The old lineDashPhase animation 0 → -24 over 1.2 s, repeating. The path is rebuilt on every
-            // frame, so the line also follows robots that are walking or riding.
-            n.run(.repeatForever(.customAction(withDuration: Self.tetherPeriod) { [weak self] node, t in
-                guard let self, let shape = node as? SKShapeNode, let key = shape.name?.dropFirst(Self.tetherPrefix.count) else { return }
-                shape.path = self.tetherPath(from: bossKey, to: String(key), phase: -24 * (t / CGFloat(Self.tetherPeriod))) ?? shape.path
-            }))
-            tethers.addChild(n)
+            let t = Tether(bossKey: bossKey, key: key, color: Team.color(s.teamIndex))
+            tetherLayer.addChild(t.node)
+            tethers.append(t)
         }
     }
 
-    private static let tetherPrefix = "tether:"
+    private func clearTethers() {
+        tetherLayer.removeAllChildren()
+        tethers.removeAll()
+    }
+
+    /// The old lineDashPhase animation 0 → −24 over 1.2 s, repeating, on the clock SpriteKit gave the custom
+    /// action that ran it (measured with `SKRenderer`): a tether's first frame is at 0 s; elapsed time reaches the
+    /// block rounded to `Float`; a cycle ends when that `Float` time reaches the `Float` period, and the next
+    /// starts from what is left over (never below 0).
+    private func flowTethers(_ dt: TimeInterval) {
+        let period = Double(Float(Self.tetherPeriod))
+        for t in tethers {
+            var e = t.elapsed.map { $0 + max(0, dt) } ?? 0
+            while Float(e) >= Float(period) { e = max(0, e - period) }
+            t.elapsed = e
+            t.phase = -24 * (CGFloat(Float(e)) / CGFloat(Self.tetherPeriod))
+        }
+    }
+
+    package static let tetherPrefix = "tether:"
     private static let tetherPeriod: TimeInterval = 1.2
-    private static let dash: [CGFloat] = [6, 6]
 
     /// The tether's quad curve from the boss's head to a robot's chest, in scene coordinates (nil while either
-    /// is gone). `tetherPath` dashes it; the motion baselines record it.
-    func tetherCurve(from bossKey: String, to key: String) -> (from: CGPoint, control: CGPoint, to: CGPoint)? {
+    /// is gone). The display dashes it; the motion baselines record it.
+    package func tetherCurve(from bossKey: String, to key: String) -> (from: CGPoint, control: CGPoint, to: CGPoint)? {
         guard let bp = transit.position(of: bossKey), let bs = robot(bossKey)?.robotScale,
               let rp = transit.position(of: key), let rs = robot(key)?.robotScale else { return nil }
         let b = CGPoint(x: bp.x, y: bp.y - 40 * bs), p = CGPoint(x: rp.x, y: rp.y - 30 * rs)
         return (scenePoint(b), scenePoint(CGPoint(x: (b.x + p.x) / 2, y: min(b.y, p.y) - 40)), scenePoint(p))
     }
 
-    /// The old curve from the boss's head to a robot's chest (layout coordinates, then flipped), dashed.
-    private func tetherPath(from bossKey: String, to key: String, phase: CGFloat) -> CGPath? {
-        guard let c = tetherCurve(from: bossKey, to: key) else { return nil }
-        let path = CGMutablePath()
-        path.move(to: c.from)
-        path.addQuadCurve(to: c.to, control: c.control)
-        // Dash phases are periodic; keep ours positive.
-        let period = Self.dash.reduce(0, +)
-        var ph = phase.truncatingRemainder(dividingBy: period)
-        if ph < 0 { ph += period }
-        return path.copy(dashingWithPhase: ph, lengths: Self.dash)
-    }
-
     // MARK: Tooltip
 
     /// The old detail box's text, one string per line.
-    static func tooltipLines(for s: Session, now: Date = Date()) -> [String] {
+    package static func tooltipLines(for s: Session, now: Date = Date()) -> [String] {
         let status: String
         switch s.status {
         case .working: status = "干活中 · \(s.activity.label)"
@@ -775,25 +773,26 @@ final class TowerScene: SKScene {
     }
 
     /// Shows the detail box for a session next to a layout point, or removes it at once (no fade: the old
-    /// fade-out left boxes stuck on screen).
-    func showTooltip(_ sid: String?, at p: CGPoint) {
+    /// fade-out left boxes stuck on screen). Returns the box.
+    @discardableResult
+    package func showTooltip(_ sid: String?, at p: CGPoint) -> SceneNode? {
         guard let sid, let s = lastSessions.first(where: { $0.id == sid }) else {
             tooltip.removeAllChildren()
             tooltipLines = []
             tooltipSignature = ""
-            return
+            return nil
         }
         let lines = Self.tooltipLines(for: s)
-        let scale = currentScale
         let signature = "\(lines.joined(separator: "\n"))|\(s.teamIndex)|\(scale)"
-        let box: SKSpriteNode
-        if signature == tooltipSignature, let existing = tooltip.children.first as? SKSpriteNode {
+        let box: SceneNode
+        if signature == tooltipSignature, let existing = tooltip.children.first {
             box = existing
         } else {
             tooltip.removeAllChildren()
-            let (texture, size) = Self.tooltipTexture(lines, color: NSColor(Team.color(s.teamIndex)), scale: scale)
-            box = SKSpriteNode(texture: texture, size: size)
-            scheduleRelief()
+            box = SceneNode(sprite: true)
+            let (size, recipe) = Self.tooltipArt(lines, color: Team.color(s.teamIndex), measure: backend)
+            box.drawing = draw(size, scale: scale, recipe)
+            box.size = size
             box.anchorPoint = CGPoint(x: 0, y: 1)   // top-left, like the old layer in the flipped view
             tooltip.addChild(box)
             tooltipLines = lines
@@ -803,43 +802,52 @@ final class TowerScene: SKScene {
         if o.x + box.size.width > size.width { o.x = p.x - box.size.width - 10 }
         if o.y + box.size.height > size.height { o.y = p.y - box.size.height - 10 }
         box.position = scenePoint(o)
+        return box
     }
 
     /// 0x0A0E26 at 0.95, a 1 pt team-colour border inside a corner radius of 8; the first line 12 pt bold
     /// white, the rest 10.5 pt regular 0xC9D2FF, 2 pt apart; at most 320 pt wide.
-    private static func tooltipTexture(_ lines: [String], color: NSColor, scale: CGFloat) -> (SKTexture, CGSize) {
-        let para = NSMutableParagraphStyle()
-        para.lineBreakMode = .byTruncatingTail
-        struct Row { var text: NSAttributedString; var rect: CGRect }
+    package static func tooltipArt(_ lines: [String], color: Color, measure m: TextMeasuring) -> (CGSize, (Pen) -> Void) {
+        struct Row { var run: TextRun; var rect: CGRect }
         var rows: [Row] = []
         var y: CGFloat = 8, w: CGFloat = 0
         for (i, line) in lines.enumerated() {
-            let size: CGFloat = i == 0 ? 12 : 10.5
-            let weight: NSFont.Weight = i == 0 ? .bold : .regular
-            let box = CGArtBackend.labelSize(line, size: size, weight: weight)
-            let text = NSAttributedString(string: line, attributes: [
-                .font: NSFont.systemFont(ofSize: size, weight: weight),
-                .foregroundColor: i == 0 ? NSColor.white : NSColor(hex: 0xC9D2FF), .paragraphStyle: para])
-            rows.append(Row(text: text, rect: CGRect(x: 10, y: y, width: box.width, height: box.height)))
+            let font = FontSpec(size: i == 0 ? 12 : 10.5, weight: i == 0 ? .bold : .regular)
+            let box = ArtKit.labelSize(line, font: font, using: m)
+            let run = TextRun(line, font: font, color: i == 0 ? Color(r: 1, g: 1, b: 1) : Color(hex: 0xC9D2FF))
+            rows.append(Row(run: run, rect: CGRect(x: 10, y: y, width: box.width, height: box.height)))
             y += box.height + 2
             w = max(w, box.width)
         }
         let size = CGSize(width: min(w + 20, 320), height: y + 6)
-        let texture = CGArtBackend.texture(size: size, scale: scale) { ctx in
+        return (size, { pen in
             let outer = CGRect(origin: .zero, size: size)
-            ctx.addPath(CGPath(roundedRect: outer, cornerWidth: 8, cornerHeight: 8, transform: nil))
-            ctx.setFillColor(NSColor(hex: 0x0A0E26, alpha: 0.95).cgColor)
-            ctx.fillPath()
-            ctx.addPath(CGPath(roundedRect: outer.insetBy(dx: 0.5, dy: 0.5), cornerWidth: 7.5, cornerHeight: 7.5, transform: nil))
-            ctx.setStrokeColor(color.cgColor)
-            ctx.setLineWidth(1)
-            ctx.strokePath()
+            pen.fill(.roundedRect(outer, radius: 8), Color(hex: 0x0A0E26, alpha: 0.95))
+            pen.stroke(.roundedRect(outer.insetBy(dx: 0.5, dy: 0.5), radius: 7.5), color, width: 1)
             for r in rows {
                 var rect = r.rect
                 rect.size.width = min(rect.width, size.width - 20)   // truncate rather than spill over the border
-                CGArtBackend.draw(r.text, in: rect, ctx: ctx)
+                pen.textLine([r.run], in: rect, truncatesTail: true)
             }
-        }
-        return (texture, size)
+        })
+    }
+}
+
+/// Forwards to the real backend and counts its bakes (`TowerSceneModel.bakeCount`).
+private final class CountingBackend: ArtBackend {
+    let inner: ArtBackend
+    private(set) var bakes = 0
+
+    init(_ inner: ArtBackend) { self.inner = inner }
+
+    func bake(size: CGSize, scale: CGFloat, _ draw: (Pen) -> Void) -> BakedImage {
+        bakes += 1
+        return inner.bake(size: size, scale: scale, draw)
+    }
+
+    func rgba(_ img: BakedImage) -> [UInt8] { inner.rgba(img) }
+
+    func measure(_ runs: [TextRun], maxWidth: CGFloat, maxLines: Int) -> CGSize {
+        inner.measure(runs, maxWidth: maxWidth, maxLines: maxLines)
     }
 }

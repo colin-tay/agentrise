@@ -9,8 +9,14 @@ import CoreGraphics
 /// A portable stand-in for `SKNode`/`SKSpriteNode`, with SpriteKit's conventions: positions in the parent's
 /// points with y up, `zRotation` in radians counter-clockwise, `anchorPoint` in unit space of the image
 /// (default centre). `TweenEngine.step` runs the tweens; a display layer draws the tree.
+///
+/// A sprite (`isSprite`) shows `image` (a baked bitmap, drawn from the display's atlas) or `drawing` (a bitmap
+/// the display draws itself, once per instance), stretched to `size`; a node that is not a sprite only groups
+/// its children.
 package final class SceneNode {
     package var name: String?
+    /// Whether the node shows a bitmap (`SKSpriteNode`) rather than only grouping its children (`SKNode`).
+    package let isSprite: Bool
     package var position: CGPoint = .zero
     package var zPosition: CGFloat = 0
     package var alpha: CGFloat = 1
@@ -20,6 +26,13 @@ package final class SceneNode {
     /// Only meaningful with an image.
     package var anchorPoint = CGPoint(x: 0.5, y: 0.5)
     package var image: BakedImage?
+    /// Drawn by the display instead of `image` (big or one-off bitmaps: the building, the header, the tooltip).
+    package var drawing: ArtDrawing?
+    /// The sprite's size in points (what the bitmap is stretched to).
+    package var size: CGSize = .zero
+    /// Tints the bitmap like `SKSpriteNode.color` with `colorBlendFactor`.
+    package var color: Color?
+    package var colorBlendFactor: CGFloat = 0
     package var isHidden = false
     package private(set) var children: [SceneNode] = []
     package private(set) weak var parent: SceneNode?
@@ -27,8 +40,17 @@ package final class SceneNode {
     /// Running tweens in the order they were added. `TweenEngine` owns the runners.
     var tweens: [TweenEngine.Running] = []
 
-    package init(name: String? = nil) {
+    package init(name: String? = nil, sprite: Bool = false) {
         self.name = name
+        isSprite = sprite
+    }
+
+    /// A sprite's rectangle in its parent's points (`SKSpriteNode.frame`, without rotation); a plain node's
+    /// position as an empty rectangle.
+    package var frame: CGRect {
+        guard isSprite else { return CGRect(origin: position, size: .zero) }
+        let w = size.width * xScale, h = size.height * yScale
+        return CGRect(x: position.x - anchorPoint.x * w, y: position.y - anchorPoint.y * h, width: w, height: h).standardized
     }
 
     // MARK: Tree
@@ -119,4 +141,9 @@ package final class SceneNode {
     }
 
     package var hasTweens: Bool { !tweens.isEmpty }
+
+    package func hasTween(forKey key: String) -> Bool { tweens.contains { $0.key == key } }
+
+    /// `SKNode.setScale`.
+    package func setScale(_ s: CGFloat) { xScale = s; yScale = s }
 }

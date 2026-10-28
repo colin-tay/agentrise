@@ -18,29 +18,32 @@ package enum BuildingArt {
     /// Gradient sky, floor slabs, rooms with their decorations and the elevator shaft, in a `layout.size`
     /// image at `scale` pixels per point (the old layer tree, minus the cab, the LEDs and the shaft label).
     package static func background(_ layout: BuildingLayout, scale: CGFloat, backend: ArtBackend) -> BakedImage {
-        backend.bake(size: layout.size, scale: scale) { pen in
-            pen.setFontSmoothing(false)   // CATextLayer text is not dilated
-            sky(layout.size, pen)
-            floors(layout, pen)
-            for room in Room.allCases {
-                for r in layout.rooms[room] ?? [] {
-                    switch room {
-                    case .ceoOffice:
-                        roomBox(r, title: room.title, border: Color(hex: 0xFFC95C, alpha: 0.75), fill: Color(hex: 0xFFC95C, alpha: 0.07), titleColor: Color(hex: 0xFFD98A), pen)
-                        let door = CGRect(x: r.maxX - 34, y: r.minY + 16, width: 22, height: min(34, r.height - 24))
-                        glowBorder(door, radius: 4, width: 2, color: Color(hex: 0xFFC95C), glow: 8, pen)
-                    case .pantry:
-                        roomBox(r, title: room.title, border: Color(hex: 0x6FF0A8, alpha: 0.45), fill: Color(hex: 0x6FF0A8, alpha: 0.05), titleColor: Color(hex: 0x8FF0BB), pen)
-                    case .sleepPods:
-                        roomBox(r, title: r == layout.rooms[room]?.first ? room.title : "", border: Color(hex: 0x968CFF, alpha: 0.4), fill: Color(hex: 0x5A50C8, alpha: 0.08), titleColor: Color(hex: 0xB8B0FF), pen)
-                    default:
-                        roomBox(r, title: room.title, border: blue.withAlpha(0.3), fill: blue.withAlpha(0.04), titleColor: Color(hex: 0xB9C6FF), pen)
-                    }
-                    decorate(room, r, pen)
+        backend.bake(size: layout.size, scale: scale) { drawBackground(layout, pen: $0) }
+    }
+
+    /// The background's recipe, for a display that draws it straight into its texture (`ArtDrawing`).
+    package static func drawBackground(_ layout: BuildingLayout, pen: Pen) {
+        pen.setFontSmoothing(false)   // CATextLayer text is not dilated
+        sky(layout.size, pen)
+        floors(layout, pen)
+        for room in Room.allCases {
+            for r in layout.rooms[room] ?? [] {
+                switch room {
+                case .ceoOffice:
+                    roomBox(r, title: room.title, border: Color(hex: 0xFFC95C, alpha: 0.75), fill: Color(hex: 0xFFC95C, alpha: 0.07), titleColor: Color(hex: 0xFFD98A), pen)
+                    let door = CGRect(x: r.maxX - 34, y: r.minY + 16, width: 22, height: min(34, r.height - 24))
+                    glowBorder(door, radius: 4, width: 2, color: Color(hex: 0xFFC95C), glow: 8, pen)
+                case .pantry:
+                    roomBox(r, title: room.title, border: Color(hex: 0x6FF0A8, alpha: 0.45), fill: Color(hex: 0x6FF0A8, alpha: 0.05), titleColor: Color(hex: 0x8FF0BB), pen)
+                case .sleepPods:
+                    roomBox(r, title: r == layout.rooms[room]?.first ? room.title : "", border: Color(hex: 0x968CFF, alpha: 0.4), fill: Color(hex: 0x5A50C8, alpha: 0.08), titleColor: Color(hex: 0xB8B0FF), pen)
+                default:
+                    roomBox(r, title: room.title, border: blue.withAlpha(0.3), fill: blue.withAlpha(0.04), titleColor: Color(hex: 0xB9C6FF), pen)
                 }
+                decorate(room, r, pen)
             }
-            shaft(layout, pen)
         }
+        shaft(layout, pen)
     }
 
     /// Server-room rack LED positions (centres, layout coordinates, y down) with their colour and blink half-period.
@@ -73,15 +76,23 @@ package enum BuildingArt {
     /// Transparent border around the body that leaves room for the glow.
     package static let cabMargin: CGFloat = 20
 
-    package static func cab(_ layout: BuildingLayout, scale: CGFloat, backend: ArtBackend) -> BakedImage {
+    /// The cab image's size in points: the body plus `cabMargin` all round.
+    package static func cabSize(_ layout: BuildingLayout) -> CGSize {
         let body = cabBody(layout), m = cabMargin
-        let size = CGSize(width: body.width + 2 * m, height: body.height + 2 * m)
-        return backend.bake(size: size, scale: scale) { pen in
-            let r = CGRect(x: m, y: m, width: body.width, height: body.height)
-            pen.shadowed(offset: .zero, blur: 8, color: blue.withAlpha(0.9)) {
-                pen.layer(alpha: 1) {
-                    box(r, radius: 6, border: blue, borderWidth: 1, fill: blue.withAlpha(0.25), pen)
-                }
+        return CGSize(width: body.width + 2 * m, height: body.height + 2 * m)
+    }
+
+    package static func cab(_ layout: BuildingLayout, scale: CGFloat, backend: ArtBackend) -> BakedImage {
+        backend.bake(size: cabSize(layout), scale: scale) { drawCab(layout, pen: $0) }
+    }
+
+    /// The cab's recipe (a `cabSize` canvas).
+    package static func drawCab(_ layout: BuildingLayout, pen: Pen) {
+        let body = cabBody(layout), m = cabMargin
+        let r = CGRect(x: m, y: m, width: body.width, height: body.height)
+        pen.shadowed(offset: .zero, blur: 8, color: blue.withAlpha(0.9)) {
+            pen.layer(alpha: 1) {
+                box(r, radius: 6, border: blue, borderWidth: 1, fill: blue.withAlpha(0.25), pen)
             }
         }
     }
@@ -217,10 +228,13 @@ package enum BuildingArt {
 
     package static func elevatorLabel(scale: CGFloat, backend: ArtBackend) -> BakedImage {
         let size = elevatorLabelSize(backend)
-        return backend.bake(size: size, scale: scale) { pen in
-            pen.setFontSmoothing(false)
-            ArtKit.drawLabel(elevatorLabelText, font: elevatorLabelFont, color: Color(hex: 0x8F9BE0),
-                             center: CGPoint(x: size.width / 2, y: size.height / 2), pen: pen)
-        }
+        return backend.bake(size: size, scale: scale) { drawElevatorLabel(size: size, pen: $0) }
+    }
+
+    /// The label's recipe, on an `elevatorLabelSize` canvas.
+    package static func drawElevatorLabel(size: CGSize, pen: Pen) {
+        pen.setFontSmoothing(false)
+        ArtKit.drawLabel(elevatorLabelText, font: elevatorLabelFont, color: Color(hex: 0x8F9BE0),
+                         center: CGPoint(x: size.width / 2, y: size.height / 2), pen: pen)
     }
 }

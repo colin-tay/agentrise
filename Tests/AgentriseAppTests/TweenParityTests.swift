@@ -9,10 +9,11 @@ import Metal
 @testable import AgentriseScene
 
 /// Every tween `RobotMotion` makes, run two ways for 6 s at 60 fps: bridged to SKActions under SpriteKit
-/// (stepped headlessly with `SKRenderer`, like `RobotSpriteTests`) and on a `SceneNode` by `TweenEngine`.
+/// (stepped headlessly with `SKRenderer`, like the old `RobotSpriteTests`) and on a `SceneNode` by `TweenEngine`.
 /// Frame by frame, both must agree within 0.002 on every animated property.
 ///
-/// Only here while the bridge exists: once the scene runs on `SceneNode`, `MotionSnapshotTests` guards the motion.
+/// The bridge (`TweenBridge.swift`) is test-only: the app runs every tween on `TweenEngine`. This suite keeps
+/// checking the engine against SpriteKit itself, next to the frozen traces of `MotionSnapshotTests`.
 @MainActor
 @Suite struct TweenParityTests {
     static let tolerance: CGFloat = 0.002
@@ -158,7 +159,7 @@ import Metal
         Self.check(cases, frames: Self.frames)
     }
 
-    /// Tweens run between frames, after the node has been animating for a while — the way `RobotSprite`
+    /// Tweens run between frames, after the node has been animating for a while — the way the old `RobotSprite`
     /// starts its actions — including a same-key replacement mid-loop.
     @Test func tweensStartedMidStreamMatchSpriteKit() {
         let bob = Tween.repeatForever(.sequence([.moveBy(dx: 0, dy: 2, duration: 0.3), .moveBy(dx: 0, dy: -2, duration: 0.3)]))

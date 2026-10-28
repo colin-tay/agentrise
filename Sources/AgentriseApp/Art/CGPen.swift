@@ -104,6 +104,10 @@ final class CGPen: Pen {
         }
     }
 
+    func textLine(_ runs: [TextRun], in rect: CGRect, truncatesTail: Bool) {
+        CGArtBackend.draw(CGArtBackend.line(runs, truncatesTail: truncatesTail), in: rect, ctx: ctx)
+    }
+
     func emoji(_ s: String, size: CGFloat, center: CGPoint) {
         ArtKit.drawLabel(s, font: FontSpec(size: size, weight: .regular), color: Color(r: 1, g: 1, b: 1), center: center, pen: self)
     }
@@ -129,6 +133,7 @@ extension NSFont.Weight {
         case .medium: self = .medium
         case .semibold: self = .semibold
         case .bold: self = .bold
+        case .heavy: self = .heavy
         case .black: self = .black
         }
     }

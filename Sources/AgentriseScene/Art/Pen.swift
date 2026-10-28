@@ -7,7 +7,7 @@ import CoreGraphics
 #endif
 
 /// The system UI font's weights the art uses (SF on macOS, Segoe UI on Windows).
-package enum FontWeight: Hashable, Sendable { case regular, medium, semibold, bold, black }
+package enum FontWeight: Hashable, Sendable { case regular, medium, semibold, bold, heavy, black }
 
 package struct FontSpec: Hashable, Sendable {
     package var size: CGFloat
@@ -78,6 +78,10 @@ package protocol Pen: AnyObject, TextMeasuring {
     /// Draws `runs` centred horizontally and top-aligned in `rect`, wrapping at its width, at most `maxLines`
     /// lines (0: no limit). Not clipped to `rect`. With `shadow`, the text is drawn in a layer that casts it.
     func text(_ runs: [TextRun], shadow: TextShadow?, in rect: CGRect, maxLines: Int)
+    /// Draws `runs` as one left-aligned line from the top-left corner of `rect` (the platform's natural layout,
+    /// no centring). With `truncatesTail`, text wider than `rect` is cut with an ellipsis; without, it is laid out
+    /// as it comes (wrapping at the width, which callers make wide enough). Not clipped to `rect`.
+    func textLine(_ runs: [TextRun], in rect: CGRect, truncatesTail: Bool)
     /// A colour emoji (or any glyph) at `size` points, its label box (`ArtKit.labelSize`, regular weight)
     /// centred on `center`.
     func emoji(_ s: String, size: CGFloat, center: CGPoint)
