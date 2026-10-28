@@ -168,8 +168,10 @@ let d2dFactory = created("D2D1CreateFactory(ID2D1Factory1)") {
 }
 let factory = vtable(d2dFactory, CD2D_ID2D1FactoryVtbl.self)
 
-// Pixel format {UNKNOWN, UNKNOWN}: take the WIC bitmap's (PBGRA). See CD2D_RenderTargetProperties.
-var targetProps = CD2D_RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, dpi)
+var targetProps = D2D1_RENDER_TARGET_PROPERTIES()
+targetProps.type = D2D1_RENDER_TARGET_TYPE_SOFTWARE
+targetProps.dpiX = dpi      // pixelFormat stays {UNKNOWN, UNKNOWN}: take the WIC bitmap's (PBGRA)
+targetProps.dpiY = dpi
 let wicTarget = created("ID2D1Factory::CreateWicBitmapRenderTarget") {
     factory.CreateWicBitmapRenderTarget!(d2dFactory, UnsafeMutableRawPointer(wicBitmap), &targetProps, $0)
 }

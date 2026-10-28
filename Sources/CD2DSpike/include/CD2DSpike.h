@@ -26,6 +26,10 @@
 // that only keep the slot count right. Every interface pointer is `void *`, so
 // Swift sees UnsafeMutableRawPointer and reads a vtable with
 // `p.load(as: UnsafePointer<Vtbl>.self).pointee`.
+//
+// Swift code using this module must also `import WinSDK.DirectX`: D2D1_PIXEL_FORMAT
+// holds a DXGI_FORMAT, which belongs to that explicit submodule, and without it
+// the 6.1.2 asserts compiler crashes in its debug-type round trip.
 
 #pragma once
 
@@ -58,19 +62,6 @@ typedef struct D2D1_RENDER_TARGET_PROPERTIES {
     D2D1_RENDER_TARGET_USAGE usage;
     D2D1_FEATURE_LEVEL minLevel;
 } D2D1_RENDER_TARGET_PROPERTIES;
-
-// Built in C because D2D1_PIXEL_FORMAT holds a DXGI_FORMAT, and DXGI_FORMAT's
-// definition belongs to WinSDK's explicit DirectX submodule: zero-initialising the
-// struct in Swift makes the 6.1.2 asserts compiler fail its debug-info round trip
-// ("Failed to reconstruct type for $sSo11DXGI_FORMATVmD"). The pixel format stays
-// {DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_UNKNOWN}: use the target bitmap's own.
-static inline D2D1_RENDER_TARGET_PROPERTIES CD2D_RenderTargetProperties(D2D1_RENDER_TARGET_TYPE type, FLOAT dpi) {
-    D2D1_RENDER_TARGET_PROPERTIES props = { 0 };
-    props.type = type;
-    props.dpiX = dpi;
-    props.dpiY = dpi;
-    return props;
-}
 
 typedef enum D2D1_CAP_STYLE {
     D2D1_CAP_STYLE_FLAT = 0, D2D1_CAP_STYLE_SQUARE = 1, D2D1_CAP_STYLE_ROUND = 2, D2D1_CAP_STYLE_TRIANGLE = 3
