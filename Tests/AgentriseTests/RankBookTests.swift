@@ -44,21 +44,22 @@ struct RankBookTests {
         let url = tempFile()
         #expect(RankBook.load(from: url) == .defaults)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try "{".write(to: url, atomically: true, encoding: .utf8)
+        try "{".write(to: url, atomically: false, encoding: .utf8)
         #expect(RankBook.load(from: url) == .defaults)
     }
 
     @Test func fileWithOnlyOneOfNamesOrKeywordsKeepsTheOtherDefault() throws {
         let url = tempFile()
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try #"{"names": {"seniorExpert": "首席"}}"#.write(to: url, atomically: true, encoding: .utf8)
+        try #"{"names": {"seniorExpert": "首席"}}"#.write(to: url, atomically: false, encoding: .utf8)
         var b = RankBook.load(from: url)
         #expect(b.title(.seniorExpert) == "首席")
         #expect(b.rank(for: "claude-opus-5-5") == .seniorExpert)
-        // A fresh file: replacing one that was just written and read hits a sharing violation on Windows.
+        // Fixture files are written non-atomically and each case gets its own file: Foundation's atomic
+        // write on Windows renames a just-closed temp file, which antivirus can hold open (error 32).
         let url2 = tempFile()
         try FileManager.default.createDirectory(at: url2.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try #"{"keywords": {"newGrad": ["mini"]}}"#.write(to: url2, atomically: true, encoding: .utf8)
+        try #"{"keywords": {"newGrad": ["mini"]}}"#.write(to: url2, atomically: false, encoding: .utf8)
         b = RankBook.load(from: url2)
         #expect(b.rank(for: "gpt-mini") == .newGrad)
         #expect(b.title(.newGrad) == "校招生")

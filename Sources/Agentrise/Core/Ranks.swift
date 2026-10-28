@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: MIT
 
 import Foundation
+#if os(Windows)
+import WinSDK
+#endif
 
 /// Which models are which rank, and what each rank is called. The art of the four ranks is fixed;
 /// only the names and the model keywords are the user's to change (`ranks.json`).
@@ -48,7 +51,11 @@ package struct RankBook: Codable, Equatable {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+        #if os(Windows)
+        try writeAtomicallyRetryingSharingViolation(enc.encode(self), to: url)
+        #else
         try enc.encode(self).write(to: url, options: .atomic)
+        #endif
     }
 
     /// Order: director → expert → new grad → everything else is a senior engineer.
@@ -83,3 +90,29 @@ extension Rank {
     /// The order Settings lists the ranks in.
     package static let ranksTopDown: [Rank] = [.seniorDirector, .seniorExpert, .seniorEngineer, .newGrad]
 }
+
+#if os(Windows)
+/// Foundation's atomic write on Windows closes a temporary file and then `MoveFileExW`s it over the
+/// destination. Antivirus or the search indexer can briefly open that just-closed file without
+/// `FILE_SHARE_DELETE`, and the move then fails with `ERROR_SHARING_VIOLATION` (32). That is
+/// transient, so retry a few times with short, growing pauses; any other error is thrown at once.
+private func writeAtomicallyRetryingSharingViolation(_ data: Data, to url: URL) throws {
+    var pauseMs: UInt32 = 50
+    for attempt in 1...5 {
+        do {
+            return try data.write(to: url, options: .atomic)
+        } catch let error as CocoaError where attempt < 5 && isSharingViolation(error) {
+            Sleep(pauseMs)
+            pauseMs *= 2
+        }
+    }
+}
+
+/// Foundation reports a failed move as `fileWriteNoPermission` with an internal `Win32Error` underneath;
+/// that type is not public and does not bridge its code to `NSError`, so its `code` is read by reflection.
+private func isSharingViolation(_ error: CocoaError) -> Bool {
+    guard error.code == .fileWriteNoPermission, let underlying = error.underlying else { return false }
+    let code = Mirror(reflecting: underlying).children.first { $0.label == "code" }?.value as? DWORD
+    return code == DWORD(ERROR_SHARING_VIOLATION)
+}
+#endif
