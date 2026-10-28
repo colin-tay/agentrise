@@ -111,6 +111,7 @@ import Metal
     /// `Float` durations drifting against the frame clock.
     @Test func spriteKitTimingRulesMatch() {
         let x = { (d: TimeInterval) in Tween.moveBy(dx: 1, dy: 0, duration: d) }
+        let jump = Tween.moveTo(x: 0, y: nil, duration: 0)
         let cases: [(String, Tween)] = [
             ("carry", .sequence([x(0.11), x(0.5), .fadeAlpha(to: 0.2, duration: 0.37)])),
             ("repeat carry", .repeatForever(x(0.11))),
@@ -140,6 +141,19 @@ import Metal
             ("timed repeatForever", .timed(.repeatForever(x(0.5)), timing: { $0 * $0 })),
             ("timed loop of sequences", .repeatForever(.timed(.sequence([x(0.3), .fadeAlpha(to: 0.2, duration: 0.3)]),
                                                               timing: { $0 * $0 * (3 - 2 * $0) }))),
+            // A zero-duration member at the end of a timed container completes one step after the container's
+            // time (or its curve) is up, as in SpriteKit.
+            ("timed, trailing jump", .sequence([.timed(.sequence([.moveTo(x: 16, y: nil, duration: 0.5), jump]),
+                                                       timing: { $0 * $0 }), .wait(1)])),
+            ("timed, trailing jump, early", .sequence([.timed(.sequence([.moveTo(x: 16, y: nil, duration: 0.5), jump]),
+                                                              timing: { min(1, 2 * $0) }), x(1)])),
+            ("timed, trailing jump, short", .sequence([.timed(.sequence([.moveTo(x: 16, y: nil, duration: 0.5), jump]),
+                                                              timing: { 0.5 * $0 }), x(1)])),
+            ("timed, two trailing jumps", .sequence([.timed(.sequence([.moveTo(x: 16, y: nil, duration: 0.5), jump,
+                                                                       .moveTo(x: 5, y: nil, duration: 0)]), timing: { $0 * $0 }), x(1)])),
+            ("timed group, trailing jump", .sequence([.timed(.group([.sequence([.moveTo(x: 16, y: nil, duration: 0.5), jump])]),
+                                                             timing: { $0 * $0 }), x(1)])),
+            ("loop of timed, trailing jump", .repeatForever(.timed(.sequence([x(0.3), jump]), timing: { $0 * $0 }))),
         ]
         Self.check(cases, frames: Self.frames)
     }
@@ -172,31 +186,47 @@ import Metal
             ("loop moveBy 0.7", .repeatForever(x(0.7))),
             ("loop 0.01", .repeatForever(.sequence([x(0.004), .moveTo(x: nil, y: 5, duration: 0.006)]))),
             ("loop moveTo", .repeatForever(.sequence([.moveTo(x: 5, y: nil, duration: 0.3), .moveTo(x: 0, y: nil, duration: 0.4)]))),
+            ("loop of timed, trailing jump", .repeatForever(.timed(.sequence([x(0.3), .moveTo(x: 0, y: nil, duration: 0)]),
+                                                                   timing: { $0 * $0 }))),
         ]
         let cases = extra + Self.cases
         let scripts: [Script] = cases.map { [0: [($0.1, nil)]] }
         Self.check(cases.map(\.0), scripts, times: times, floatSlack: true)
     }
 
-    /// Blocks in a loop run once per cycle through a long pause, as many times as SpriteKit runs them.
-    @Test func blocksRunAsOftenAsSpriteKitThroughALongPause() {
-        let renderer = SKRenderer(device: MTLCreateSystemDefaultDevice()!)
-        let scene = SKScene(size: CGSize(width: 200, height: 200))
-        renderer.scene = scene
-        var skRuns = 0, skCustoms = 0, runs = 0, customs = 0
-        let a = SKNode(), b = SKNode(), c = SceneNode(), d = SceneNode()
-        a.run(.from(.repeatForever(.sequence([.wait(0.5), .run { skRuns += 1 }]))))
-        b.run(.from(.repeatForever(.custom(duration: 1.2) { _, _ in skCustoms += 1 })))
-        c.run(.repeatForever(.sequence([.wait(0.5), .run { runs += 1 }])))
-        d.run(.repeatForever(.custom(duration: 1.2) { _, _ in customs += 1 }))
-        scene.addChild(a)
-        scene.addChild(b)
-        for (i, t) in [0, 1.0 / 60, 3600, 3600 + 1.0 / 60].enumerated() {
-            renderer.update(atTime: 1000 + t)
-            let dt = i == 0 ? 0 : t - [0, 1.0 / 60, 3600][i - 1]
-            TweenEngine.step(c, dt: dt)
-            TweenEngine.step(d, dt: dt)
-            #expect(runs == skRuns && customs == skCustoms, "after \(t) s: SpriteKit \(skRuns)/\(skCustoms), engine \(runs)/\(customs)")
+    /// Block call counts, after every update, for loops and timed containers that end in a `run` — frame by
+    /// frame and through a long pause.
+    @Test func blocksRunAsOftenAsSpriteKit() {
+        let shapes: [(String, (@escaping () -> Void) -> Tween)] = [
+            ("loop wait, run", { f in .repeatForever(.sequence([.wait(0.5), .run(f)])) }),
+            ("loop custom", { f in .repeatForever(.custom(duration: 1.2) { _, _ in f() }) }),
+            ("timed, trailing run", { f in .timed(.sequence([.wait(0.5), .run(f)]), timing: { $0 * $0 }) }),
+            ("timed, trailing run, early", { f in .timed(.sequence([.wait(0.5), .run(f)]), timing: { min(1, 2 * $0) }) }),
+            ("timed, trailing run, short", { f in .timed(.sequence([.wait(0.5), .run(f)]), timing: { 0.5 * $0 }) }),
+            ("loop of timed, trailing run", { f in .repeatForever(.timed(.sequence([.moveBy(dx: 1, dy: 0, duration: 0.3), .run(f)]),
+                                                                         timing: { $0 })) }),
+            ("loop of timed, trailing run, eased", { f in .repeatForever(.timed(.sequence([.wait(0.3), .run(f)]),
+                                                                                timing: { $0 * $0 })) }),
+        ]
+        let frames: [Double] = (0...150).map { Double($0) / 60 }
+        let pause: [Double] = [3600, 3600 + 1.0 / 60, 3600 + 2.0 / 60]
+        for (name, make) in shapes {
+            let renderer = SKRenderer(device: MTLCreateSystemDefaultDevice()!)
+            let scene = SKScene(size: CGSize(width: 200, height: 200))
+            renderer.scene = scene
+            var skCalls = 0, calls = 0
+            let a = SKNode(), b = SceneNode()
+            a.run(.from(make { skCalls += 1 }))
+            b.run(make { calls += 1 })
+            scene.addChild(a)
+            let times = frames + pause
+            for (i, t) in times.enumerated() {
+                renderer.update(atTime: 1000 + t)
+                TweenEngine.step(b, dt: i == 0 ? 0 : t - times[i - 1])
+                #expect(calls == skCalls, "\(name) after \(t) s: SpriteKit \(skCalls), engine \(calls)")
+                #expect(abs(a.position.x - b.position.x) <= 0.002 + 1e-6 * abs(a.position.x), "\(name) after \(t) s: x")
+            }
+            print("TweenParity blocks \(name): \(skCalls) calls in SpriteKit, \(calls) in the engine")
         }
     }
 

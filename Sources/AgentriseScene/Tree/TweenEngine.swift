@@ -146,7 +146,8 @@ private final class LeafRunner: Runner {
         }
         let t = max(0, local)
         let u: Double
-        if duration > 0 { u = min(t / duration, 1) }
+        // SpriteKit compares its clock with the duration in `Float`.
+        if duration > 0 { u = min(Double(Float(t)) / duration, 1) }
         else { u = leading ? 1 : min(t / zeroDurationSpan, 1) }
         let (pd, done) = eased(u, timing)
         let p = CGFloat(pd)
@@ -169,9 +170,9 @@ private final class LeafRunner: Runner {
         case .sequence, .group, .repeatForever, .timed: break   // built by makeRunner
         }
         guard done else { return .running }
-        // Ran its full time: ends at its duration (zero-duration tweens take none). A curve that reached 1
-        // early ends it here and now.
-        return u >= 1 ? .ended(at: duration) : .endedNow
+        // Ran its full time: ends at its duration (zero-duration tweens take none) — or now, if its clock
+        // only reached the duration once rounded to `Float`. A curve that reached 1 early ends it here and now.
+        return u >= 1 ? .ended(at: min(duration, t)) : .endedNow
     }
 
     func reset() {
@@ -321,10 +322,15 @@ private final class RepeatRunner: Runner {
 /// `timed` around a sequence or group (measured against SpriteKit): the curve remaps the inner clock, a curve
 /// that reaches 1 early ends it then, and — unlike a single action — once its time has passed (strictly) it
 /// finishes regardless of the curve, running the inner tween to its end and carrying the rest.
+///
+/// From the moment the curve reaches 1 (or the time has passed) the inner clock runs on in real time past the
+/// inner duration, so zero-duration members at the end (a jump back, a `run`) complete as in SpriteKit: one
+/// step later, once their 1e-6 s has passed. Until then the container is still running.
 private final class TimedContainerRunner: Runner {
     private let inner: Runner
     private let duration: TimeInterval
     private let timing: (Double) -> Double
+    private var curveDoneAt: TimeInterval?   // local time at which the curve first reached 1
 
     init(_ r: Runner, duration: TimeInterval, timing: @escaping (Double) -> Double) {
         inner = r
@@ -335,15 +341,23 @@ private final class TimedContainerRunner: Runner {
     func update(_ node: SceneNode, _ local: TimeInterval) -> Progress {
         let t = max(0, local)
         if t > duration {
-            _ = inner.update(node, duration)
+            _ = inner.update(node, duration + (t - min(curveDoneAt ?? duration, duration)))
             return .ended(at: duration)
         }
         let u = duration > 0 ? t / duration : 1
         let (p, done) = eased(u, timing)
-        _ = inner.update(node, duration * p)
-        guard done else { return .running }
+        guard done else {
+            _ = inner.update(node, duration * p)
+            return .running
+        }
+        let since = curveDoneAt ?? t
+        curveDoneAt = since
+        if case .running = inner.update(node, duration + (t - since)) { return .running }
         return u >= 1 ? .ended(at: duration) : .endedNow
     }
 
-    func reset() { inner.reset() }
+    func reset() {
+        curveDoneAt = nil
+        inner.reset()
+    }
 }
