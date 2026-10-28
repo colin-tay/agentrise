@@ -36,11 +36,16 @@ package enum TweenEngine {
     }
 
     private static func visit(_ n: SceneNode, dt: TimeInterval) {
-        for r in n.tweens where n.tweens.contains(where: { $0 === r }) {
-            // Like SpriteKit, a tween's first frame is the step after `run`, at local time 0.
-            if r.started { r.elapsed += dt } else { r.started = true }
-            if case .running = r.runner.update(n, r.elapsed) { continue }
-            n.tweens.removeAll { $0 === r }
+        if !n.tweens.isEmpty {
+            let edits = n.tweenEdits
+            for r in n.tweens {
+                // A block may have removed it (or replaced it by key) earlier in this step.
+                if n.tweenEdits != edits, !n.tweens.contains(where: { $0 === r }) { continue }
+                // Like SpriteKit, a tween's first frame is the step after `run`, at local time 0.
+                if r.started { r.elapsed += dt } else { r.started = true }
+                if case .running = r.runner.update(n, r.elapsed) { continue }
+                n.tweens.removeAll { $0 === r }
+            }
         }
         for c in n.children where c.parent === n { visit(c, dt: dt) }
     }
@@ -63,11 +68,11 @@ package enum TweenEngine {
 
 /// The live state of one tween. `update(node, local)` shows it `local` seconds after it started (`local` never
 /// decreases) and says whether it is done. The first call starts the tween (absolute tweens read their start
-/// value then).
-protocol Runner: AnyObject {
-    func update(_ node: SceneNode, _ local: TimeInterval) -> Progress
+/// value then). A class rather than a protocol: its calls dispatch through a vtable instead of an existential.
+class Runner {
+    func update(_ node: SceneNode, _ local: TimeInterval) -> Progress { fatalError("abstract") }
     /// Back to the state before its first `update`, so loops reuse runners instead of rebuilding them.
-    func reset()
+    func reset() {}
 }
 
 enum Progress {
@@ -115,7 +120,12 @@ private func eased(_ u: Double, _ timing: ((Double) -> Double)?) -> (p: Double, 
 }
 
 private final class LeafRunner: Runner {
-    private let tween: Tween
+    /// The tween's leaf, flattened once (switching over the indirect `Tween` every frame costs retains).
+    private enum Op {
+        case moveBy(CGFloat, CGFloat), moveTo(CGFloat?, CGFloat?), rotateTo(CGFloat), fadeAlpha(CGFloat)
+        case scaleX(CGFloat), scaleY(CGFloat), wait, custom((SceneNode, TimeInterval) -> Void), run(() -> Void)
+    }
+    private let op: Op
     private let duration: TimeInterval
     private let timing: ((Double) -> Double)?
     private let leading: Bool
@@ -125,17 +135,27 @@ private final class LeafRunner: Runner {
     private var fired = false           // run: the block has been called
 
     init(_ t: Tween, timing: ((Double) -> Double)?, leading: Bool) {
-        tween = t
+        switch t {
+        case let .moveBy(dx, dy, _): op = .moveBy(dx, dy)
+        case let .moveTo(x, y, _): op = .moveTo(x, y)
+        case let .rotateTo(a, _): op = .rotateTo(a)
+        case let .fadeAlpha(a, _): op = .fadeAlpha(a)
+        case let .scaleX(v, _): op = .scaleX(v)
+        case let .scaleY(v, _): op = .scaleY(v)
+        case let .custom(_, block): op = .custom(block)
+        case let .run(block): op = .run(block)
+        case .wait, .sequence, .group, .repeatForever, .timed: op = .wait   // containers are built by makeRunner
+        }
         duration = spriteKitDuration(t.duration)
         self.timing = timing
         self.leading = leading
     }
 
-    func update(_ node: SceneNode, _ local: TimeInterval) -> Progress {
+    override func update(_ node: SceneNode, _ local: TimeInterval) -> Progress {
         let isStart = !started
         if isStart {
             started = true
-            switch tween {
+            switch op {
             case .moveTo: from = node.position
             case .rotateTo: from.x = node.zRotation
             case .fadeAlpha: from.x = node.alpha
@@ -151,23 +171,22 @@ private final class LeafRunner: Runner {
         else { u = leading ? 1 : min(t / zeroDurationSpan, 1) }
         let (pd, done) = eased(u, timing)
         let p = CGFloat(pd)
-        switch tween {
-        case let .moveBy(dx, dy, _):
+        switch op {
+        case let .moveBy(dx, dy):
             let dp = p - last
             last = p
             node.position.x += dx * dp
             node.position.y += dy * dp
-        case let .moveTo(x, y, _):
+        case let .moveTo(x, y):
             if let x { node.position.x = from.x + (x - from.x) * p }
             if let y { node.position.y = from.y + (y - from.y) * p }
-        case let .rotateTo(a, _): node.zRotation = from.x + (a - from.x) * p
-        case let .fadeAlpha(a, _): node.alpha = from.x + (a - from.x) * p
-        case let .scaleX(s, _): node.xScale = from.x + (s - from.x) * p
-        case let .scaleY(s, _): node.yScale = from.x + (s - from.x) * p
+        case let .rotateTo(a): node.zRotation = from.x + (a - from.x) * p
+        case let .fadeAlpha(a): node.alpha = from.x + (a - from.x) * p
+        case let .scaleX(s): node.xScale = from.x + (s - from.x) * p
+        case let .scaleY(s): node.yScale = from.x + (s - from.x) * p
         case .wait: break
-        case .custom(_, let block): block(node, min(t, duration))
+        case .custom(let block): block(node, min(t, duration))
         case .run(let block): if done && !fired { fired = true; block() }   // when it completes, as SpriteKit does
-        case .sequence, .group, .repeatForever, .timed: break   // built by makeRunner
         }
         guard done else { return .running }
         // Ran its full time: ends at its duration (zero-duration tweens take none) — or now, if its clock
@@ -175,7 +194,7 @@ private final class LeafRunner: Runner {
         return u >= 1 ? .ended(at: min(duration, t)) : .endedNow
     }
 
-    func reset() {
+    override func reset() {
         started = false
         from = .zero
         last = 0
@@ -192,7 +211,7 @@ private final class SequenceRunner: Runner {
         runners = ts.enumerated().map { makeRunner($1, timing: nil, leading: $0 == 0) }
     }
 
-    func update(_ node: SceneNode, _ local: TimeInterval) -> Progress {
+    override func update(_ node: SceneNode, _ local: TimeInterval) -> Progress {
         var startsNow = false
         while index < runners.count {
             let isLast = index == runners.count - 1
@@ -220,7 +239,7 @@ private final class SequenceRunner: Runner {
         return startsNow ? .endedNow : .ended(at: start)
     }
 
-    func reset() {
+    override func reset() {
         index = 0
         start = 0
         runners.forEach { $0.reset() }
@@ -236,7 +255,7 @@ private final class GroupRunner: Runner {
         ends = Array(repeating: nil, count: ts.count)
     }
 
-    func update(_ node: SceneNode, _ local: TimeInterval) -> Progress {
+    override func update(_ node: SceneNode, _ local: TimeInterval) -> Progress {
         for (i, r) in runners.enumerated() where ends[i] == nil {
             switch r.update(node, local) {
             case .running: break
@@ -252,7 +271,7 @@ private final class GroupRunner: Runner {
         return .ended(at: latest)
     }
 
-    func reset() {
+    override func reset() {
         for i in ends.indices { ends[i] = nil }
         runners.forEach { $0.reset() }
     }
@@ -281,7 +300,7 @@ private final class RepeatRunner: Runner {
     /// at the same phase). The cycle's runner is reused. Without blocks, a long catch-up runs two cycles,
     /// measures what one cycle does to the node — each property is either reset by an absolute tween or
     /// shifted by a fixed amount by `moveBy` — and applies the rest arithmetically.
-    func update(_ node: SceneNode, _ local: TimeInterval) -> Progress {
+    override func update(_ node: SceneNode, _ local: TimeInterval) -> Progress {
         var previous: (state: NodeState, length: TimeInterval)?
         while true {
             let length: TimeInterval
@@ -313,7 +332,7 @@ private final class RepeatRunner: Runner {
         }
     }
 
-    func reset() {
+    override func reset() {
         cycleStart = 0
         current.reset()
     }
@@ -338,7 +357,7 @@ private final class TimedContainerRunner: Runner {
         self.timing = timing
     }
 
-    func update(_ node: SceneNode, _ local: TimeInterval) -> Progress {
+    override func update(_ node: SceneNode, _ local: TimeInterval) -> Progress {
         let t = max(0, local)
         if t > duration {
             _ = inner.update(node, duration + (t - min(curveDoneAt ?? duration, duration)))
@@ -356,7 +375,7 @@ private final class TimedContainerRunner: Runner {
         return u >= 1 ? .ended(at: duration) : .endedNow
     }
 
-    func reset() {
+    override func reset() {
         curveDoneAt = nil
         inner.reset()
     }

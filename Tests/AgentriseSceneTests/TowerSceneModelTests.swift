@@ -746,7 +746,8 @@ func makeModel(_ size: CGSize, scale: CGFloat = 2, clock: @escaping () -> Date =
         // An unchanged set keeps its nodes (the flow doesn't restart).
         let kept = model.tethers.map(\.node)
         model.render([a], animated: true)
-        #expect(model.tethers.map(\.node).elementsEqual(kept, by: ===))
+        let same = model.tethers.map(\.node).elementsEqual(kept, by: ===)
+        #expect(same)
     }
 
     @Test func highlightedSessionVanishingClearsEverything() {

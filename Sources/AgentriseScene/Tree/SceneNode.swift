@@ -35,14 +35,24 @@ package final class SceneNode {
     package var colorBlendFactor: CGFloat = 0
     package var isHidden = false
     package private(set) var children: [SceneNode] = []
-    package private(set) weak var parent: SceneNode?
+    /// Not retained (the parent holds its children). Unowned rather than weak, so walking the tree every frame
+    /// costs no weak loads: `removeFromParent`, `removeAllChildren` and a parent's `deinit` clear it, so it never
+    /// dangles.
+    package private(set) unowned(unsafe) var parent: SceneNode?
 
     /// Running tweens in the order they were added. `TweenEngine` owns the runners.
     var tweens: [TweenEngine.Running] = []
+    /// Bumped by `run` and the removals: the engine re-checks which tweens are still there only after one.
+    var tweenEdits = 0
+
 
     package init(name: String? = nil, sprite: Bool = false) {
         self.name = name
         isSprite = sprite
+    }
+
+    deinit {
+        for c in children { c.parent = nil }
     }
 
     /// A sprite's rectangle in its parent's points (`SKSpriteNode.frame`, without rotation); a plain node's
@@ -130,14 +140,17 @@ package final class SceneNode {
     package func run(_ t: Tween, withKey key: String? = nil) {
         if let key { removeTween(forKey: key) }
         tweens.append(TweenEngine.Running(key: key, tween: t))
+        tweenEdits &+= 1
     }
 
     package func removeTween(forKey key: String) {
         tweens.removeAll { $0.key == key }
+        tweenEdits &+= 1
     }
 
     package func removeAllTweens() {
         tweens.removeAll()
+        tweenEdits &+= 1
     }
 
     package var hasTweens: Bool { !tweens.isEmpty }

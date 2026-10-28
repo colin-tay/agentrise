@@ -21,11 +21,18 @@ final class SpriteKitDisplay: SKScene {
     private var lastUpdate: TimeInterval?
     let atlasTextures = AtlasTextures()
 
-    /// One SpriteKit node per model node, by the model node's identity.
+    /// One SpriteKit node per model node, by the model node's identity. It holds its model node (a mirror
+    /// lives only while the node is in the tree; one that wasn't reached by a sync is dropped).
     private final class Mirror {
-        weak var node: SceneNode?
+        let node: SceneNode
         let sk: SKNode
+        let sprite: SKSpriteNode?
+        let shape: SKShapeNode?
         let tether: TowerSceneModel.Tether?
+        /// The SpriteKit parent it was added to.
+        var parent: ObjectIdentifier?
+        var name: String?
+        var isHidden = false
         var image: BakedImage?
         var drawing: ArtDrawing?
         var color: Color?
@@ -37,7 +44,13 @@ final class SpriteKitDisplay: SKScene {
         var size = CGSize(width: CGFloat.nan, height: .nan), anchorPoint = CGPoint(x: CGFloat.nan, y: .nan)
         var colorBlendFactor = CGFloat.nan
         var seen = 0
-        init(node: SceneNode, sk: SKNode, tether: TowerSceneModel.Tether?) { self.node = node; self.sk = sk; self.tether = tether }
+        init(node: SceneNode, sk: SKNode, tether: TowerSceneModel.Tether?) {
+            self.node = node
+            self.sk = sk
+            sprite = sk as? SKSpriteNode
+            shape = sk as? SKShapeNode
+            self.tether = tether
+        }
     }
     private var mirrors: [ObjectIdentifier: Mirror] = [:]
     private var generation = 0
@@ -81,36 +94,44 @@ final class SpriteKitDisplay: SKScene {
         relieve(after: dt)
     }
 
-    /// Mirrors the model's tree into SpriteKit (properties, textures, structure).
+    /// Mirrors the model's tree into SpriteKit (properties, textures, structure). Only what changed is written.
     func sync() {
         generation += 1
+        reached = 0
         if atlasTextures.update(model.atlas) { scheduleRelief() }
-        let tethers = Dictionary(model.tethers.map { (ObjectIdentifier($0.node), $0) }, uniquingKeysWith: { a, _ in a })
-        syncChildren(of: model.root, into: self, tethers: tethers)
-        if mirrors.count > 0 {
-            for (k, m) in mirrors where m.seen != generation {
-                m.sk.removeFromParent()
-                mirrors[k] = nil
-            }
+        let tethers = model.tethers.isEmpty ? [:] : Dictionary(model.tethers.map { (ObjectIdentifier($0.node), $0) }, uniquingKeysWith: { a, _ in a })
+        syncChildren(of: model.root, into: self, id: ObjectIdentifier(self), tethers: tethers)
+        // Every mirror was reached: nothing left the tree.
+        guard reached != mirrors.count else { return }
+        for (k, m) in mirrors where m.seen != generation {
+            m.sk.removeFromParent()
+            mirrors[k] = nil
         }
     }
 
-    private func syncChildren(of node: SceneNode, into parent: SKNode, tethers: [ObjectIdentifier: TowerSceneModel.Tether]) {
+    /// Mirrors reached by the sync in progress.
+    private var reached = 0
+
+    private func syncChildren(of node: SceneNode, into parent: SKNode, id parentID: ObjectIdentifier,
+                              tethers: [ObjectIdentifier: TowerSceneModel.Tether]) {
         for c in node.children {
             let m = mirror(for: c, tethers: tethers)
             m.seen = generation
-            if m.sk.parent !== parent {
+            reached += 1
+            if m.parent != parentID {
                 m.sk.removeFromParent()
                 parent.addChild(m.sk)
+                m.parent = parentID
             }
             apply(c, to: m)
-            syncChildren(of: c, into: m.sk, tethers: tethers)
+            if !c.children.isEmpty { syncChildren(of: c, into: m.sk, id: ObjectIdentifier(m.sk), tethers: tethers) }
         }
     }
 
     private func mirror(for n: SceneNode, tethers: [ObjectIdentifier: TowerSceneModel.Tether]) -> Mirror {
         let id = ObjectIdentifier(n)
         if let m = mirrors[id], m.node === n { return m }
+        mirrors[id]?.sk.removeFromParent()
         let tether = tethers[id]
         let sk: SKNode
         if let tether {
@@ -131,15 +152,15 @@ final class SpriteKitDisplay: SKScene {
 
     private func apply(_ n: SceneNode, to m: Mirror) {
         let sk = m.sk
-        if sk.name != n.name { sk.name = n.name }
+        if m.name != n.name { m.name = n.name; sk.name = n.name }
         if m.position != n.position { m.position = n.position; sk.position = n.position }
         if m.zPosition != n.zPosition { m.zPosition = n.zPosition; sk.zPosition = n.zPosition }
         if m.alpha != n.alpha { m.alpha = n.alpha; sk.alpha = n.alpha }
         if m.xScale != n.xScale { m.xScale = n.xScale; sk.xScale = n.xScale }
         if m.yScale != n.yScale { m.yScale = n.yScale; sk.yScale = n.yScale }
         if m.zRotation != n.zRotation { m.zRotation = n.zRotation; sk.zRotation = n.zRotation }
-        if sk.isHidden != n.isHidden { sk.isHidden = n.isHidden }
-        if let sprite = sk as? SKSpriteNode {
+        if m.isHidden != n.isHidden { m.isHidden = n.isHidden; sk.isHidden = n.isHidden }
+        if let sprite = m.sprite {
             // SpriteKit's `size` setter takes the scaled size (the scales were set above).
             if m.size != n.size, n.xScale != 0, n.yScale != 0 {
                 m.size = n.size
@@ -149,7 +170,7 @@ final class SpriteKitDisplay: SKScene {
             if m.colorBlendFactor != n.colorBlendFactor { m.colorBlendFactor = n.colorBlendFactor; sprite.colorBlendFactor = n.colorBlendFactor }
             if n.color != m.color { m.color = n.color; sprite.color = n.color.map { NSColor($0) } ?? .white }
             bindTexture(n, m, sprite)
-        } else if let shape = sk as? SKShapeNode, let t = m.tether,
+        } else if let shape = m.shape, let t = m.tether,
                   let c = model.tetherCurve(from: t.bossKey, to: t.key) {
             // Rebuilt every frame, so the line follows robots that are walking or riding.
             shape.path = Self.tetherPath(c, phase: t.phase)
@@ -188,7 +209,7 @@ final class SpriteKitDisplay: SKScene {
     }
 
     /// The SpriteKit node showing a model node (tests).
-    func skNode(for n: SceneNode) -> SKNode? { mirrors[ObjectIdentifier(n)].flatMap { $0.node === n ? $0.sk : nil } }
+    func skNode(for n: SceneNode) -> SKNode? { mirrors[ObjectIdentifier(n)].flatMap { $0.node === n && $0.seen == generation ? $0.sk : nil } }
 
     // MARK: Tethers
 
