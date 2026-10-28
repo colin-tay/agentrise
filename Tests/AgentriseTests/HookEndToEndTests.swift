@@ -119,12 +119,16 @@ private let claudeStop = Data(#"{"hook_event_name":"Stop","session_id":"s1"}"#.u
 
 /// Runs the real `agentrise-hook` against a real `SocketServer`, with the hook's data directory
 /// moved into a fresh temporary one (`CFFIXED_USER_HOME` + `HOME` on macOS, `LOCALAPPDATA` on
-/// Windows), so the tests never reach a real running Agentrise. If the override ever stops working,
-/// the two delivery tests fail visibly (their temp server receives nothing).
+/// Windows). The no-listener run happens only after delivery to the temp server has proven that this
+/// exact environment routes the hook to the temp root. Accepted residual risk: if a future OS stopped
+/// honoring `CFFIXED_USER_HOME`, each delivery test would write one line to the real socket and then
+/// fail visibly (its temp server receives nothing).
 @Suite(.serialized) struct HookEndToEndTests {
     /// Sends `stdin` through the hook to a listening server and checks the one line that arrives
-    /// matches what `EventSlimmer` makes of the same input and environment.
-    private func deliver(_ stdin: Data, args: [String], agent: AgentKind) async throws -> HookRun {
+    /// matches what `EventSlimmer` makes of the same input and environment. With `thenWithoutListener`,
+    /// it then stops the server and runs the hook again in the same, now proven, environment.
+    private func deliver(_ stdin: Data, args: [String], agent: AgentKind,
+                         thenWithoutListener: Bool = false) async throws -> HookRun {
         let dir = try makeTempDir()
         defer { try? FileManager.default.removeItem(atPath: dir) }
         let env = childEnvironment(dataRoot: dir)
@@ -148,27 +152,26 @@ private let claudeStop = Data(#"{"hook_event_name":"Stop","session_id":"s1"}"#.u
         #expect(got.receivedAt <= Date().addingTimeInterval(1))
         got.receivedAt = expected.receivedAt
         #expect(got == expected)
+
+        if thenWithoutListener {
+            // Reached only once the line arrived on the temp server (the `#require` above).
+            server.stop()
+            let again = try runHook(args, stdin: stdin, env: env)
+            #expect(again.status == 0)
+            // Bounds "returns promptly": margin over the 200 ms connect timeout plus process spawn
+            // (Windows Defender may scan a freshly built exe on first launch).
+            #expect(again.elapsed < 5)
+        }
         return run
     }
 
     @Test func claudeEventReachesTheServer() async throws {
-        let run = try await deliver(claudeStop, args: [], agent: .claude)
+        let run = try await deliver(claudeStop, args: [], agent: .claude, thenWithoutListener: true)
         #expect(run.stdout.isEmpty)
     }
 
     @Test func codexStopReachesTheServerAndAnswersCodex() async throws {
         let run = try await deliver(try codexStopFixture(), args: ["--agent", "codex"], agent: .codex)
         #expect(run.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "{}")
-    }
-
-    @Test func hookExitsQuicklyWithNoListener() throws {
-        // Its own fresh root with no server: never the real data directory.
-        let dir = try makeTempDir()
-        defer { try? FileManager.default.removeItem(atPath: dir) }
-        let run = try runHook([], stdin: claudeStop, env: childEnvironment(dataRoot: dir))
-        #expect(run.status == 0)
-        // Bounds "returns promptly": margin over the 200 ms connect timeout plus process spawn
-        // (Windows Defender may scan a freshly built exe on first launch).
-        #expect(run.elapsed < 5)
     }
 }
