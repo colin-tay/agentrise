@@ -180,6 +180,10 @@ final class RobotSprite: SKNode {
         node.texture = art.atlas.texture(for: image)
     }
 
+    /// The baked image a part of this robot shows (nil for a node without one). For tests: the motion
+    /// baselines record which image each part draws.
+    func sourceImage(of node: SKNode) -> CGImage? { sources[ObjectIdentifier(node)]?.image }
+
     /// Re-asks the atlas for every sprite's texture (the scene calls this when the atlas `version` changes),
     /// so freshly packed images move onto the shared page and batch with the rest.
     func rebindTextures() {

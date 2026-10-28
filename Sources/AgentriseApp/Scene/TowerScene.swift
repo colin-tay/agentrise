@@ -354,6 +354,9 @@ final class TowerScene: SKScene {
     static let waitingLongAfter: TimeInterval = 600
     /// Injectable for tests.
     var clock: () -> Date = Date.init
+    /// The idle-loop phase a new robot starts at, by entity key (random, so robots don't bob in step).
+    /// Injectable for tests: the motion baselines need fixed phases.
+    var idlePhase: (_ key: String) -> TimeInterval = { _ in .random(in: 0...2.6) }
     /// The next moment an entity changes room or pose purely because time passed; the controller only
     /// renders on change, so the scene re-places itself then.
     private var nextTimedChange: Date?
@@ -473,7 +476,7 @@ final class TowerScene: SKScene {
                 robots[e.key] = sprite
                 owner[e.key] = e.sessionId
             } else {
-                sprite = RobotSprite(look: look, teamColor: Team.color(s.teamIndex), art: art)
+                sprite = RobotSprite(look: look, teamColor: Team.color(s.teamIndex), art: art, phase: idlePhase(e.key))
                 robots[e.key] = sprite
                 owner[e.key] = e.sessionId
                 drawOrder[e.key] = nextDrawOrder
@@ -721,14 +724,21 @@ final class TowerScene: SKScene {
     private static let tetherPeriod: TimeInterval = 1.2
     private static let dash: [CGFloat] = [6, 6]
 
-    /// The old curve from the boss's head to a robot's chest (layout coordinates, then flipped), dashed.
-    private func tetherPath(from bossKey: String, to key: String, phase: CGFloat) -> CGPath? {
+    /// The tether's quad curve from the boss's head to a robot's chest, in scene coordinates (nil while either
+    /// is gone). `tetherPath` dashes it; the motion baselines record it.
+    func tetherCurve(from bossKey: String, to key: String) -> (from: CGPoint, control: CGPoint, to: CGPoint)? {
         guard let bp = transit.position(of: bossKey), let bs = robot(bossKey)?.robotScale,
               let rp = transit.position(of: key), let rs = robot(key)?.robotScale else { return nil }
         let b = CGPoint(x: bp.x, y: bp.y - 40 * bs), p = CGPoint(x: rp.x, y: rp.y - 30 * rs)
+        return (scenePoint(b), scenePoint(CGPoint(x: (b.x + p.x) / 2, y: min(b.y, p.y) - 40)), scenePoint(p))
+    }
+
+    /// The old curve from the boss's head to a robot's chest (layout coordinates, then flipped), dashed.
+    private func tetherPath(from bossKey: String, to key: String, phase: CGFloat) -> CGPath? {
+        guard let c = tetherCurve(from: bossKey, to: key) else { return nil }
         let path = CGMutablePath()
-        path.move(to: scenePoint(b))
-        path.addQuadCurve(to: scenePoint(p), control: scenePoint(CGPoint(x: (b.x + p.x) / 2, y: min(b.y, p.y) - 40)))
+        path.move(to: c.from)
+        path.addQuadCurve(to: c.to, control: c.control)
         // Dash phases are periodic; keep ours positive.
         let period = Self.dash.reduce(0, +)
         var ph = phase.truncatingRemainder(dividingBy: period)
