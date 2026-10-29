@@ -577,6 +577,33 @@ func makeModel(_ size: CGSize, scale: CGFloat = 2, clock: @escaping () -> Date =
         #expect(model.robot("s:a")?.art === model.robot("s:b")?.art)
     }
 
+    /// Review M1: while paused (no frames, so no commits) a model that keeps rendering new labels doesn't hold every
+    /// label it ever baked in the atlas queue, only what is on screen; the next frame packs what is shown.
+    @Test func pausedRendersDoNotGrowTheAtlasQueue() {
+        let model = makeModel(size)
+        /// Distinct images the scene shows now: robots' parts and the LEDs.
+        func shown() -> [ObjectIdentifier: BakedImage] {
+            var out: [ObjectIdentifier: BakedImage] = [:]
+            func walk(_ n: SceneNode) { if let i = n.image { out[ObjectIdentifier(i)] = i }; n.children.forEach(walk) }
+            for key in ["s:a", "s:b"] { if let r = model.robot(key) { walk(r.root) } }
+            model.root.childNode(withName: "leds")?.children.forEach(walk)
+            return out
+        }
+        for i in 0..<200 {
+            var s = session("a")
+            s.title = "任务 \(i)"
+            s.waitingSummary = "第 \(i) 个问题"
+            s.status = i % 2 == 0 ? .working : .waiting
+            model.render([s, session("b")], animated: false)
+            #expect(model.atlas.pendingCount > 0)
+            #expect(model.atlas.pendingCount <= shown().count)
+        }
+        model.advance(by: 1.0 / 60)
+        #expect(model.atlas.pendingCount == 0)
+        #expect(!shown().isEmpty)
+        #expect(shown().values.allSatisfy(model.atlas.isPacked))
+    }
+
     @Test func headerIsBakedOncePerCopy() {
         let model = makeModel(size)
         let header = model.root.childNode(withName: "header")

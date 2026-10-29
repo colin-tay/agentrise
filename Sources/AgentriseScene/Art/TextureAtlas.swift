@@ -92,6 +92,21 @@ package final class TextureAtlas {
         pending.append(key)
     }
 
+    /// Forgets the queue without packing it. Whoever still shows an image queues it again (`RobotRig.requeue`): while
+    /// no frames run (a hidden or minimised window never commits), the queue then holds only the images on screen,
+    /// not every image baked since the last frame.
+    package func dropPending() {
+        lock.lock(); defer { lock.unlock() }
+        pending.removeAll()
+        pendingSet.removeAll()
+    }
+
+    /// Images queued for the next commit (tests).
+    package var pendingCount: Int {
+        lock.lock(); defer { lock.unlock() }
+        return pending.count
+    }
+
     package func isPacked(_ image: BakedImage) -> Bool {
         lock.lock(); defer { lock.unlock() }
         return entry(image) != nil

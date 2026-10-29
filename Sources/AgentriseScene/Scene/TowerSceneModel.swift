@@ -257,6 +257,11 @@ package final class TowerSceneModel {
         atlas.commit()
         guard atlas.version != atlasVersion else { return }
         atlasVersion = atlas.version
+        requeueAtlas()
+    }
+
+    /// Every robot and LED queues the images it shows on the atlas again.
+    private func requeueAtlas() {
         for (_, r) in robots { r.requeue() }
         for (_, d) in departing { d.rig.requeue() }
         for l in leds.children { if let img = l.image { atlas.want(img) } }
@@ -320,10 +325,17 @@ package final class TowerSceneModel {
     package func noteSubResult(sessionId: String, subId: String, success: Bool) { pendingResults["a:\(sessionId):\(subId)"] = success }
 
     /// The first render of a scene places everyone without animation; later ones walk, ride and fade.
+    /// A render without animation means no frames are running (a hidden, minimised or covered window), so nothing
+    /// commits the atlas: its queue is cut back to the images still on screen, instead of holding every name and
+    /// bubble baked while the window was away (on Windows, closed to the tray for days). The next frame packs them.
     package func render(_ sessions: [Session], animated: Bool) {
         lastSessions = sessions
         place(animated: animated && hasRendered)
         hasRendered = true
+        if !animated {
+            atlas.dropPending()
+            requeueAtlas()
+        }
     }
 
     /// The room whose (slightly enlarged) rect holds a point — where a robot "currently" is.
