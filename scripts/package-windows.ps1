@@ -131,9 +131,11 @@ foreach ($f in $vcFiles) {
 $vcFiles = @($vcFiles | ForEach-Object { Split-Path -Leaf $_ })
 if ($vcFiles.Count -eq 0) { throw 'no VC++ runtime DLLs in the closure (expected vcruntime140.dll and msvcp140.dll)' }
 $vcVersion = Split-Path -Leaf (Split-Path -Parent (Split-Path -Parent $vcRuntime))
-$redistList = if ($vsLine -eq '2022') { 'https://learn.microsoft.com/visualstudio/releases/2022/redistribution' }
+# vswhere's product line is "2022" for Visual Studio 2022 and "18" for Visual Studio 2026.
+$vsYear = switch ($vsLine) { { $_ -in '17', '2022' } { '2022' } { $_ -in '18', '2026' } { '2026' } default { $vsLine } }
+$redistList = if ($vsYear -eq '2022') { 'https://learn.microsoft.com/visualstudio/releases/2022/redistribution' }
               else { 'https://learn.microsoft.com/visualstudio/releases/2026/redistribution' }
-$vsName = if ($vsLine) { "Microsoft Visual Studio $vsLine" } else { 'Microsoft Visual Studio' }
+$vsName = if ($vsYear) { "Microsoft Visual Studio $vsYear" } else { 'Microsoft Visual Studio' }
 
 $readme = @"
 Agentrise $Version for Windows (experimental) / Windows 实验版
@@ -167,8 +169,8 @@ App & browser control -> Smart App Control.
 Hooks: right-click the tray icon -> Settings... -> install the Claude Code / Codex hooks (previewed,
 the old file backed up). The hook is copied to %LOCALAPPDATA%\Agentrise\bin\, so moving or deleting
 this folder later doesn't break it.
-Runtime: the Visual C++ runtime ($($vcFiles -join ', ')) ships next to Agentrise.exe; nothing else to
-install. If Windows still reports a missing VCRUNTIME140.dll or MSVCP140.dll, install Microsoft's
+Runtime: the Visual C++ runtime ($($vcFiles -join ', ')) ships next to Agentrise.exe;
+nothing else to install. If Windows still reports a missing VCRUNTIME140.dll or MSVCP140.dll, install Microsoft's
 Visual C++ v14 Redistributable (x64): https://aka.ms/vc14/vc_redist.x64.exe
 Experimental: x64 only (runs on Windows 11 ARM through its x64 emulation). Report problems at
 https://github.com/colin-tay/agentrise/issues/new?template=windows.yml
@@ -181,9 +183,11 @@ Swift runtime and Foundation DLLs (swift*.dll, Foundation*.dll, _Foundation*.dll
 BlocksRuntime.dll, ...): the Swift project, Apache License 2.0 with Runtime Library Exception
 (https://swift.org/LICENSE.txt); _FoundationICU.dll contains ICU, Unicode License v3
 (https://github.com/unicode-org/icu/blob/main/LICENSE).
-$($vcFiles -join ', '): Microsoft Visual C++ runtime $vcVersion, Copyright (c) Microsoft Corporation,
-redistributed unmodified as Distributable Code under the $vsName license terms
-(https://visualstudio.microsoft.com/license-terms/; Distributable Code list: $redistList). They are licensed to you only for use with Agentrise, under
+$($vcFiles -join ', '): Microsoft Visual C++ runtime $vcVersion,
+Copyright (c) Microsoft Corporation, redistributed unmodified as Distributable Code under the
+$vsName license terms (https://visualstudio.microsoft.com/license-terms/;
+Distributable Code list: $redistList).
+They are licensed to you only for use with Agentrise, under
 terms that protect them at least as much as those license terms: do not modify, reverse engineer or
 redistribute them on their own. Microsoft is not affiliated with and does not endorse Agentrise.
 "@
