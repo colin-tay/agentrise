@@ -23,6 +23,15 @@ package struct PanelEntry: Equatable {
         lark = s.larkSent || s.isLark; since = s.statusSince; teamIndex = s.teamIndex
     }
 
+    /// How long the card has been waiting or done: "刚刚", "N 分钟", "N 小时" (both panels show it).
+    package func age(now: Date = Date()) -> String { Self.age(since: since, now: now) }
+
+    /// "刚刚" under a minute, "N 分钟" under an hour, then "N 小时" (whole units, rounded down).
+    package static func age(since date: Date, now: Date = Date()) -> String {
+        let m = Int(now.timeIntervalSince(date) / 60)
+        return m < 1 ? "刚刚" : m < 60 ? "\(m) 分钟" : "\(m / 60) 小时"
+    }
+
     /// Right-hand text of a row.
     package var countsText: String {
         if status == .standby { return "待命" }

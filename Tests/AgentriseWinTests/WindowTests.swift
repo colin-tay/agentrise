@@ -193,11 +193,52 @@ private let frame: TimeInterval = 1.0 / 60
         #expect(panel.hit(at: CGPoint(x: geo.panel.minX - 5, y: geo.panel.midY)) == nil)
     }
 
-    @Test func ages() {
-        let now = Date()
-        #expect(PanelRenderer.age(since: now.addingTimeInterval(-30), now: now) == "刚刚")
-        #expect(PanelRenderer.age(since: now.addingTimeInterval(-5 * 60), now: now) == "5 分钟")
-        #expect(PanelRenderer.age(since: now.addingTimeInterval(-125 * 60), now: now) == "2 小时")
+    /// Review M9: the minute tick draws the panel again only when an age it shows changed ("3 小时" stays for an hour).
+    @Test func minuteTickRedrawsOnlyWhenAnAgeChanged() {
+        let panel = PanelRenderer()
+        let geo = BuildingLayout.make(size: CGSize(width: 1200, height: 800))
+        let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+        var now = t0
+        panel.clock = { now }
+        panel.layout(geo, scale: 1)
+        var w = PanelEntry(waiting("w", team: 0))
+        w.since = t0.addingTimeInterval(-(3 * 3600 + 30))   // "3 小时"
+        var s = TowerPanelState()
+        s.waiting = [w]
+        panel.update(s)
+        panel.prepare()
+        #expect(panel.drawCount == 1)
+        for _ in 0..<5 {
+            now += 60
+            panel.refreshAges()
+            panel.prepare()
+        }
+        #expect(panel.drawCount == 1)
+        now = t0.addingTimeInterval(3600)   // "4 小时"
+        panel.refreshAges()
+        panel.prepare()
+        #expect(panel.drawCount == 2)
+        // A fresh card ticks over from "刚刚" to "1 分钟".
+        w.since = now
+        s.waiting = [w]
+        panel.update(s)
+        panel.prepare()
+        #expect(panel.drawCount == 3)
+        now += 30
+        panel.refreshAges()
+        panel.prepare()
+        #expect(panel.drawCount == 3)
+        now += 40
+        panel.refreshAges()
+        panel.prepare()
+        #expect(panel.drawCount == 4)
+        // Nothing with an age: never.
+        panel.update(TowerPanelState())
+        panel.prepare()
+        now += 3600
+        panel.refreshAges()
+        panel.prepare()
+        #expect(panel.drawCount == 5)
     }
 }
 

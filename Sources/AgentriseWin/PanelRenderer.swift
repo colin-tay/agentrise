@@ -11,7 +11,7 @@ import AgentriseWinArt
 /// `ArtDrawing` on a sprite above everything else in the scene tree (`node`, z 2000). A column in landscape, a strip
 /// in portrait, cards for who waits on you and who is done, rows for who works, the sleep pods behind a toggle, and the
 /// toast at the bottom. It is drawn again only when something it shows changes: the published state, the hovered
-/// row, the layout or scale, the scroll offset, the sleepers toggle, or (once a minute) the "N 分钟" ages.
+/// row, the layout or scale, the scroll offset, the sleepers toggle, or an age text ("N 分钟", checked once a minute).
 package final class PanelRenderer {
     package let node = SceneNode(name: "panel", sprite: true)
     package static let zPosition: CGFloat = 2_000
@@ -31,6 +31,10 @@ package final class PanelRenderer {
     private var hits: [(rect: CGRect, hit: Hit)] = []
     private var dirty = true
     private let measure: TextMeasuring
+    /// The age texts in the last drawing, cards in order.
+    private var agesDrawn: [String] = []
+    /// Now, for the ages (tests set it).
+    package var clock: () -> Date = Date.init
 
     /// Panels drawn (tests).
     package private(set) var drawCount = 0
@@ -66,22 +70,29 @@ package final class PanelRenderer {
         dirty = true
     }
 
-    /// The ages ("N 分钟") moved on: draw again on the next frame.
+    /// A minute passed: draw again on the next frame if an age text ("3 分钟" → "4 分钟") changed.
     package func refreshAges() {
-        if !(state.waiting.isEmpty && state.done.isEmpty) { dirty = true }
+        if ages(now: clock()) != agesDrawn { dirty = true }
+    }
+
+    /// The age texts the panel shows: waiting and done cards in the column, waiting cards only in the strip.
+    private func ages(now: Date) -> [String] {
+        (orientation == .landscape ? state.waiting + state.done : state.waiting).map { $0.age(now: now) }
     }
 
     /// Draws the panel again if anything it shows changed (called before each render, never per frame otherwise).
     package func prepare() {
         guard dirty, rect.width >= 1, rect.height >= 1 else { return }
         dirty = false
-        var plan = makePlan()
+        let now = clock()
+        var plan = makePlan(now: now)
         // The content got shorter (or the panel taller): scroll back within it.
         let limit = max(0, plan.length - (orientation == .landscape ? rect.height : rect.width))
         if scroll > limit {
             scroll = limit
-            plan = makePlan()
+            plan = makePlan(now: now)
         }
+        agesDrawn = ages(now: now)
         hits = plan.hits
         contentLength = plan.length
         let size = rect.size, elements = plan.elements, landscape = orientation == .landscape
@@ -130,14 +141,6 @@ package final class PanelRenderer {
         dirty = true
     }
 
-    // MARK: Badge text (shared with the tray)
-
-    /// "刚刚", "N 分钟", "N 小时" since `date` (the macOS panel's `minutes`).
-    package static func age(since date: Date, now: Date = Date()) -> String {
-        let m = Int(now.timeIntervalSince(date) / 60)
-        return m < 1 ? "刚刚" : m < 60 ? "\(m) 分钟" : "\(m / 60) 小时"
-    }
-
     // MARK: Plan
 
     private enum Element {
@@ -174,14 +177,14 @@ package final class PanelRenderer {
         [TextRun(s, font: FontSpec(size: size, weight: weight), color: color)]
     }
 
-    private func makePlan() -> Plan {
+    private func makePlan(now: Date) -> Plan {
         var plan = Plan()
-        if orientation == .landscape { column(&plan) } else { strip(&plan) }
+        if orientation == .landscape { column(&plan, now: now) } else { strip(&plan, now: now) }
         toast(&plan)
         return plan
     }
 
-    private func column(_ plan: inout Plan) {
+    private func column(_ plan: inout Plan, now: Date) {
         let pad: CGFloat = 10, spacing: CGFloat = 6
         let x = pad, width = rect.width - 2 * pad
         var y = pad - scroll
@@ -196,12 +199,12 @@ package final class PanelRenderer {
         if state.waiting.isEmpty && state.done.isEmpty { text(run("没有需要你处理的", 11, .regular, Self.sub)) }
         for s in state.waiting {
             let error = s.status == .error
-            let detail = (s.summary ?? (error ? "出错了" : "在等你回复")) + " · \(Self.age(since: s.since))"
+            let detail = (s.summary ?? (error ? "出错了" : "在等你回复")) + " · \(s.age(now: now))"
             y += card(s, color: error ? Self.red : Self.amber, icon: error ? "⚠️" : "🙋", detail: detail,
                       frame: CGRect(x: x, y: y, width: width, height: 0), &plan) + spacing
         }
         for s in state.done {
-            y += card(s, color: Self.green, icon: "✓", detail: "做完了 · \(Self.age(since: s.since))",
+            y += card(s, color: Self.green, icon: "✓", detail: "做完了 · \(s.age(now: now))",
                       frame: CGRect(x: x, y: y, width: width, height: 0), &plan) + spacing
         }
         text(run("干活中", 10.5, .regular, Self.sub), top: 6)
@@ -213,7 +216,7 @@ package final class PanelRenderer {
         plan.length = y + scroll - spacing + pad
     }
 
-    private func strip(_ plan: inout Plan) {
+    private func strip(_ plan: inout Plan, now: Date) {
         let pad: CGFloat = 6, spacing: CGFloat = 6
         var x = pad - scroll
         let top = pad, height = rect.height - 2 * pad
@@ -224,7 +227,7 @@ package final class PanelRenderer {
             x += s.width + 16 + spacing
         }
         for s in state.waiting {
-            x += card(s, color: s.status == .error ? Self.red : Self.amber, icon: "🙋", detail: Self.age(since: s.since),
+            x += card(s, color: s.status == .error ? Self.red : Self.amber, icon: "🙋", detail: s.age(now: now),
                       frame: CGRect(x: x, y: top, width: 220, height: height), fitWidth: true, &plan) + spacing
         }
         for s in state.done {

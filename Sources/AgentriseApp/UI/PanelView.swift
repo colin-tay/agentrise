@@ -117,8 +117,5 @@ struct PanelView: View {
             .background(RoundedRectangle(cornerRadius: 3).fill(Color(red: 0.2, green: 0.44, blue: 1)))
     }
 
-    private func minutes(_ s: PanelEntry) -> String {
-        let m = Int(Date().timeIntervalSince(s.since) / 60)
-        return m < 1 ? "刚刚" : m < 60 ? "\(m) 分钟" : "\(m / 60) 小时"
-    }
+    private func minutes(_ s: PanelEntry) -> String { s.age() }
 }

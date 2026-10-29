@@ -139,6 +139,22 @@ final class ManualScheduler: TowerScheduler {
         #expect(published.count == 1)
     }
 
+    /// Review M10: the card age both panels show (macOS `PanelView`, Windows `PanelRenderer`), in whole units.
+    @Test func panelEntryAge() {
+        let now = t0
+        #expect(PanelEntry.age(since: now.addingTimeInterval(-30), now: now) == "刚刚")
+        #expect(PanelEntry.age(since: now.addingTimeInterval(-60), now: now) == "1 分钟")
+        #expect(PanelEntry.age(since: now.addingTimeInterval(-5 * 60 - 59), now: now) == "5 分钟")
+        #expect(PanelEntry.age(since: now.addingTimeInterval(-59 * 60 - 59), now: now) == "59 分钟")
+        #expect(PanelEntry.age(since: now.addingTimeInterval(-60 * 60), now: now) == "1 小时")
+        #expect(PanelEntry.age(since: now.addingTimeInterval(-125 * 60), now: now) == "2 小时")
+        #expect(PanelEntry.age(since: now.addingTimeInterval(30), now: now) == "刚刚")   // a clock step back
+        var s = Session(id: "a", title: "t", source: .terminal(bundleId: nil), rank: .seniorEngineer, status: .waiting,
+                        activity: .waitingAtDoor, teamIndex: 0, statusSince: now.addingTimeInterval(-7 * 60), lastActivityAt: now)
+        s.waitingSummary = "x"
+        #expect(PanelEntry(s).age(now: now) == "7 分钟")
+    }
+
     @Test func panelGroupsWaitingDoneWorkingAndSleeping() throws {
         let (model, _, scheduler, _, _) = try make()
         var last: TowerPanelState?
