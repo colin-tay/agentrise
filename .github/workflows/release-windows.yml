@@ -10,7 +10,6 @@ on:
   workflow_dispatch:
   push:
     tags: ['v*']
-    branches: [build/windows-package]   # TEMPORARY: lets the PR branch run this before it is on main; removed before merge
 
 concurrency:
   group: release-windows-${{ github.ref }}
