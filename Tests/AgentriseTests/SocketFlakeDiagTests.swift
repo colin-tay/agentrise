@@ -45,7 +45,7 @@ final class Flag: @unchecked Sendable {
             // Control: a handle no child can inherit.
             let path3 = dir + "\\h\(i).sock"
             let h = path3.withCString(encodedAs: UTF16.self) {
-                CreateFileW($0, GENERIC_WRITE, 0, nil, DWORD(CREATE_ALWAYS), DWORD(FILE_ATTRIBUTE_NORMAL), nil)
+                CreateFileW($0, DWORD(GENERIC_WRITE), 0, nil, DWORD(CREATE_ALWAYS), DWORD(FILE_ATTRIBUTE_NORMAL), nil)
             }
             if h == INVALID_HANDLE_VALUE { plainFail += 1 } else { CloseHandle(h) }
         }
