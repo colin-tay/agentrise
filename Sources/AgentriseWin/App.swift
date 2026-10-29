@@ -173,7 +173,7 @@ package final class WinApp {
         Log.write("running: \(pw)×\(ph) px at \(window.scale)×, socket \(paths.socketPath)")
         var msg = MSG()
         while running {
-            while PeekMessageW(&msg, nil, 0, 0, UINT(PM_REMOVE)).boolValue {
+            while PeekMessageW(&msg, nil, 0, 0, UINT(PM_REMOVE)) {
                 if msg.message == UINT(WM_QUIT) { running = false; break }
                 TranslateMessage(&msg)
                 DispatchMessageW(&msg)
@@ -318,9 +318,9 @@ package final class WinApp {
 package enum Startup {
     /// Makes the process Per-Monitor V2 aware if the manifest didn't; returns how it got there.
     package static func ensureDpiAwareness() -> String {
-        let ok = SetProcessDpiAwarenessContext(Win.dpiAwarenessPerMonitorV2).boolValue
+        let ok = SetProcessDpiAwarenessContext(Win.dpiAwarenessPerMonitorV2)
         let err = GetLastError()
-        let v2 = AreDpiAwarenessContextsEqual(GetThreadDpiAwarenessContext(), Win.dpiAwarenessPerMonitorV2).boolValue
+        let v2 = AreDpiAwarenessContextsEqual(GetThreadDpiAwarenessContext(), Win.dpiAwarenessPerMonitorV2)
         if ok { return "per-monitor v2 set at run time (the manifest didn't)" }
         return err == DWORD(ERROR_ACCESS_DENIED) ? "per-monitor v2 \(v2 ? "yes" : "no"), from the manifest" : "dpi awareness unchanged (error \(err))"
     }

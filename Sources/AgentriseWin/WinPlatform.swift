@@ -69,7 +69,7 @@ package final class WinPlatform: PlatformServices {
         }
         defer { CloseHandle(h) }
         var code: DWORD = 0
-        guard GetExitCodeProcess(h, &code).boolValue else { return true }
+        guard GetExitCodeProcess(h, &code) else { return true }
         return code == Win.stillActive
     }
 

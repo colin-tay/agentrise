@@ -34,7 +34,7 @@ package struct WindowPlacement: Codable, Equatable {
         guard let m = MonitorFromRect(&r, DWORD(MONITOR_DEFAULTTONULL)) else { return false }
         var info = MONITORINFO()
         info.cbSize = DWORD(MemoryLayout<MONITORINFO>.size)
-        guard GetMonitorInfoW(m, &info).boolValue else { return false }
+        guard GetMonitorInfoW(m, &info) else { return false }
         let w = info.rcWork
         let iw = min(w.right, r.right) - max(w.left, r.left), ih = min(w.bottom, r.bottom) - max(w.top, r.top)
         return iw >= 100 && ih >= 100
@@ -134,7 +134,7 @@ package final class TowerWindow {
         GetWindowPlacement(hwnd, &wp)
         // rcNormalPosition is in workspace coordinates; for a window without WS_EX_TOOLWINDOW on the primary taskbar
         // side this differs from the screen by the taskbar. GetWindowRect is exact for a normal window.
-        if !IsIconic(hwnd).boolValue && !IsZoomed(hwnd).boolValue {
+        if !IsIconic(hwnd) && !IsZoomed(hwnd) {
             var r = RECT()
             GetWindowRect(hwnd, &r)
             return WindowPlacement(x: Int(r.left), y: Int(r.top), width: Int(r.right - r.left), height: Int(r.bottom - r.top))
@@ -143,11 +143,11 @@ package final class TowerWindow {
         return WindowPlacement(x: Int(r.left), y: Int(r.top), width: Int(r.right - r.left), height: Int(r.bottom - r.top))
     }
 
-    package var isVisible: Bool { IsWindowVisible(hwnd).boolValue }
-    package var isMinimized: Bool { IsIconic(hwnd).boolValue }
+    package var isVisible: Bool { IsWindowVisible(hwnd) }
+    package var isMinimized: Bool { IsIconic(hwnd) }
 
     package func show() {
-        ShowWindow(hwnd, IsIconic(hwnd).boolValue ? SW_RESTORE : SW_SHOW)
+        ShowWindow(hwnd, IsIconic(hwnd) ? SW_RESTORE : SW_SHOW)
         SetForegroundWindow(hwnd)
     }
 
@@ -200,7 +200,7 @@ package final class TowerWindow {
         case UINT(WM_MOUSEMOVE):
             if !trackingLeave {
                 var t = TRACKMOUSEEVENT(cbSize: DWORD(MemoryLayout<TRACKMOUSEEVENT>.size), dwFlags: DWORD(TME_LEAVE), hwndTrack: hwnd, dwHoverTime: 0)
-                trackingLeave = TrackMouseEvent(&t).boolValue
+                trackingLeave = TrackMouseEvent(&t)
             }
             events.pointer(point(l))
             return 0

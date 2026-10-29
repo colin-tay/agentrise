@@ -54,16 +54,16 @@ package final class SingleInstance {
     /// The current user's SID as text (`S-1-5-21-…`), formatted by hand (no sddl.h).
     package static func currentUserSID() -> String? {
         var token: HANDLE?
-        guard OpenProcessToken(GetCurrentProcess(), DWORD(TOKEN_QUERY), &token).boolValue, let token else { return nil }
+        guard OpenProcessToken(GetCurrentProcess(), DWORD(TOKEN_QUERY), &token), let token else { return nil }
         defer { CloseHandle(token) }
         var size: DWORD = 0
         _ = GetTokenInformation(token, TokenUser, nil, 0, &size)
         guard size > 0 else { return nil }
         let buffer = UnsafeMutableRawPointer.allocate(byteCount: Int(size), alignment: 8)
         defer { buffer.deallocate() }
-        guard GetTokenInformation(token, TokenUser, buffer, size, &size).boolValue else { return nil }
+        guard GetTokenInformation(token, TokenUser, buffer, size, &size) else { return nil }
         guard let sid = buffer.assumingMemoryBound(to: TOKEN_USER.self).pointee.User.Sid,
-              IsValidSid(sid).boolValue, let auth = GetSidIdentifierAuthority(sid)?.pointee,
+              IsValidSid(sid), let auth = GetSidIdentifierAuthority(sid)?.pointee,
               let count = GetSidSubAuthorityCount(sid)?.pointee else { return nil }
         let v = auth.Value
         let bytes = [v.0, v.1, v.2, v.3, v.4, v.5].map(UInt64.init)

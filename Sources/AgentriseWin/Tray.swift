@@ -131,7 +131,7 @@ package final class Tray {
         nid.uCallbackMessage = Self.callbackMessage
         nid.hIcon = currentIcon()
         setTip(&nid)
-        added = Shell_NotifyIconW(DWORD(NIM_ADD), &nid).boolValue
+        added = Shell_NotifyIconW(DWORD(NIM_ADD), &nid)
         nid.uVersion = 4   // NOTIFYICON_VERSION_4
         _ = Shell_NotifyIconW(DWORD(NIM_SETVERSION), &nid)
         if !added { Log.write("Shell_NotifyIconW(NIM_ADD) failed") }

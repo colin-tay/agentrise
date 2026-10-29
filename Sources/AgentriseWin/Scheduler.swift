@@ -91,7 +91,7 @@ package final class Win32Scheduler: TowerScheduler {
             let left = end.timeIntervalSinceNow
             if left <= 0 { return false }
             _ = MsgWaitForMultipleObjects(0, nil, false, DWORD(min(left, 0.05) * 1000), Win.allInput)
-            while PeekMessageW(&msg, nil, 0, 0, UINT(PM_REMOVE)).boolValue {
+            while PeekMessageW(&msg, nil, 0, 0, UINT(PM_REMOVE)) {
                 TranslateMessage(&msg)
                 DispatchMessageW(&msg)
             }
