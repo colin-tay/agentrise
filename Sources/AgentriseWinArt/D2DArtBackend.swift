@@ -66,9 +66,6 @@ package final class D2DArtBackend: ArtBackend {
     let roundStroke: COMObject
     /// Text rendering with (`smooth`) and without (`plain`) the stem darkening of macOS font smoothing.
     let smoothText: COMObject, plainText: COMObject
-    /// The system font fallback with emoji scaled by `D2DPen.emojiScale` (for emoji inside other text), or nil
-    /// when that is off (`D2DPen.scalesInlineEmoji`) or the system has no IDWriteFactory2.
-    let inlineEmojiFallback: COMObject?
 
     /// Makes sure the calling thread is in a COM apartment: on its first call, a thread with none joins the
     /// multi-threaded apartment for good (it is never left; the thread's end does that). A thread already in an
@@ -108,29 +105,8 @@ package final class D2DArtBackend: ArtBackend {
         }
         smoothText = params(D2DPen.smoothingContrast)
         plainText = params(0)
-        inlineEmojiFallback = D2DPen.scalesInlineEmoji ? Self.scaledEmojiFallback(writer) : nil
         d2d = factory
         dwrite = writer
-    }
-
-    /// The system font fallback, with emoji (the Miscellaneous Symbols block and the emoji planes) mapped first to
-    /// Segoe UI Emoji at `D2DPen.emojiScale`.
-    static func scaledEmojiFallback(_ writer: COMObject) -> COMObject? {
-        guard let factory = query(writer, GUIDs.IDWriteFactory2) else { return nil }
-        defer { release(factory) }
-        let f = vtable(factory, CD2D_IDWriteFactory2Vtbl.self)
-        let system = COMRef(created("IDWriteFactory2::GetSystemFontFallback") { f.GetSystemFontFallback!(factory, $0) })
-        let builder = COMRef(created("IDWriteFactory2::CreateFontFallbackBuilder") { f.CreateFontFallbackBuilder!(factory, $0) })
-        let b = vtable(builder.object, CD2D_IDWriteFontFallbackBuilderVtbl.self)
-        var ranges = [DWRITE_UNICODE_RANGE(first: 0x2600, last: 0x26FF), DWRITE_UNICODE_RANGE(first: 0x1F000, last: 0x1FAFF)]
-        let family = wide("Segoe UI Emoji")
-        let hr = family.withUnsafeBufferPointer { name -> HRESULT in
-            var names: [UnsafePointer<WCHAR>?] = [name.baseAddress]
-            return b.AddMapping!(builder.object, &ranges, UInt32(ranges.count), &names, 1, nil, nil, nil, Float(D2DPen.emojiScale))
-        }
-        check(hr, "IDWriteFontFallbackBuilder::AddMapping")
-        check(b.AddMappings!(builder.object, system.object), "IDWriteFontFallbackBuilder::AddMappings")
-        return created("IDWriteFontFallbackBuilder::CreateFontFallback") { b.CreateFontFallback!(builder.object, $0) }
     }
 
     package func bake(size: CGSize, scale: CGFloat, _ draw: (Pen) -> Void) -> BakedImage {
@@ -243,9 +219,6 @@ package final class D2DArtBackend: ArtBackend {
         for range in Self.fullWidthSymbolRanges(runs.map(\.text).joined()) {
             check(vt.SetFontFamilyName!(object, Self.symbolFamily, range), "IDWriteTextLayout::SetFontFamilyName")
         }
-        if !emojiOnly, let fallback = inlineEmojiFallback {
-            check(vt.SetFontFallback!(object, fallback), "IDWriteTextLayout2::SetFontFallback")
-        }
         guard maxLines > 0 || height != nil else { return layout }
         var count: UInt32 = 0
         _ = vt.GetLineMetrics!(object, nil, 0, &count)   // E_NOT_SUFFICIENT_BUFFER, with the count
@@ -269,10 +242,12 @@ package final class D2DArtBackend: ArtBackend {
                           truncatesTail: truncatesTail, brush: brush)
     }
 
-    /// The geometric symbols macOS draws em-wide from its CJK fonts (the team marks ◆ ★ ▲ ● ✦ ■ ✚, ✓): Segoe UI's
-    /// own forms are about half that size, so they come from Microsoft YaHei UI, whose metrics match Segoe UI's
-    /// and which the Han text on the same lines already uses.
-    static let symbolFamily = wide("Microsoft YaHei UI")
+    /// The geometric symbols macOS draws em-wide from its CJK fonts (the team marks ◆ ★ ▲ ● ✦ ■ ✚): Segoe UI's
+    /// own forms, and Microsoft YaHei UI's, are about half that size (◆ 10 × 10 px at 11 pt, 2×, against 22 × 21 on
+    /// macOS), so they come from SimSun, whose GB2312 symbols are full-width. SimSun's ascent and descent are inside
+    /// Segoe UI's, so lines keep their height and baseline (`D2DPenTests`). A symbol SimSun lacks (✦ ✚ ✓) falls
+    /// back as before.
+    static let symbolFamily = wide("SimSun")
 
     /// UTF-16 ranges of `s`'s characters that are one symbol from the Geometric Shapes, Miscellaneous Symbols or
     /// Dingbats blocks and not shown as emoji.

@@ -78,7 +78,6 @@ enum GUIDs {
     static let ID2D1Factory1 = guid("bb12d362-daee-4b9a-aa1d-14ba401cfa1f")
     static let ID2D1DeviceContext = guid("e8f7fe7a-191c-466d-ad95-975678bda998")
     static let IDWriteFactory1 = guid("30572f99-dac6-41db-a16e-0486307e606a")
-    static let IDWriteFactory2 = guid("0439fc60-ca44-4994-8dee-3a9af7b732ec")
     static let IDWriteTextLayout3 = guid("07ddcd52-020e-4de8-ac33-6c953d83f92d")
     static let IWICImagingFactory = guid("ec5ec8a9-c395-4314-9c77-54d7a935ff70")
     static let CLSID_D2D1Shadow = guid("c67ea361-1863-4e69-89db-695d3e9a5b6b")

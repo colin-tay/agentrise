@@ -34,12 +34,11 @@ package final class D2DPen: Pen {
 
     /// Segoe UI Emoji draws its glyphs about 0.8 × the size of Apple Color Emoji's at the same point size (measured
     /// on the emoji props), so a text of emoji only (a prop, `Pen.emoji`) is laid out this much larger, on a line
-    /// box of the unscaled size and with its baseline put back so the glyph's centre stays where it was.
+    /// box of the unscaled size and with its baseline put back so the glyph's centre stays where it was. Emoji
+    /// inside other text (⚡ in a name) keep their size: scaling them through a font fallback mapping
+    /// (IDWriteFontFallbackBuilder's scale) makes their line 3.4 pt taller and moves its baseline.
     static let emojiScale: CGFloat = 1.25
     static let emojiBaselineFactor: CGFloat = 0.80
-    /// Emoji inside other text (⚡ in a name) are scaled through a font fallback mapping instead
-    /// (`D2DArtBackend.scaledEmojiFallback`), which `D2DPenTests` checks leaves line height and baseline alone.
-    static let scalesInlineEmoji = true
 
     /// Text rendering: grayscale antialiasing (the bitmaps are transparent), natural symmetric rendering, gamma 1.8
     /// (DirectWrite's default) and, while font smoothing is on, the default grayscale enhanced contrast, which
