@@ -26,10 +26,17 @@ private func leaveStaleFile(at path: String) {
     let file = path.withCString(encodedAs: UTF16.self) {
         CreateFileW($0, DWORD(GENERIC_WRITE), 0, nil, DWORD(CREATE_ALWAYS), DWORD(FILE_ATTRIBUTE_NORMAL), nil)
     }
-    guard let file, file != INVALID_HANDLE_VALUE else { return }
+    guard let file, file != INVALID_HANDLE_VALUE else {
+        Issue.record("CreateFileW failed with Win32 error \(GetLastError())")
+        return
+    }
+    defer { CloseHandle(file) }
+    let bytes = Array("stale".utf8)
     var written: DWORD = 0
-    _ = WriteFile(file, Array("stale".utf8), 5, &written, nil)
-    CloseHandle(file)
+    let ok = WriteFile(file, bytes, DWORD(bytes.count), &written, nil).boolValue
+    let error = ok ? 0 : GetLastError()
+    #expect(ok, "WriteFile failed with Win32 error \(error)")
+    #expect(written == DWORD(bytes.count))
     #else
     // The macOS server only removes sockets the current user owns, so leave a socket nobody listens on.
     let fd = socket(AF_UNIX, SOCK_STREAM, 0)

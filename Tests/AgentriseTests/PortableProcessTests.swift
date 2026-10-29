@@ -44,5 +44,35 @@ import TowerKit
         #expect(args.contains("-n"))
         #expect(args.contains("3"))
     }
+
+    @Test func argumentsOfAnExitedProcessOrPidZeroAreNil() throws {
+        let pid: Int32 = try {
+            let child = Process()
+            child.executableURL = URL(fileURLWithPath: Self.systemRoot + #"\System32\cmd.exe"#)
+            child.arguments = ["/d", "/c", "exit", "0"]
+            try child.run()
+            child.waitUntilExit()
+            return child.processIdentifier
+        }()
+        #expect(ProcessAncestry.arguments(of: pid) == nil)
+        #expect(ProcessAncestry.arguments(of: 0) == nil)
+    }
+
+    @Test func argumentWithSpacesQuotesAndChineseRoundTrips() throws {
+        // cmd.exe /k stays alive reading its stdin, which this test holds open; `rem` ignores the argument.
+        let tricky = #"say "hi" 你好 世界"#
+        let child = Process()
+        child.executableURL = URL(fileURLWithPath: Self.systemRoot + #"\System32\cmd.exe"#)
+        child.arguments = ["/d", "/q", "/k", "rem", tricky]
+        let input = Pipe()
+        child.standardInput = input
+        child.standardOutput = FileHandle.nullDevice
+        try child.run()
+        defer { child.terminate(); child.waitUntilExit() }
+        let args = try #require(ProcessAncestry.arguments(of: child.processIdentifier))
+        #expect(Array(args.dropFirst()) == ["/d", "/q", "/k", "rem", tricky])
+    }
+
+    private static var systemRoot: String { ProcessInfo.processInfo.environment["SystemRoot"] ?? #"C:\Windows"# }
     #endif
 }

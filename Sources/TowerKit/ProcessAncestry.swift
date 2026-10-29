@@ -37,12 +37,13 @@ public enum ProcessAncestry {
         return found
     }
 
-    /// The command line of another process, split the way the C runtime splits it, or nil when it
-    /// can't be read: `NtQueryInformationProcess(ProcessCommandLineInformation)`, then `CommandLineToArgvW`.
+    /// The command line of another process, split by `CommandLineToArgvW`, or nil when it can't be read.
+    /// `NtQueryInformationProcess(ProcessCommandLineInformation)` needs only limited query access, so
+    /// this also reads processes of a higher integrity level, such as an elevated Codex daemon.
     public static func arguments(of pid: Int32) -> [String]? {
         guard let query = ntQueryInformationProcess, pid > 0,
-              let process = OpenProcess(DWORD(PROCESS_QUERY_LIMITED_INFORMATION) | DWORD(PROCESS_VM_READ),
-                                        false, DWORD(bitPattern: pid)) else { return nil }
+              let process = OpenProcess(DWORD(PROCESS_QUERY_LIMITED_INFORMATION), false, DWORD(bitPattern: pid))
+        else { return nil }
         defer { CloseHandle(process) }
         // The first call only asks for the size; the reply is a UNICODE_STRING followed by its text.
         var size: ULONG = 0
