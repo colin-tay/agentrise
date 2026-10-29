@@ -9,12 +9,16 @@ import Agentrise
 import AgentriseScene
 
 /// What the Windows Settings window does, without the window (tests drive it directly). The same sections and words
-/// as macOS Settings, minus Bark and the desk chime (spec §5.6): Claude Code and Codex hooks (preview first, a backup
-/// before every write), the model ranks, start at login, and the cc-connect switch. Switches live in the app's
-/// settings store under the macOS keys (`codexSeen`, `feishuBridge`).
+/// as macOS Settings, minus Bark and the desk chime (spec §5.6) and the cc-connect (飞书) switch (a macOS-only
+/// feature, spec §2): Claude Code and Codex hooks (preview first, a backup before every write), the model ranks, and
+/// start at login. Switches live in the app's settings store under the macOS keys (`codexSeen`).
+///
+/// Installing copies the hook helper (about 25 MB of DLLs on a first install), so it runs off the UI thread; the hook
+/// buttons are disabled meanwhile (`installing`).
 package final class SettingsController {
     package let installer: WinHookInstaller
     package let settings: SettingsStore
+    private let scheduler: TowerScheduler
     package var autostart: Autostart
     package let ranksFile: URL
     /// Saved ranks are in `RankBook.current`; the app re-ranks its robots.
@@ -24,6 +28,8 @@ package final class SettingsController {
     /// Trusts / untrusts Agentrise's Codex hooks through `codex app-server`, off the UI thread, reporting back on it.
     package var runTrust: (@escaping (Result<Int, Error>) -> Void) -> Void
     package var runUntrust: (@escaping (Result<Int, Error>) -> Void) -> Void
+    /// An install left the hook helper in `bin\` not current (a file in use): the app retries the copy later.
+    package var onHelperStale: () -> Void = {}
 
     package private(set) var claudeInstalled = false
     package private(set) var codexInstalled = false
@@ -33,11 +39,17 @@ package final class SettingsController {
     /// Next to the start-at-login checkbox: why it couldn't be changed.
     package private(set) var autostartStatus = ""
     package private(set) var codexBusy = false
+    /// A hook install is running (in the background).
+    package private(set) var installing = false
+    /// Files of the hook helper in `bin\` that aren't the app's (in use when it tried to replace them): the hooks are
+    /// written but may not run until the copy catches up.
+    package private(set) var helperStale: [String] = []
 
     package init(installer: WinHookInstaller, settings: SettingsStore, scheduler: TowerScheduler,
                  autostart: Autostart = Autostart(), ranksFile: URL) {
         self.installer = installer
         self.settings = settings
+        self.scheduler = scheduler
         self.autostart = autostart
         self.ranksFile = ranksFile
         let paths = installer.paths
@@ -52,6 +64,27 @@ package final class SettingsController {
         runTrust = background { try $0.trustAgentriseHooks() }
         runUntrust = background { try $0.untrustAgentriseHooks() }
         reload()
+        checkHelper()
+    }
+
+    /// Re-reads whether the installed hook helper is current (in the background; it compares every byte).
+    package func checkHelper() {
+        let helper = installer.helper
+        scheduler.inBackground { [scheduler] in
+            let stale = helper.wasInstalled ? helper.staleFiles() : []
+            scheduler.onMain { [weak self] in
+                guard let self, self.helperStale != stale else { return }
+                self.helperStale = stale
+                self.changed()
+            }
+        }
+    }
+
+    /// What the app's own retry of the helper copy found.
+    package func noteHelper(_ r: HookHelperFiles.Result) {
+        guard helperStale != r.locked else { return }
+        helperStale = r.locked
+        changed()
     }
 
     /// Re-reads what is installed.
@@ -63,15 +96,21 @@ package final class SettingsController {
     package static let newSessionNote = "新开一个 Codex 会话才会带上这个 hook，已经开着的会话不会。"
     package static let codexManualHint = "请在 Codex 里输入 /hooks，确认 Agentrise 的 hook。" + newSessionNote
     package static let trustQuestion = "Codex 要求信任这个 hook 才会运行。要我替你确认吗？"
+    package static let helperPendingNote = "；hook 程序有文件正在使用，还没更新完，稍后会自动重试"
 
     package var codexPresent: Bool { installer.codexPresent }
 
     /// The status next to "Claude Code"; `ok` shows it green.
-    package var claudeState: (text: String, ok: Bool) { claudeInstalled ? ("✓ Hooks 已安装", true) : ("Hooks 未安装", false) }
+    /// Installed but the helper in `bin\` isn't current: not shown as working.
+    package var claudeState: (text: String, ok: Bool) {
+        if !claudeInstalled { return ("Hooks 未安装", false) }
+        return helperStale.isEmpty ? ("✓ Hooks 已安装", true) : ("Hooks 已安装，hook 程序待更新", false)
+    }
 
     package var codexState: (text: String, ok: Bool) {
         if !codexPresent && !codexInstalled { return ("未发现 Codex", false) }
         if !codexInstalled { return ("未安装", false) }
+        if !helperStale.isEmpty { return ("已安装，hook 程序待更新", false) }
         return settings.bool(forKey: HookPlan.codexSeenKey) ? ("✓ 已生效", true) : ("已安装待信任", false)
     }
 
@@ -80,12 +119,8 @@ package final class SettingsController {
     /// The settings.json to confirm, or nil (the failure is in `hookStatus`).
     package func previewClaude() -> String? { attempt(\.hookStatus) { try installer.preview(.claude) } }
 
-    package func installClaude() {
-        attempt(\.hookStatus) {
-            let b = try installer.install(.claude)
-            hookStatus = "已安装" + (b.map { "，备份在 \($0.lastPathComponent)" } ?? "")
-        }
-    }
+    /// Installs in the background; `done` (on the UI thread) says whether the hooks were written.
+    package func installClaude(then done: @escaping (Bool) -> Void = { _ in }) { install(.claude, status: \.hookStatus, then: done) }
 
     package func uninstallClaude() {
         attempt(\.hookStatus) {
@@ -98,14 +133,35 @@ package final class SettingsController {
 
     package func previewCodex() -> String? { attempt(\.codexStatus) { try installer.preview(.codex) } }
 
-    /// Writes hooks.json; true when it did (the window then asks `trustQuestion`).
-    @discardableResult
-    package func installCodex() -> Bool {
-        attempt(\.codexStatus) {
-            let b = try installer.install(.codex)
-            codexStatus = "已安装" + (b.map { "，备份在 \($0.lastPathComponent)" } ?? "")
-            return true
-        } ?? false
+    /// Writes hooks.json in the background; `done` (on the UI thread) is true when it did (the window then asks
+    /// `trustQuestion`).
+    package func installCodex(then done: @escaping (Bool) -> Void = { _ in }) { install(.codex, status: \.codexStatus, then: done) }
+
+    private func install(_ agent: AgentKind, status: ReferenceWritableKeyPath<SettingsController, String>,
+                         then done: @escaping (Bool) -> Void) {
+        guard !installing else { done(false); return }
+        installing = true
+        self[keyPath: status] = "正在安装…"
+        changed()
+        let installer = installer
+        scheduler.inBackground { [scheduler] in
+            let r = Result { try installer.installReporting(agent) }
+            scheduler.onMain { [weak self] in
+                guard let self else { return }
+                self.installing = false
+                switch r {
+                case .success(let (backup, helper)):
+                    self.helperStale = helper.locked
+                    self[keyPath: status] = "已安装" + (backup.map { "，备份在 \($0.lastPathComponent)" } ?? "")
+                        + (helper.locked.isEmpty ? "" : Self.helperPendingNote)
+                    if !helper.locked.isEmpty { self.onHelperStale() }
+                case .failure(let error):
+                    self[keyPath: status] = "失败：\(error.localizedDescription)"
+                }
+                self.changed()
+                if case .success = r { done(true) } else { done(false) }
+            }
+        }
     }
 
     package func trustCodex() {
@@ -190,11 +246,6 @@ package final class SettingsController {
         changed()
     }
 
-    package var feishu: Bool {
-        get { settings.bool(forKey: CCConnectIndex.enabledKey) }
-        set { settings.set(newValue, forKey: CCConnectIndex.enabledKey); changed() }
-    }
-
     // MARK: -
 
     private func changed() {
@@ -229,9 +280,9 @@ package enum SettingsLayout {
     package static let hookStatus: Int32 = 107
     package static let rankName: Int32 = 110, rankWords: Int32 = 120   // + the rank's row (0…3)
     package static let rankSave: Int32 = 131, rankStatus: Int32 = 132
-    package static let autostart: Int32 = 141, feishu: Int32 = 142, autostartStatus: Int32 = 143
+    package static let autostart: Int32 = 141, autostartStatus: Int32 = 143
 
-    package static let clientSize = (width: Int32(520), height: Int32(466))
+    package static let clientSize = (width: Int32(520), height: Int32(440))
 
     package static let controls: [Control] = {
         var c: [Control] = [
@@ -254,10 +305,9 @@ package enum SettingsLayout {
             Control(id: 130, kind: .note, text: SettingsController.rankNote, frame: (28, 294, 464, 32)),
             Control(id: rankSave, kind: .button, text: "保存", frame: (28, 330, 80, 26)),
             Control(id: rankStatus, kind: .label, text: "", frame: (116, 334, 376, 20)),
-            Control(id: 140, kind: .group, text: "其他", frame: (12, 378, 496, 78)),
+            Control(id: 140, kind: .group, text: "其他", frame: (12, 378, 496, 52)),
             Control(id: autostart, kind: .check, text: "开机自动启动", frame: (28, 402, 140, 20)),
             Control(id: autostartStatus, kind: .label, text: "", frame: (176, 404, 316, 20)),
-            Control(id: feishu, kind: .check, text: "识别 cc-connect 转发的飞书会话", frame: (28, 428, 400, 20)),
         ]
         return c
     }()
@@ -450,12 +500,12 @@ package final class SettingsWindow {
         setText(controls[SettingsLayout.claudeButton], c.claudeInstalled ? "卸载 Hooks" : "安装 Hooks")
         setText(controls[SettingsLayout.codexState], c.codexState.text)
         setText(controls[SettingsLayout.codexButton], c.codexInstalled ? "卸载 Hook" : "安装 Hook")
-        if let b = controls[SettingsLayout.codexButton] { EnableWindow(b, !c.codexBusy && (c.codexPresent || c.codexInstalled)) }
+        if let b = controls[SettingsLayout.claudeButton] { EnableWindow(b, !c.installing) }
+        if let b = controls[SettingsLayout.codexButton] { EnableWindow(b, !c.installing && !c.codexBusy && (c.codexPresent || c.codexInstalled)) }
         setText(controls[SettingsLayout.hookStatus], [c.hookStatus, c.codexStatus].filter { !$0.isEmpty }.joined(separator: "\r\n"))
         setText(controls[SettingsLayout.rankStatus], c.rankStatus)
         check(SettingsLayout.autostart, c.autostartOn)
         setText(controls[SettingsLayout.autostartStatus], c.autostartStatus)
-        check(SettingsLayout.feishu, c.feishu)
         for id in [SettingsLayout.claudeState, SettingsLayout.codexState] { if let h = controls[id] { InvalidateRect(h, nil, true) } }
     }
 
@@ -515,17 +565,22 @@ package final class SettingsWindow {
         let c = controller
         switch id {
         case SettingsLayout.claudeButton:
+            guard !c.installing else { return }
             if c.claudeInstalled { c.uninstallClaude(); return }
             guard let preview = c.previewClaude() else { return }
             if PreviewDialog.run(owner: hwnd, file: "settings.json", text: preview) { c.installClaude() }
         case SettingsLayout.codexButton:
+            guard !c.installing else { return }
             if c.codexInstalled { c.uninstallCodex(); return }
             guard let preview = c.previewCodex() else { return }
-            guard PreviewDialog.run(owner: hwnd, file: "hooks.json", text: preview), c.installCodex() else { return }
-            let yes = withWide(SettingsController.trustQuestion) { q in
-                withWide("Codex") { MessageBoxW(hwnd, q, $0, UINT(MB_YESNO | MB_ICONQUESTION)) }
-            } == IDYES
-            if yes { c.trustCodex() } else { c.declineTrust() }
+            guard PreviewDialog.run(owner: hwnd, file: "hooks.json", text: preview) else { return }
+            c.installCodex { [weak self] ok in
+                guard ok, let self, let hwnd = self.hwnd, IsWindow(hwnd) else { return }
+                let yes = withWide(SettingsController.trustQuestion) { q in
+                    withWide("Codex") { MessageBoxW(hwnd, q, $0, UINT(MB_YESNO | MB_ICONQUESTION)) }
+                } == IDYES
+                if yes { c.trustCodex() } else { c.declineTrust() }
+            }
         case SettingsLayout.rankSave:
             var rows: [Rank: (name: String, keywords: String)] = [:]
             for (i, r) in Rank.ranksTopDown.enumerated() {
@@ -534,8 +589,6 @@ package final class SettingsWindow {
             if c.saveRanks(rows) != nil { fillRanks() }
         case SettingsLayout.autostart:
             c.setAutostart(isChecked(SettingsLayout.autostart))
-        case SettingsLayout.feishu:
-            c.feishu = isChecked(SettingsLayout.feishu)
         default:
             break
         }

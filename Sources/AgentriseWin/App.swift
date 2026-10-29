@@ -381,12 +381,14 @@ package final class WinApp {
         withWide(text) { t in withWide("关于 Agentrise") { _ = MessageBoxW(hwnd, t, $0, UINT(MB_OK | MB_ICONINFORMATION)) } }
     }
 
-    /// The settings window: hooks for Claude Code and Codex, ranks, start at login, cc-connect (the tray's "设置…").
+    /// The settings window: hooks for Claude Code and Codex, ranks, start at login (the tray's "设置…").
     package func openSettings() {
         if let s = settingsWindow { s.show(); return }
         let controller = SettingsController(installer: WinHookInstaller(paths: paths), settings: settings, scheduler: scheduler,
                                             ranksFile: paths.ranksFile)
         controller.onRanksSaved = { [unowned self] in self.model.reloadRanks() }
+        // An install that left a file in use: retry the copy like the start-up refresh does (unless that is retrying).
+        controller.onHelperStale = { [unowned self] in if !self.hookRefreshFailing { self.refreshHookHelper() } }
         let s = SettingsWindow(controller: controller, near: window.hwnd)
         s.onClose = { [unowned self] in self.settingsWindow = nil }
         settingsWindow = s
@@ -407,6 +409,7 @@ package final class WinApp {
                 switch outcome {
                 case .success(nil): return
                 case .success(let r?):
+                    self.settingsWindow?.controller.noteHelper(r)
                     if !r.copied.isEmpty { Log.write("hook helper updated: \(r.copied.joined(separator: ", "))") }
                     if !r.locked.isEmpty { problem = "\(r.locked.joined(separator: ", ")) could not be replaced (in use?)" }
                 case .failure(let e): problem = e.localizedDescription

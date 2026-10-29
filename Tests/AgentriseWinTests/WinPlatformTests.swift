@@ -38,6 +38,28 @@ private final class InlineScheduler: TowerScheduler {
     func inBackground(_ work: @escaping () -> Void) { work() }
 }
 
+/// Runs `inBackground` work only when the test says so (`drain`), and `onMain` work right after it.
+private final class QueuedScheduler: TowerScheduler {
+    private var queue: [() -> Void] = []
+    func onMain(_ work: @escaping () -> Void) { work() }
+    func after(_ seconds: TimeInterval, _ work: @escaping () -> Void) {}
+    func every(_ seconds: TimeInterval, _ work: @escaping () -> Void) {}
+    func inBackground(_ work: @escaping () -> Void) { queue.append(work) }
+    var pending: Int { queue.count }
+    func drain() { while !queue.isEmpty { queue.removeFirst()() } }
+}
+
+/// A source directory with a copy of the real `agentrise-hook.exe` and a stand-in for one runtime DLL it imports
+/// (any bytes: `RuntimeFiles` finds it by name next to the exe), so `HookHelperFiles` has an exe and a DLL to copy.
+private func hookWithOneDll() throws -> (src: URL, dll: String) {
+    let src = try scratchDir()
+    let hook = try buildDir().appendingPathComponent(HookHelperFiles.hookExe)
+    try FileManager.default.copyItem(at: hook, to: src.appendingPathComponent(HookHelperFiles.hookExe))
+    let dll = try #require(PEImports.dlls(in: Data(contentsOf: hook))?.first { RuntimeFiles.isRuntimeName($0.lowercased()) })
+    try Data("runtime v1".utf8).write(to: src.appendingPathComponent(dll))
+    return (src, dll)
+}
+
 private let powershell = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
 
 /// `powershell -NoProfile -EncodedCommand <script>` (base64 UTF-16LE: no quoting to get wrong).
@@ -355,6 +377,54 @@ private func withWideTest<R>(_ s: String, _ body: (UnsafePointer<WCHAR>) -> R) -
         #expect(try FileManager.default.contentsOfDirectory(atPath: bin.path) == [HookHelperFiles.hookExe])
     }
 
+    /// Review M3: the DLLs are replaced first and the exe last, only once every DLL is current. A DLL in use keeps the
+    /// old exe too, and both show as stale until a later sync brings them up to date.
+    @Test func exeIsReplacedLastAndOnlyWhenEveryDllIsCurrent() throws {
+        let (src, dll) = try hookWithOneDll()
+        var helper = HookHelperFiles(sourceDir: src, binDir: try scratchDir().appendingPathComponent("bin"))
+        #expect(helper.files().map(\.lastPathComponent) == [HookHelperFiles.hookExe, dll])
+        #expect(try helper.sync().copied == [dll, HookHelperFiles.hookExe])
+        #expect(helper.staleFiles().isEmpty)
+        let oldExe = try Data(contentsOf: helper.installed)
+        // A new version, while a running hook holds the DLL (it can't be replaced, nor moved aside).
+        try (oldExe + Data("v2".utf8)).write(to: helper.source)
+        try Data("runtime v2".utf8).write(to: src.appendingPathComponent(dll))
+        var failing = HookHelperFiles.FileOps()
+        let real = failing.move
+        failing.move = { from, to, replace in
+            (from.hasSuffix(dll) || from.contains(dll + ".new-")) ? false : real(from, to, replace)
+        }
+        helper.ops = failing
+        let r = try helper.sync()
+        #expect(r.copied.isEmpty)
+        #expect(r.locked == [dll, HookHelperFiles.hookExe])
+        #expect(try Data(contentsOf: helper.installed) == oldExe)   // the exe waits for its DLL
+        #expect(helper.staleFiles() == [HookHelperFiles.hookExe, dll])
+        helper.ops = HookHelperFiles.FileOps()
+        #expect(try helper.sync().copied == [dll, HookHelperFiles.hookExe])
+        #expect(helper.staleFiles().isEmpty)
+    }
+
+    /// Review M2: syncs from several threads at once (the start-up refresh and a Settings install) don't trip over each
+    /// other's temporary files: none reports a file as locked, and bin\ ends up with exactly the current files.
+    @Test func concurrentSyncsDoNotInterfere() throws {
+        let (src, dll) = try hookWithOneDll()
+        let helper = HookHelperFiles(sourceDir: src, binDir: try scratchDir().appendingPathComponent("bin"))
+        _ = try helper.sync()
+        let results = NSLock()
+        var locked: [[String]] = []
+        for round in 0..<4 {
+            try Data("runtime \(round)".utf8).write(to: src.appendingPathComponent(dll))
+            DispatchQueue.concurrentPerform(iterations: 6) { _ in
+                let r = (try? helper.sync())?.locked ?? ["threw"]
+                results.lock(); locked.append(r); results.unlock()
+            }
+        }
+        #expect(locked.allSatisfy(\.isEmpty))
+        #expect(helper.staleFiles().isEmpty)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: helper.binDir.path).sorted() == [HookHelperFiles.hookExe, dll].sorted())
+    }
+
     @Test func missingHelperIsReported() throws {
         let helper = HookHelperFiles(sourceDir: try scratchDir(), binDir: try scratchDir())
         #expect(throws: InstallerError.self) { try helper.sync() }
@@ -512,7 +582,9 @@ private func withWideTest<R>(_ s: String, _ body: (UnsafePointer<WCHAR>) -> R) -
         try FileManager.default.createDirectory(at: paths.codexHome, withIntermediateDirectories: true)
         #expect(c.codexState.text == "未安装")
         #expect(c.previewCodex() != nil)
-        #expect(c.installCodex())
+        var codexWritten = false
+        c.installCodex { codexWritten = $0 }
+        #expect(codexWritten)
         #expect(c.codexState.text == "已安装待信任")
         c.trustCodex()
         #expect(c.codexStatus == "✓ 已替你确认 12 条 hook。" + SettingsController.newSessionNote)
@@ -535,7 +607,60 @@ private func withWideTest<R>(_ s: String, _ body: (UnsafePointer<WCHAR>) -> R) -
         #expect(try String(contentsOf: paths.claudeSettings, encoding: .utf8) == "not json")
     }
 
-    @Test func ranksAutostartAndFeishu() throws {
+    /// Review M4: an install runs in the background; meanwhile the status says so, the hook buttons are disabled and a
+    /// second install is refused. Review M3: a helper file still in use shows as "待更新", not as installed.
+    @Test func installRunsInTheBackgroundAndReportsAStaleHelper() throws {
+        let data = try scratchDir()
+        let paths = AppPaths(dataDir: nativePath(data))
+        let (src, dll) = try hookWithOneDll()
+        var installer = WinHookInstaller(paths: paths, sourceDir: src)
+        let scheduler = QueuedScheduler()
+        let c = SettingsController(installer: installer, settings: JSONSettingsStore(file: paths.settingsFile), scheduler: scheduler,
+                                   autostart: Autostart(keyPath: "Software\\AgentriseTest-\(UUID().uuidString)", exePath: "C:\\x.exe"),
+                                   ranksFile: paths.ranksFile)
+        scheduler.drain()   // the helper check at start
+        var done: [Bool] = []
+        c.installClaude { done.append($0) }
+        #expect(c.installing && c.hookStatus == "正在安装…")
+        #expect(!FileManager.default.fileExists(atPath: paths.claudeSettings.path))   // nothing written on the UI thread
+        let w = SettingsWindow(controller: c, near: nil)
+        defer { w.close() }
+        #expect(!IsWindowEnabled(w.control(SettingsLayout.claudeButton)!))
+        c.installCodex { done.append($0) }   // refused while the first runs
+        #expect(done == [false])
+        scheduler.drain()
+        #expect(done == [false, true])
+        #expect(!c.installing && c.hookStatus == "已安装")
+        #expect(c.claudeState.text == "✓ Hooks 已安装" && c.claudeState.ok)
+        #expect(IsWindowEnabled(w.control(SettingsLayout.claudeButton)!))
+
+        // A new version whose DLL is in use: the hooks are written, but the helper isn't current.
+        try Data("runtime v2".utf8).write(to: src.appendingPathComponent(dll))
+        var failing = HookHelperFiles.FileOps()
+        let real = failing.move
+        failing.move = { from, to, replace in from.contains(dll) ? false : real(from, to, replace) }
+        installer.helper.ops = failing
+        let c2 = SettingsController(installer: installer, settings: JSONSettingsStore(file: paths.settingsFile), scheduler: scheduler,
+                                    autostart: Autostart(keyPath: "Software\\AgentriseTest-\(UUID().uuidString)", exePath: "C:\\x.exe"),
+                                    ranksFile: paths.ranksFile)
+        scheduler.drain()
+        #expect(c2.helperStale == [dll])   // found by the check at start
+        #expect(c2.claudeState.text == "Hooks 已安装，hook 程序待更新" && !c2.claudeState.ok)
+        var retried = false
+        c2.onHelperStale = { retried = true }
+        c2.uninstallClaude()
+        c2.installClaude()
+        scheduler.drain()
+        #expect(c2.helperStale == [dll])   // the exe is unchanged: only the DLL is behind
+        #expect(c2.hookStatus.hasSuffix(SettingsController.helperPendingNote))
+        #expect(c2.claudeState.text == "Hooks 已安装，hook 程序待更新" && !c2.claudeState.ok)
+        #expect(retried)
+        // The app's retry got through.
+        c2.noteHelper(HookHelperFiles.Result(copied: [dll, HookHelperFiles.hookExe]))
+        #expect(c2.claudeState.text == "✓ Hooks 已安装" && c2.claudeState.ok)
+    }
+
+    @Test func ranksAndAutostart() throws {
         let saved = RankBook.current
         defer { RankBook.current = saved }
         let data = try scratchDir()
@@ -552,9 +677,9 @@ private func withWideTest<R>(_ s: String, _ body: (UnsafePointer<WCHAR>) -> R) -
         #expect(c.autostartOn)
         c.setAutostart(false)
         #expect(!c.autostartOn)
-        c.feishu = true
-        #expect(settings.bool(forKey: "feishuBridge"))
-        #expect(JSONSettingsStore(file: paths.settingsFile).bool(forKey: "feishuBridge"))
+        // Review M6: cc-connect (飞书) is macOS-only (spec §2): no switch for it on Windows.
+        #expect(!SettingsLayout.controls.contains { $0.text.contains("cc-connect") || $0.text.contains("飞书") })
+        #expect(!settings.bool(forKey: "feishuBridge"))
     }
 
     @Test func layoutScalesWithDpi() {

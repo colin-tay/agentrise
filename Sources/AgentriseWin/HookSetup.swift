@@ -139,8 +139,14 @@ package enum RuntimeFiles {
 /// failure after the old file was moved aside moves it back, so `bin\` never loses a file; a file that could not be
 /// replaced counts as locked and the caller tries again later. A crash in between leaves only `<name>.old-<id>`,
 /// which the next run moves back before anything else.
+///
+/// The DLLs go first and the exe last, and only once every DLL is current: a new hook never starts against old
+/// runtime DLLs. Only one `sync` runs at a time in the process (the start-up refresh and a Settings install could
+/// otherwise clean up each other's temporary files).
 package struct HookHelperFiles {
     package static let hookExe = "agentrise-hook.exe"
+    /// One `sync` (or `staleFiles`) at a time, process-wide.
+    private static let lock = NSLock()
 
     /// The file operations a replace is made of (tests inject failures).
     package struct FileOps {
@@ -175,23 +181,37 @@ package struct HookHelperFiles {
 
     package struct Result: Equatable {
         package var copied: [String] = []
+        /// Still not current: it couldn't be replaced (in use), or (the exe) it waits for a DLL that couldn't.
         package var locked: [String] = []
         package var upToDate: Bool { copied.isEmpty && locked.isEmpty }
     }
 
-    /// Brings `bin\` up to date. Throws `InstallerError.missingHelper` when the app has no hook next to it.
+    /// Brings `bin\` up to date: the DLLs, then the exe once they are all current. Throws
+    /// `InstallerError.missingHelper` when the app has no hook next to it.
     @discardableResult
     package func sync() throws -> Result {
+        Self.lock.lock(); defer { Self.lock.unlock() }
         guard FileManager.default.fileExists(atPath: source.path) else { throw InstallerError.missingHelper }
         try FileManager.default.createDirectory(at: binDir, withIntermediateDirectories: true)
         recoverAndClean()
         var r = Result()
-        for f in files() {
+        for f in files() where f.lastPathComponent != Self.hookExe {
             let dest = binDir.appendingPathComponent(f.lastPathComponent)
             if Self.sameBytes(f, dest) { continue }
             if replace(dest, with: f) { r.copied.append(f.lastPathComponent) } else { r.locked.append(f.lastPathComponent) }
         }
+        if !Self.sameBytes(source, installed) {
+            if r.locked.isEmpty, replace(installed, with: source) { r.copied.append(Self.hookExe) } else { r.locked.append(Self.hookExe) }
+        }
         return r
+    }
+
+    /// The files in `bin\` that differ from the app's (missing ones included); empty when the hook is current or the
+    /// app has no hook next to it. Reads every byte: call it off the UI thread.
+    package func staleFiles() -> [String] {
+        Self.lock.lock(); defer { Self.lock.unlock() }
+        guard FileManager.default.fileExists(atPath: source.path) else { return [] }
+        return files().filter { !Self.sameBytes($0, binDir.appendingPathComponent($0.lastPathComponent)) }.map(\.lastPathComponent)
     }
 
     /// Whether the hook was installed before: it is in `bin\`, or only its moved-aside copy is (a crash mid-replace).
@@ -251,7 +271,7 @@ package struct HookHelperFiles {
 /// `HookFile` (preview first, a backup per macOS's naming, only Agentrise's own entries added or removed).
 package struct WinHookInstaller {
     package let paths: AppPaths
-    package let helper: HookHelperFiles
+    package var helper: HookHelperFiles
 
     package init(paths: AppPaths, sourceDir: URL = HookHelperFiles.appDir()) {
         self.paths = paths
@@ -285,14 +305,17 @@ package struct WinHookInstaller {
     /// Copies the helper, then merges the entries in. Returns the backup of the previous file, if there was one.
     /// Codex's hooks are only written where Codex is (its home exists): its home is never created.
     @discardableResult
-    package func install(_ agent: AgentKind) throws -> URL? {
+    package func install(_ agent: AgentKind) throws -> URL? { try installReporting(agent).backup }
+
+    /// `install`, also saying what the helper copy did: files still `locked` mean `bin\` isn't current yet.
+    package func installReporting(_ agent: AgentKind) throws -> (backup: URL?, helper: HookHelperFiles.Result) {
         if agent == .codex, !codexPresent { throw CodexMissing(codexHome: SafeFile.nativePath(of: paths.codexHome)) }
         let r = try helper.sync()
         // A hook still running keeps an old copy only if it could not even be moved aside; with no copy at all the
         // entries would point at nothing.
         if !r.locked.isEmpty, !FileManager.default.fileExists(atPath: helper.installed.path) { throw HelperLocked() }
         try FileManager.default.createDirectory(at: file(agent).url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        return try file(agent).install(hookPath: helper.hookPath)
+        return (try file(agent).install(hookPath: helper.hookPath), r)
     }
 
     package func uninstall(_ agent: AgentKind) throws { try file(agent).uninstall() }
