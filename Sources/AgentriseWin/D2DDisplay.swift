@@ -52,6 +52,8 @@ package final class D2DSurface {
     /// ID2D1RenderTarget (an ID2D1HwndRenderTarget for a window).
     private(set) var target: COMObject?
     private var offscreenBitmap: UnsafeMutablePointer<IWICBitmap>?
+    /// The last attempt to make the target failed (logged once, not on every frame).
+    private var reportedFailure = false
     package private(set) var pixelWidth: Int, pixelHeight: Int
     package private(set) var scale: CGFloat
 
@@ -115,9 +117,11 @@ package final class D2DSurface {
             hr = f.CreateWicBitmapRenderTarget!(Self.factory, UnsafeMutableRawPointer(bitmap), &props, &out)
         }
         guard hr >= 0, let out else {
-            Log.write("creating the render target failed: \(hex(hr))")
+            if !reportedFailure { Log.write("creating the render target failed: \(hex(hr))") }
+            reportedFailure = true
             return nil
         }
+        reportedFailure = false
         target = out
         return out
     }

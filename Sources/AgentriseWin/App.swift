@@ -199,7 +199,11 @@ package final class WinApp {
         let start = Date()
         let dt = lastFrame.map { start.timeIntervalSince($0) } ?? 0
         lastFrame = start
-        display.frame(dt: dt, on: surface)
+        guard display.frame(dt: dt, on: surface) else {
+            // No target (it couldn't be made, or the device was just lost): don't spin while it can't draw.
+            Sleep(50)
+            return
+        }
         occluded = surface.isOccluded
         // EndDraw waits for the refresh; if it didn't (no vsync on this display), don't spin.
         if !occluded, !inSizeMove, Date().timeIntervalSince(start) < 0.004 { Sleep(12) }
