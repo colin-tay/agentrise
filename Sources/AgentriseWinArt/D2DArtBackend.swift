@@ -28,6 +28,7 @@ package final class WICImage {
 
     /// The pixels as WIC holds them: premultiplied BGRA, rows top first, `pixelWidth × 4` bytes per row.
     package func pixelsBGRA() -> [UInt8] {
+        D2DArtBackend.joinCOM()
         let stride = pixelWidth * 4
         var bytes = [UInt8](repeating: 0, count: stride * pixelHeight)
         bytes.withUnsafeMutableBufferPointer { buf in
@@ -48,7 +49,11 @@ extension BakedImage {
 /// one point and every coordinate the recipes give is drawn as is (`D2DPen`). Any scale works (1, 1.25, 1.5, 2…);
 /// the bitmap is the point size times the scale, rounded up.
 ///
-/// Thread-safe: the Direct2D factory is multi-threaded and every bake has its own render target.
+/// Any thread may bake, measure or read pixels, concurrently: the Direct2D factory is multi-threaded and every bake
+/// has its own render target. COM: each thread that bakes joins the multi-threaded apartment the first time it does
+/// (`joinCOM()`), unless it is already in an apartment (a UI thread in its STA stays there). Only WIC is
+/// COM-activated (Direct2D and DirectWrite factories are plain objects), and WIC's factory and bitmaps are
+/// free-threaded, so the same objects serve every thread whatever its apartment.
 package final class D2DArtBackend: ArtBackend {
     package static let shared = D2DArtBackend()
 
@@ -61,11 +66,23 @@ package final class D2DArtBackend: ArtBackend {
     let roundStroke: COMObject
     /// Text rendering with (`smooth`) and without (`plain`) the stem darkening of macOS font smoothing.
     let smoothText: COMObject, plainText: COMObject
+    /// The system font fallback with emoji scaled by `D2DPen.emojiScale` (for emoji inside other text), or nil
+    /// when that is off (`D2DPen.scalesInlineEmoji`) or the system has no IDWriteFactory2.
+    let inlineEmojiFallback: COMObject?
+
+    /// Makes sure the calling thread is in a COM apartment: on its first call, a thread with none joins the
+    /// multi-threaded apartment for good (it is never left; the thread's end does that). A thread already in an
+    /// apartment keeps it (CoInitializeEx answers RPC_E_CHANGED_MODE for an STA, S_FALSE for the MTA).
+    static func joinCOM() {
+        let key = "agentrise.D2DArtBackend.com"
+        let thread = Thread.current.threadDictionary
+        guard thread[key] == nil else { return }
+        _ = CoInitializeEx(nil, DWORD(COINIT_MULTITHREADED.rawValue))
+        thread[key] = true
+    }
 
     package init() {
-        // The process joins the multi-threaded apartment once and stays (threads that never call CoInitializeEx
-        // are in it implicitly). S_FALSE and RPC_E_CHANGED_MODE both mean COM is already up on this thread.
-        _ = CoInitializeEx(nil, DWORD(COINIT_MULTITHREADED.rawValue))
+        Self.joinCOM()
         var clsid = GUIDs.CLSID_WICImagingFactory2, iid = GUIDs.IWICImagingFactory
         wic = createdWIC("CoCreateInstance(CLSID_WICImagingFactory2)", IWICImagingFactory.self) { out in
             out.withMemoryRebound(to: UnsafeMutableRawPointer?.self, capacity: 1) {
@@ -91,11 +108,33 @@ package final class D2DArtBackend: ArtBackend {
         }
         smoothText = params(D2DPen.smoothingContrast)
         plainText = params(0)
+        inlineEmojiFallback = D2DPen.scalesInlineEmoji ? Self.scaledEmojiFallback(writer) : nil
         d2d = factory
         dwrite = writer
     }
 
+    /// The system font fallback, with emoji (the Miscellaneous Symbols block and the emoji planes) mapped first to
+    /// Segoe UI Emoji at `D2DPen.emojiScale`.
+    static func scaledEmojiFallback(_ writer: COMObject) -> COMObject? {
+        guard let factory = query(writer, GUIDs.IDWriteFactory2) else { return nil }
+        defer { release(factory) }
+        let f = vtable(factory, CD2D_IDWriteFactory2Vtbl.self)
+        let system = COMRef(created("IDWriteFactory2::GetSystemFontFallback") { f.GetSystemFontFallback!(factory, $0) })
+        let builder = COMRef(created("IDWriteFactory2::CreateFontFallbackBuilder") { f.CreateFontFallbackBuilder!(factory, $0) })
+        let b = vtable(builder.object, CD2D_IDWriteFontFallbackBuilderVtbl.self)
+        var ranges = [DWRITE_UNICODE_RANGE(first: 0x2600, last: 0x26FF), DWRITE_UNICODE_RANGE(first: 0x1F000, last: 0x1FAFF)]
+        let family = wide("Segoe UI Emoji")
+        let hr = family.withUnsafeBufferPointer { name -> HRESULT in
+            var names: [UnsafePointer<WCHAR>?] = [name.baseAddress]
+            return b.AddMapping!(builder.object, &ranges, UInt32(ranges.count), &names, 1, nil, nil, nil, Float(D2DPen.emojiScale))
+        }
+        check(hr, "IDWriteFontFallbackBuilder::AddMapping")
+        check(b.AddMappings!(builder.object, system.object), "IDWriteFontFallbackBuilder::AddMappings")
+        return created("IDWriteFontFallbackBuilder::CreateFontFallback") { b.CreateFontFallback!(builder.object, $0) }
+    }
+
     package func bake(size: CGSize, scale: CGFloat, _ draw: (Pen) -> Void) -> BakedImage {
+        Self.joinCOM()
         let (w, h) = ArtKit.pixelSize(size, scale: scale)
         var format = GUIDs.WICPixelFormat32bppPBGRA
         let bitmap = createdWIC("IWICImagingFactory::CreateBitmap", IWICBitmap.self) {
@@ -117,6 +156,7 @@ package final class D2DArtBackend: ArtBackend {
     }
 
     package func rgba(_ img: BakedImage) -> [UInt8] {
+        Self.joinCOM()
         var px = img.wicImage.pixelsBGRA()
         for i in stride(from: 0, to: px.count, by: 4) { px.swapAt(i, i + 2) }
         return px
@@ -200,6 +240,12 @@ package final class D2DArtBackend: ArtBackend {
             if let brush { check(vt.SetDrawingEffect!(object, brush(r.color), range), "IDWriteTextLayout::SetDrawingEffect") }
             start += length
         }
+        for range in Self.fullWidthSymbolRanges(runs.map(\.text).joined()) {
+            check(vt.SetFontFamilyName!(object, Self.symbolFamily, range), "IDWriteTextLayout::SetFontFamilyName")
+        }
+        if !emojiOnly, let fallback = inlineEmojiFallback {
+            check(vt.SetFontFallback!(object, fallback), "IDWriteTextLayout2::SetFontFallback")
+        }
         guard maxLines > 0 || height != nil else { return layout }
         var count: UInt32 = 0
         _ = vt.GetLineMetrics!(object, nil, 0, &count)   // E_NOT_SUFFICIENT_BUFFER, with the count
@@ -221,6 +267,26 @@ package final class D2DArtBackend: ArtBackend {
         while keep > 0, newlines.contains(text[keep - 1]) { keep -= 1 }
         return textLayout(Self.prefix(runs, utf16: keep), width: width, maxLines: 0, centred: centred,
                           truncatesTail: truncatesTail, brush: brush)
+    }
+
+    /// The geometric symbols macOS draws em-wide from its CJK fonts (the team marks ◆ ★ ▲ ● ✦ ■ ✚, ✓): Segoe UI's
+    /// own forms are about half that size, so they come from Microsoft YaHei UI, whose metrics match Segoe UI's
+    /// and which the Han text on the same lines already uses.
+    static let symbolFamily = wide("Microsoft YaHei UI")
+
+    /// UTF-16 ranges of `s`'s characters that are one symbol from the Geometric Shapes, Miscellaneous Symbols or
+    /// Dingbats blocks and not shown as emoji.
+    static func fullWidthSymbolRanges(_ s: String) -> [DWRITE_TEXT_RANGE] {
+        var out: [DWRITE_TEXT_RANGE] = [], at: UInt32 = 0
+        for c in s {
+            let length = UInt32(c.utf16.count)
+            if c.unicodeScalars.count == 1, let u = c.unicodeScalars.first, (0x25A0...0x27BF).contains(u.value),
+               !u.properties.isEmojiPresentation {
+                out.append(DWRITE_TEXT_RANGE(startPosition: at, length: length))
+            }
+            at += length
+        }
+        return out
     }
 
     /// Whether `s` is only emoji (characters shown as colour emoji by default, or asked to be with U+FE0F), so
@@ -247,6 +313,7 @@ package final class D2DArtBackend: ArtBackend {
 
     /// Writes opaque or straight-alpha RGBA rows (top first) as a PNG file (for ArtGallery and the tests).
     package func writePNG(rgba: [UInt8], width: Int, height: Int, to path: String) throws {
+        Self.joinCOM()
         var bgra = rgba
         for i in stride(from: 0, to: bgra.count, by: 4) { bgra.swapAt(i, i + 2) }
         let f = wic.pointee.lpVtbl.pointee

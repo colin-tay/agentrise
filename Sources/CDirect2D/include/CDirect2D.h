@@ -388,6 +388,7 @@ typedef struct DWRITE_LINE_METRICS {
     FLOAT height, baseline;
     BOOL isTrimmed;
 } DWRITE_LINE_METRICS;
+typedef struct DWRITE_UNICODE_RANGE { UINT32 first, last; } DWRITE_UNICODE_RANGE;   // dwrite_2.h
 typedef struct DWRITE_TRIMMING { UINT32 granularity, delimiter, delimiterCount; } DWRITE_TRIMMING;
 typedef struct DWRITE_LINE_SPACING {   // dwrite_3.h
     UINT32 method;                      // DWRITE_LINE_SPACING_METHOD
@@ -432,6 +433,27 @@ typedef struct CD2D_IDWriteFactory1Vtbl {
         void **renderingParams);
 } CD2D_IDWriteFactory1Vtbl;
 
+// IDWriteFactory2 : IDWriteFactory1 (dwrite_2.h)
+typedef struct CD2D_IDWriteFactory2Vtbl {
+    CD2D_IUNKNOWN_SLOTS
+    void *IDWriteFactory1Slots[23];     // the 23 slots after IUnknown's, as in CD2D_IDWriteFactory1Vtbl
+    HRESULT (STDMETHODCALLTYPE *GetSystemFontFallback)(void *This, void **fontFallback);
+    HRESULT (STDMETHODCALLTYPE *CreateFontFallbackBuilder)(void *This, void **fontFallbackBuilder);
+    CD2D_SLOT(TranslateColorGlyphRun);
+    CD2D_SLOT(CreateCustomRenderingParams2);
+    CD2D_SLOT(CreateGlyphRunAnalysis2);
+} CD2D_IDWriteFactory2Vtbl;
+
+// IDWriteFontFallbackBuilder : IUnknown (dwrite_2.h)
+typedef struct CD2D_IDWriteFontFallbackBuilderVtbl {
+    CD2D_IUNKNOWN_SLOTS
+    HRESULT (STDMETHODCALLTYPE *AddMapping)(void *This, const DWRITE_UNICODE_RANGE *ranges, UINT32 rangesCount,
+        const WCHAR **targetFamilyNames, UINT32 targetFamilyNamesCount, void *fontCollection,
+        const WCHAR *localeName, const WCHAR *baseFamilyName, FLOAT scale);
+    HRESULT (STDMETHODCALLTYPE *AddMappings)(void *This, void *fontFallback);
+    HRESULT (STDMETHODCALLTYPE *CreateFontFallback)(void *This, void **fontFallback);
+} CD2D_IDWriteFontFallbackBuilderVtbl;
+
 // IDWriteTextFormat : IUnknown
 #define CD2D_IDWRITETEXTFORMAT_SLOTS                                                     \
     CD2D_IUNKNOWN_SLOTS                                                                  \
@@ -473,7 +495,7 @@ typedef struct CD2D_IDWriteTextLayout3Vtbl {
     CD2D_SLOT(SetMaxWidth);
     CD2D_SLOT(SetMaxHeight);
     CD2D_SLOT(SetFontCollection);
-    CD2D_SLOT(SetFontFamilyName);
+    HRESULT (STDMETHODCALLTYPE *SetFontFamilyName)(void *This, const WCHAR *name, DWRITE_TEXT_RANGE textRange);
     HRESULT (STDMETHODCALLTYPE *SetFontWeight)(void *This, UINT32 fontWeight, DWRITE_TEXT_RANGE textRange);
     CD2D_SLOT(SetFontStyle);
     CD2D_SLOT(SetFontStretch);
@@ -523,7 +545,7 @@ typedef struct CD2D_IDWriteTextLayout3Vtbl {
     CD2D_SLOT(GetLastLineWrapping);
     CD2D_SLOT(SetOpticalAlignment);
     CD2D_SLOT(GetOpticalAlignment);
-    CD2D_SLOT(SetFontFallback);
+    HRESULT (STDMETHODCALLTYPE *SetFontFallback)(void *This, void *fontFallback);
     CD2D_SLOT(GetFontFallback);
     // IDWriteTextLayout3
     CD2D_SLOT(InvalidateLayout);

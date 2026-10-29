@@ -97,7 +97,7 @@ package enum ComparisonScenes {
         }
     }
 
-    /// Name plates (Chinese, a cut-off long name, small labels), every bubble with its glow, the door sign, the
+    /// Name plates (Chinese, a cut-off long name, every team mark, small labels), every bubble with its glow, the door sign, the
     /// header line and a tooltip with a truncated row.
     private static func labels(_ backend: ArtBackend) -> [ComparisonTile] {
         let art = RobotArt(scale: scale, backend: backend)
@@ -111,6 +111,7 @@ package enum ComparisonScenes {
             ComparisonTile(art.name(bossName("重构整个支付网关的回调处理逻辑", team: 1, rank: .seniorEngineer), small: false,
                                     stripe: Rank.seniorEngineer.stripe)),
             ComparisonTile(art.name("✚ 一个特别特别特别特别特别特别长的名字", small: false, stripe: nil)),
+            ComparisonTile(art.name("⚡ ◆ ★ ▲ ● ✦ ■ ✚ 团队标志\n" + Rank.seniorExpert.title, small: false, stripe: Rank.seniorExpert.stripe)),
             ComparisonTile(art.name("Explore", small: true, stripe: nil)),
             ComparisonTile(art.name("外包·跑一遍完整的测试套件", small: true, stripe: nil)),
         ]
