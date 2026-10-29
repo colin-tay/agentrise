@@ -49,6 +49,7 @@ package enum HookCommandLine {
 ///   exit 3 (nothing to defer to) without opening a window;
 /// - `--retry-ms <n>`: how long a second instance looks for the first one's window (default 2000);
 /// - `--size <w>x<h>`: the window's client size in points (like the macOS `--size`);
+/// - `--open-settings`: opens the Settings window at start (CI's desktop capture shows it);
 /// - `--install-hooks claude|codex`: installs that agent's hooks without asking (no preview; the backup is still
 ///   written), logs the result and exits 0 (1 on failure). Runs whether or not Agentrise is running.
 package struct AppOptions: Equatable {
@@ -59,6 +60,7 @@ package struct AppOptions: Equatable {
     package var retry: TimeInterval = 2
     package var size: CGSize?
     package var installHooks: AgentKind?
+    package var openSettings = false
 
     package init() {}
 
@@ -73,6 +75,7 @@ package struct AppOptions: Equatable {
             case "--after": if let v = value().flatMap(TimeInterval.init) { o.screenshotAfter = v }; i += 1
             case "--smoke-second": o.smokeSecond = true
             case "--retry-ms": if let v = value().flatMap(Double.init), v >= 0 { o.retry = v / 1000 }; i += 1
+            case "--open-settings": o.openSettings = true
             case "--install-hooks": o.installHooks = value().flatMap(AgentKind.init(rawValue:)); i += 1
             case "--size":
                 let p = (value() ?? "").split(separator: "x").compactMap { Double($0) }
@@ -214,6 +217,7 @@ package final class WinApp {
         } else {
             refreshHookHelper()
         }
+        if options.openSettings { openSettings() }
         Log.write("running: \(pw)×\(ph) px at \(window.scale)×, socket \(paths.socketPath)")
         var msg = MSG()
         while running {

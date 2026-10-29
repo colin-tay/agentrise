@@ -107,7 +107,7 @@ jobs:
       # window after 8 s and exit with 0. ffmpeg's gdigrab captures the whole desktop meanwhile. A second, portrait run
       # shows the panel as a strip. Before both, `--install-hooks claude` (twice) copies the hook to the data
       # directory's Agentrise\bin and writes its exec-form entry into .claude\settings.json there; the events then go
-      # through that installed copy.
+      # through that installed copy. The landscape run also opens the Settings window, so the desktop capture shows it.
       - name: App smoke test
         shell: pwsh
         run: |
@@ -176,7 +176,7 @@ jobs:
           $hook = $installed   # the events below run the installed copy, as Claude Code would
 
           # Landscape, as CI's 1024 × 768 desktop allows: a second instance, the events, the desktop capture.
-          $app = Start-App @('--data-dir', $data, '--screenshot', $shot, '--after', '8', '--size', '1200x800')
+          $app = Start-App @('--data-dir', $data, '--screenshot', $shot, '--after', '8', '--size', '1200x800', '--open-settings')
           Start-Sleep -Seconds 3
           $second = Start-App @('--data-dir', $data)
           if (-not $second.WaitForExit(10000)) { $second.Kill(); throw 'the second instance did not exit' }

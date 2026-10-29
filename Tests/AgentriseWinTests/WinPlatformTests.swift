@@ -135,6 +135,8 @@ private func powershellLine(_ script: String) -> String {
         #expect(AppOptions.parse(["Agentrise.exe", "--install-hooks", "codex"]).installHooks == .codex)
         #expect(AppOptions.parse(["Agentrise.exe", "--install-hooks", "vim"]).installHooks == nil)
         #expect(AppOptions.parse(["Agentrise.exe"]).retry == 2)
+        #expect(AppOptions.parse(["Agentrise.exe", "--open-settings"]).openSettings)
+        #expect(!AppOptions.parse(["Agentrise.exe"]).openSettings)
     }
 }
 
