@@ -221,7 +221,6 @@ package final class D2DArtBackend: ArtBackend {
             for var range in Self.fullWidthSymbolRanges(r.text) {
                 range.startPosition += start
                 check(vt.SetFontFamilyName!(object, Self.symbolFamily, range), "IDWriteTextLayout::SetFontFamilyName")
-                check(vt.SetFontSize!(object, Float(r.font.size * sizeScale * Self.symbolScale), range), "IDWriteTextLayout::SetFontSize")
             }
             start += UInt32(r.text.utf16.count)
         }
@@ -250,11 +249,10 @@ package final class D2DArtBackend: ArtBackend {
 
     /// The geometric symbols macOS draws em-wide from its CJK fonts (the team marks ◆ ★ ▲ ● ✦ ■ ✚): Segoe UI's
     /// own forms, and Microsoft YaHei UI's, are about half that size (◆ 10 × 10 px at 11 pt, 2×, against 22 × 21 on
-    /// macOS), so they come from SimSun's full-width forms, at `symbolScale` × the run's size (◆ 18 × 18 px
-    /// unscaled). SimSun's ascent and descent (0.86 and 0.14 em), even scaled, stay inside Segoe UI's (1.08 and
-    /// 0.25), so lines keep their height and baseline (`D2DPenTests`).
+    /// macOS), so they come from SimSun's full-width forms (◆ 18 × 18 px, ★ 20 × 18; ✦ ✚ from its fallback). At the
+    /// run's own size they leave the line's height and baseline alone (`D2DPenTests`); drawn any larger (1.1 ×),
+    /// they make it taller, so they stay at that size.
     static let symbolFamily = wide("SimSun")
-    static let symbolScale: CGFloat = 1.1
 
     /// UTF-16 ranges of `s`'s characters that are one symbol from the Geometric Shapes, Miscellaneous Symbols or
     /// Dingbats blocks and not shown as emoji.
