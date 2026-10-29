@@ -11,6 +11,8 @@ final class MacPlatform: PlatformServices {
     let homeDirectory = FileManager.default.homeDirectoryForCurrentUser
     var supportDirectory: URL { TowerPaths.supportDir(home: homeDirectory) }
     var socketPath: String { TowerPaths.socketPath(home: homeDirectory) }
+    /// `CODEX_HOME` when set (where `HookInstaller` writes hooks.json), else ~/.codex as before.
+    var codexHome: URL { HookPlan.codexHome(env: ProcessInfo.processInfo.environment, home: homeDirectory) }
 
     func isRunning(_ pid: Int32) -> Bool { Self.isRunning(pid) }
 

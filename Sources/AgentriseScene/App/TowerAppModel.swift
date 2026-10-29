@@ -89,7 +89,7 @@ package final class TowerAppModel {
 
     private var home: URL { platform.homeDirectory }
     private var claudeDir: URL { platform.claudeDirectory }
-    private var codexIndexFile: URL { CodexSessionIndex.file(home: home) }
+    private var codexIndexFile: URL { CodexSessionIndex.file(codexHome: platform.codexHome) }
 
     /// The sessions shown in the tower, in team order, as last published.
     package var visibleSessions: [Session] { lastPublished }

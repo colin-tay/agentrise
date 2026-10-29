@@ -146,6 +146,9 @@ extension CCConnectIndex {
 package enum CodexSessionIndex {
     package static func file(home: URL) -> URL { home.appendingPathComponent(".codex/session_index.jsonl") }
 
+    /// `<Codex's home>/session_index.jsonl`.
+    package static func file(codexHome: URL) -> URL { codexHome.appendingPathComponent("session_index.jsonl") }
+
     package struct Stamp: Equatable { package var modified: Date?; package var size: Int? }
 
     /// Cheap change detector: the file's modification time and size (both nil when it is missing).

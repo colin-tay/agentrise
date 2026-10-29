@@ -71,6 +71,7 @@ package final class WinPlatform: PlatformServices {
     package var socketPath: String { paths.socketPath }
     package var claudeDirectory: URL { paths.claudeDir }
     package var ranksFile: URL { paths.ranksFile }
+    package var codexHome: URL { paths.codexHome }
 
     package func isRunning(_ pid: Int32) -> Bool { Self.isRunning(pid) }
 

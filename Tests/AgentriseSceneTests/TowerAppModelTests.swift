@@ -24,6 +24,9 @@ final class FakePlatform: PlatformServices {
     var claudeDir: URL?
     var claudeDirectory: URL { claudeDir ?? homeDirectory.appendingPathComponent(".claude") }
     var ranksFile: URL { homeDirectory.appendingPathComponent("ranks.json") }
+    /// Codex's home; nil = the protocol's default (~/.codex under the temporary home).
+    var codexDir: URL?
+    var codexHome: URL { codexDir ?? homeDirectory.appendingPathComponent(".codex") }
 
     init() throws {
         homeDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("agentrise-home-\(UUID().uuidString)")
@@ -268,6 +271,26 @@ final class ManualScheduler: TowerScheduler {
         #expect(left == [.sessionLeft(sessionId: "m")])
         scheduler.advance(by: 1)
         #expect(model.visibleSessions.isEmpty)
+    }
+
+    /// Review M5: Codex titles come from `session_index.jsonl` in the platform's Codex home (`CODEX_HOME`), where the
+    /// hooks are installed, not always from ~/.codex.
+    @Test func codexTitlesComeFromThePlatformsCodexHome() throws {
+        let (model, platform, scheduler, _, _) = try make()
+        platform.codexDir = platform.homeDirectory.appendingPathComponent("cx 测试")
+        try FileManager.default.createDirectory(at: platform.codexHome, withIntermediateDirectories: true)
+        try Data(#"{"id":"cx","thread_name":"修复登录","updated_at":"2026-10-29T00:00:00Z"}"#.utf8 + [0x0A])
+            .write(to: platform.codexHome.appendingPathComponent("session_index.jsonl"))
+        // A decoy where the index used to be read from.
+        try FileManager.default.createDirectory(at: platform.homeDirectory.appendingPathComponent(".codex"), withIntermediateDirectories: true)
+        try Data(#"{"id":"cx","thread_name":"旧位置","updated_at":"2026-10-29T00:00:00Z"}"#.utf8 + [0x0A])
+            .write(to: platform.homeDirectory.appendingPathComponent(".codex/session_index.jsonl"))
+        model.refreshSources()
+        var e = SlimEvent(event: .userPromptSubmit, sessionId: "cx", receivedAt: scheduler.now)
+        e.agent = .codex; e.cwd = "/work/demo"; e.model = "gpt-5-codex"
+        model.receive(e)
+        scheduler.advance(by: 1)
+        #expect(model.visibleSessions.first { $0.id == "cx" }?.title == "修复登录")
     }
 
     /// A terminal session's link carries Claude Code's pid from the registry (Windows walks up from it to the window),

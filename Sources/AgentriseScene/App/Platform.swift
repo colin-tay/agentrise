@@ -25,12 +25,15 @@ package protocol PlatformServices: AnyObject {
     var claudeDirectory: URL { get }
     /// The user's rank names and keywords (`ranks.json`). Default: where the macOS app always kept it.
     var ranksFile: URL { get }
+    /// Codex's home (`session_index.jsonl`). Default ~/.codex; both apps honour `CODEX_HOME` like their hook installers.
+    var codexHome: URL { get }
 }
 
 extension PlatformServices {
     package func isSameProcess(pid: Int32, start: ProcessStart?) -> Bool { isRunning(pid) }
     package var claudeDirectory: URL { homeDirectory.appendingPathComponent(".claude") }
     package var ranksFile: URL { RankBook.fileURL }
+    package var codexHome: URL { homeDirectory.appendingPathComponent(".codex") }
 }
 
 /// The few switches the app model reads and writes (macOS: `UserDefaults`, same keys as before).

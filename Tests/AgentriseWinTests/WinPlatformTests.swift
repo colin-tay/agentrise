@@ -176,6 +176,8 @@ private func powershellLine(_ script: String) -> String {
         let paths = AppPaths(dataDir: nil, environment: env)
         #expect(nativePath(paths.claudeDir) == "D:\\cfg")
         #expect(nativePath(paths.codexHome) == "D:\\cx")
+        // Review M5: the model reads Codex's session index from the same place the hooks go.
+        #expect(nativePath(WinPlatform(paths: paths).codexHome) == "D:\\cx")
         let plain = AppPaths(dataDir: nil, environment: ["USERPROFILE": "C:\\Users\\u", "LOCALAPPDATA": "C:\\Users\\u\\AppData\\Local"])
         #expect(nativePath(plain.claudeSettings) == "C:\\Users\\u\\.claude\\settings.json")
         #expect(nativePath(plain.codexHooks) == "C:\\Users\\u\\.codex\\hooks.json")
