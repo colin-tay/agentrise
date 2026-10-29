@@ -104,7 +104,8 @@ jobs:
       # start, let a second instance defer to it, take three Claude hook events (the recorded hook payloads in
       # Tests/AgentriseTests/Fixtures/codex, which use Claude Code's hook schema) through agentrise-hook.exe pointed
       # at the same directory with LOCALAPPDATA (how the hook always computes its socket), write a screenshot of its
-      # window after 8 s and exit with 0. ffmpeg's gdigrab captures the whole desktop meanwhile.
+      # window after 8 s and exit with 0. ffmpeg's gdigrab captures the whole desktop meanwhile. A second, portrait run
+      # shows the panel as a strip.
       - name: App smoke test
         shell: pwsh
         run: |
@@ -130,35 +131,55 @@ jobs:
             choco install ffmpeg --version 7.1.1 -y --no-progress
             $env:PATH = "$env:ChocolateyInstall\bin;$env:PATH"
           }
+          # The hook's environment as Claude Code's CLI runs it (a Claude session without an entrypoint is a headless
+          # run, which the tower doesn't show), with its data directory moved to the app's.
+          function Send-Events {
+            $saved = $env:LOCALAPPDATA
+            $env:LOCALAPPDATA = $data
+            $env:CLAUDE_CODE_ENTRYPOINT = 'cli'
+            foreach ($f in 'session-start', 'user-prompt-submit', 'stop') {
+              Get-Content -Raw "Tests/AgentriseTests/Fixtures/codex/$f.json" | & $hook
+              if ($LASTEXITCODE -ne 0) { throw "agentrise-hook.exe failed on $f" }
+            }
+            $env:LOCALAPPDATA = $saved
+            Remove-Item Env:CLAUDE_CODE_ENTRYPOINT
+          }
+          function Wait-App($app, [string] $png) {
+            if (-not $app.WaitForExit(30000)) { $app.Kill(); throw 'Agentrise.exe did not exit after its screenshot' }
+            Write-Output "Agentrise.exe exit code: $($app.ExitCode)"
+            if ($app.ExitCode -ne 0) { Get-Content $log; throw 'Agentrise.exe did not exit with 0' }
+            if (-not (Test-Path $png)) { throw "no $png" }
+          }
+
+          # Landscape, as CI's 1024 × 768 desktop allows: a second instance, the events, the desktop capture.
           $app = Start-App @('--data-dir', $data, '--screenshot', $shot, '--after', '8', '--size', '1200x800')
           Start-Sleep -Seconds 3
           $second = Start-App @('--data-dir', $data)
           if (-not $second.WaitForExit(10000)) { $second.Kill(); throw 'the second instance did not exit' }
           Write-Output "second instance exit code: $($second.ExitCode)"
           if ($second.ExitCode -ne 0) { throw 'the second instance did not exit with 0' }
-          # The hook's environment as Claude Code's CLI runs it (a Claude session without an entrypoint is a headless
-          # run, which the tower doesn't show), with its data directory moved to the app's.
-          $env:LOCALAPPDATA = $data
-          $env:CLAUDE_CODE_ENTRYPOINT = 'cli'
-          foreach ($f in 'session-start', 'user-prompt-submit', 'permission-request') {
-            Get-Content -Raw "Tests/AgentriseTests/Fixtures/codex/$f.json" | & $hook
-            if ($LASTEXITCODE -ne 0) { throw "agentrise-hook.exe failed on $f" }
-          }
+          Send-Events
           Start-Sleep -Seconds 2
           ffmpeg -hide_banner -loglevel error -y -f gdigrab -framerate 1 -i desktop -frames:v 1 smoke/desktop.png
           if ($LASTEXITCODE -ne 0) { Write-Output "::warning::gdigrab could not capture the desktop ($LASTEXITCODE)" }
-          if (-not $app.WaitForExit(30000)) { $app.Kill(); throw 'Agentrise.exe did not exit after its screenshot' }
-          Write-Output "Agentrise.exe exit code: $($app.ExitCode)"
-          Get-Content $log
-          if ($app.ExitCode -ne 0) { throw 'Agentrise.exe did not exit with 0' }
-          if (-not (Test-Path $shot)) { throw 'no shot.png' }
+          Wait-App $app $shot
           Copy-Item $shot smoke/shot.png
+
+          # Portrait (the panel becomes a strip).
+          $portrait = Join-Path $data 'shot-portrait.png'
+          $app = Start-App @('--data-dir', $data, '--screenshot', $portrait, '--after', '6', '--size', '560x720')
+          Start-Sleep -Seconds 3
+          Send-Events
+          Wait-App $app $portrait
+          Copy-Item $portrait smoke/shot-portrait.png
+
+          Get-Content $log
           Copy-Item $log smoke/agentrise.log
           $text = Get-Content -Raw $log
           if ($text -notmatch 'from the manifest') { throw 'the manifest did not make the process DPI aware' }
           if ($text -notmatch 'comctl32 6\.') { throw 'comctl32 6 is not active (manifest)' }
-          if ($text -notmatch 'second instance') { throw 'the second instance left no trace' }
-          if ($text -notmatch 'sessions 1') { throw 'the hook events did not reach the app' }
+          if ($text -notmatch 'second instance: showed the running one') { throw 'the second instance did not defer to the first' }
+          if (([regex]::Matches($text, 'sessions 1,')).Count -ne 2) { throw 'the hook events did not reach the app' }
 
       - name: Upload app screenshots
         if: always()
