@@ -422,7 +422,7 @@ private func withWideTest<R>(_ s: String, _ body: (UnsafePointer<WCHAR>) -> R) -
                 results.lock(); locked.append(r); results.unlock()
             }
         }
-        #expect(locked.allSatisfy(\.isEmpty))
+        #expect(locked.allSatisfy { $0.isEmpty })
         #expect(helper.staleFiles().isEmpty)
         #expect(try FileManager.default.contentsOfDirectory(atPath: helper.binDir.path).sorted() == [HookHelperFiles.hookExe, dll].sorted())
     }
