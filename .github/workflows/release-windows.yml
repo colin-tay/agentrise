@@ -1,0 +1,200 @@
+# Copyright (c) 2026 Colin Tay
+# SPDX-License-Identifier: MIT
+#
+# Builds Agentrise-windows-x64-<version>.zip and uploads it as a workflow artifact (spec §5.10). It never creates a
+# GitHub Release: publishing one is the author's call, after the VM trial. The version is the tag's (v1.2.3 -> 1.2.3)
+# on a tag push, and the app's own AppInfo.version on a manual run.
+name: Windows package
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release-windows-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Swift 6.1.2
+        uses: compnerd/gha-setup-swift@9ff1ee4c44888c5817fc14d1b257ac8cabb4935f # v0.5.1
+        with:
+          swift-version: swift-6.1.2-release
+          swift-build: 6.1.2-RELEASE
+
+      - name: Version
+        id: version
+        shell: pwsh
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $app = Select-String -Path Sources/AgentriseWin/App.swift -Pattern 'static let version = "([^"]+)"' | Select-Object -First 1
+          if (-not $app) { throw 'no AppInfo.version in Sources/AgentriseWin/App.swift' }
+          $appVersion = $app.Matches[0].Groups[1].Value
+          if ($env:REF_TYPE -eq 'tag') {
+            if ($env:REF_NAME -notmatch '^v([0-9][0-9A-Za-z.+-]*)$') { throw "tag $env:REF_NAME is not v<version>" }
+            $version = $Matches[1]
+            if ($version -ne $appVersion) { Write-Output "::warning::tag $env:REF_NAME differs from AppInfo.version $appVersion" }
+          } else {
+            $version = $appVersion
+          }
+          Write-Output "version $version"
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Build (release)
+        shell: pwsh
+        run: |
+          swift build -c release --product Agentrise
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          swift build -c release --product agentrise-hook
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Package
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $bin = (swift build -c release --show-bin-path | Out-String).Trim()
+          ./scripts/package-windows.ps1 -Version $env:VERSION -BinDir $bin -OutDir dist
+
+      # The script's dumpbin closure must be the list RuntimeFiles.closure computes for the same exes and directories
+      # (the installed hook copies its DLLs with that function): Agentrise.exe --print-runtime-files, from the build
+      # directory with the script's other two search directories, then from the packaged folder alone (how the app
+      # finds the hook's DLLs after unzipping).
+      - name: DLL closure agrees with RuntimeFiles.closure
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bin = (swift build -c release --show-bin-path | Out-String).Trim()
+          $script = @(Get-Content dist/runtime-files.txt)
+          $dirs = @(Get-Content dist/search-dirs.txt)   # the build directory first, then the Swift and VC++ runtimes
+          function Names([string[]] $paths) { @($paths | ForEach-Object { (Split-Path -Leaf $_).ToLowerInvariant() } | Sort-Object) }
+          function Print([string] $exe, [string[]] $searchDirs) {
+            $out = Join-Path $env:RUNNER_TEMP ("runtime-" + [guid]::NewGuid() + '.txt')
+            $arguments = @('--print-runtime-files', $out) + @($searchDirs | ForEach-Object { '--search-dir', $_ })
+            $psi = [System.Diagnostics.ProcessStartInfo]::new($exe)
+            foreach ($a in $arguments) { $psi.ArgumentList.Add($a) }
+            $psi.UseShellExecute = $false
+            $p = [System.Diagnostics.Process]::Start($psi)
+            if (-not $p.WaitForExit(30000)) { $p.Kill(); throw "$exe --print-runtime-files did not exit" }
+            if ($p.ExitCode -ne 0) { throw "$exe --print-runtime-files exited with $($p.ExitCode)" }
+            return @(Get-Content -Encoding utf8 $out)
+          }
+          if ($dirs[0] -ne (Resolve-Path $bin).Path) { throw "the script searched $($dirs[0]) first, not $bin" }
+          $fromBuild = Print (Join-Path $bin 'Agentrise.exe') @($dirs | Select-Object -Skip 1)
+          $fromDist = Print (Resolve-Path dist/Agentrise/Agentrise.exe).Path @()
+          $packaged = @(Get-ChildItem dist/Agentrise -File | Where-Object { $_.Extension -in '.exe', '.dll' } | ForEach-Object { $_.Name })
+          Write-Output "script (dumpbin):"; $script | ForEach-Object { "  $_" }
+          Write-Output "RuntimeFiles.closure, build directory:"; $fromBuild | ForEach-Object { "  $_" }
+          $a = (Names $script) -join ','; $b = (Names $fromBuild) -join ','; $c = (Names $fromDist) -join ','; $d = (Names $packaged) -join ','
+          if ($a -ne $b) { throw "dumpbin closure differs from RuntimeFiles.closure:`n  $a`n  $b" }
+          if ($c -ne $d) { throw "RuntimeFiles.closure of the packaged folder differs from its contents:`n  $c`n  $d" }
+          if ($a -ne $d) { throw "the packaged folder differs from the closure:`n  $a`n  $d" }
+          Write-Output "agree: $(@($script).Count) files"
+
+      # The zip on a machine without the Swift toolchain: unzipped to a fresh directory whose name has a space and
+      # Chinese characters, every PATH entry with Swift (and the toolchain's) removed. It must install the Claude hook
+      # into the data directory (which copies the hook and its DLLs to Agentrise\bin), take three hook events through
+      # that installed copy, write a screenshot after 8 s and exit with 0. The Swift runtime and the bundled VC++
+      # runtime must load from the unzipped folder. Limitation: the runner has the VC++ runtime installed system-wide
+      # too, so this run can't prove a machine without it works; the module check shows the app-local copy is the one
+      # loaded (the application directory comes first in the DLL search order).
+      - name: Smoke test the zip without the toolchain
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = Resolve-Path "dist/Agentrise-windows-x64-$env:VERSION.zip"
+          $fixtures = (Resolve-Path Tests/AgentriseTests/Fixtures/codex).Path
+          $unzipped = Join-Path $env:RUNNER_TEMP 'Agentrise 解压'
+          $data = Join-Path $env:RUNNER_TEMP 'ar 数据'
+          New-Item -ItemType Directory -Force -Path $unzipped, $data | Out-Null
+          Expand-Archive -LiteralPath $zip -DestinationPath $unzipped
+          $exe = Join-Path $unzipped 'Agentrise.exe'
+          $shot = Join-Path $data 'shot.png'
+          $log = Join-Path $data 'Agentrise\agentrise.log'
+          New-Item -ItemType Directory -Force -Path smoke | Out-Null
+
+          $kept = @($env:PATH -split ';' | Where-Object {
+            $_ -and -not (Test-Path -LiteralPath (Join-Path $_ 'swiftCore.dll')) -and -not (Test-Path -LiteralPath (Join-Path $_ 'swift.exe')) -and
+              -not (Test-Path -LiteralPath (Join-Path $_ 'swift-driver.exe')) -and $_ -notmatch '\\Swift\\'
+          })
+          $env:PATH = $kept -join ';'
+          if (Get-Command swift -ErrorAction SilentlyContinue) { throw 'swift is still on PATH' }
+          Write-Output "PATH without the toolchain:"; $kept | ForEach-Object { "  $_" }
+          $system = Join-Path $env:SystemRoot 'System32'
+          foreach ($f in 'vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll') {
+            Write-Output ("{0} in System32: {1}" -f $f, (Test-Path -LiteralPath (Join-Path $system $f)))
+          }
+
+          function Start-App([string[]] $arguments) {
+            $psi = [System.Diagnostics.ProcessStartInfo]::new($exe)
+            foreach ($a in $arguments) { $psi.ArgumentList.Add($a) }
+            $psi.UseShellExecute = $false
+            return [System.Diagnostics.Process]::Start($psi)
+          }
+
+          $p = Start-App @('--data-dir', $data, '--install-hooks', 'claude')
+          if (-not $p.WaitForExit(30000)) { $p.Kill(); throw '--install-hooks did not exit' }
+          if ($p.ExitCode -ne 0) { if (Test-Path $log) { Get-Content $log }; throw "--install-hooks exited with $($p.ExitCode)" }
+          $binDir = Join-Path $data 'Agentrise\bin'
+          $hook = Join-Path $binDir 'agentrise-hook.exe'
+          if (-not (Test-Path -LiteralPath $hook)) { throw "no $hook" }
+          Write-Output "installed in Agentrise\bin:"; Get-ChildItem -LiteralPath $binDir | ForEach-Object { "  $($_.Name)" }
+
+          $app = Start-App @('--data-dir', $data, '--screenshot', $shot, '--after', '8', '--size', '1200x800')
+          Start-Sleep -Seconds 3
+          $modules = @((Get-Process -Id $app.Id).Modules | ForEach-Object { $_.FileName })
+          foreach ($m in 'swiftCore.dll', 'Foundation.dll', 'vcruntime140.dll') {
+            $hit = @($modules | Where-Object { (Split-Path -Leaf $_) -ieq $m })
+            Write-Output ("{0} loaded from: {1}" -f $m, ($hit -join ', '))
+            if ($hit.Count -eq 0) { throw "$m is not loaded" }
+            if (-not ($hit | Where-Object { $_.StartsWith($unzipped, [System.StringComparison]::OrdinalIgnoreCase) })) { throw "$m did not load from the unzipped folder" }
+          }
+          $saved = $env:LOCALAPPDATA
+          $env:LOCALAPPDATA = $data
+          $env:CLAUDE_CODE_ENTRYPOINT = 'cli'
+          foreach ($f in 'session-start', 'user-prompt-submit', 'stop') {
+            Get-Content -Raw (Join-Path $fixtures "$f.json") | & $hook
+            if ($LASTEXITCODE -ne 0) { throw "the installed agentrise-hook.exe failed on $f ($LASTEXITCODE)" }
+          }
+          $env:LOCALAPPDATA = $saved
+          Remove-Item Env:CLAUDE_CODE_ENTRYPOINT
+
+          if (-not $app.WaitForExit(30000)) { $app.Kill(); throw 'Agentrise.exe did not exit after its screenshot' }
+          Write-Output "Agentrise.exe exit code: $($app.ExitCode)"
+          Get-Content $log
+          Copy-Item $log smoke/agentrise.log
+          if ($app.ExitCode -ne 0) { throw 'Agentrise.exe did not exit with 0' }
+          if (-not (Test-Path $shot)) { throw "no $shot" }
+          Copy-Item $shot smoke/shot.png
+          $text = Get-Content -Raw $log
+          if ($text -notmatch 'sessions 1,') { throw 'the hook events did not reach the app' }
+
+      - name: Upload zip
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Agentrise-windows-x64-${{ steps.version.outputs.version }}
+          path: dist/Agentrise-windows-x64-${{ steps.version.outputs.version }}.zip
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload smoke test screenshot
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-package-smoke
+          path: smoke/
+          if-no-files-found: warn

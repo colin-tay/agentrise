@@ -41,6 +41,29 @@ package enum HookCommandLine {
     }
 }
 
+/// `Agentrise.exe --print-runtime-files <out.txt> [--search-dir <dir>]...`: writes, one full path per line (UTF-8), the
+/// files `RuntimeFiles.closure` finds for `Agentrise.exe` and the `agentrise-hook.exe` next to it, searching the exe's
+/// own directory and then each `--search-dir` in order. The release workflow checks that the packaging script's
+/// `dumpbin` closure is this same list (the installed hook copies its DLLs with this function). Returns the exit code.
+package enum RuntimeFilesCommandLine {
+    package static func files(appDir: URL = HookHelperFiles.appDir(), exe: URL = URL(fileURLWithPath: Autostart.currentExe()),
+                              searchDirs: [String]) -> [URL] {
+        let hook = appDir.appendingPathComponent(HookHelperFiles.hookExe)
+        let dirs = [appDir] + searchDirs.map { URL(fileURLWithPath: $0, isDirectory: true) }
+        return RuntimeFiles.closure(of: [exe, hook], searchDirs: dirs)
+    }
+
+    package static func run(out: String, searchDirs: [String]) -> Int32 {
+        let appDir = HookHelperFiles.appDir()
+        guard FileManager.default.fileExists(atPath: appDir.appendingPathComponent(HookHelperFiles.hookExe).path) else {
+            return 1
+        }
+        let text = files(appDir: appDir, searchDirs: searchDirs).map { SafeFile.nativePath(of: $0) + "\n" }.joined()
+        do { try Data(text.utf8).write(to: URL(fileURLWithPath: out)) } catch { return 1 }
+        return 0
+    }
+}
+
 /// The command line. Besides normal launches, for CI and local smoke runs:
 /// - `--data-dir <dir>`: home and support directory under `<dir>` (see `AppPaths`);
 /// - `--screenshot <file.png> [--after <seconds>]`: after `seconds` (default 8), writes the window's content (rendered
@@ -53,6 +76,8 @@ package enum HookCommandLine {
 /// - `--install-hooks claude|codex`: installs that agent's hooks without asking (no preview; the backup is still
 ///   written), logs the result and exits 0 (1 on failure, 2 for Codex when Codex isn't on this machine: its home is
 ///   never created). Runs whether or not Agentrise is running.
+/// - `--print-runtime-files <out.txt> [--search-dir <dir>]...`: writes the runtime file list (`RuntimeFilesCommandLine`)
+///   and exits 0 (1 when it couldn't), before anything else: no data directory, no log.
 package struct AppOptions: Equatable {
     package var dataDir: String?
     package var screenshot: String?
@@ -62,6 +87,8 @@ package struct AppOptions: Equatable {
     package var size: CGSize?
     package var installHooks: AgentKind?
     package var openSettings = false
+    package var printRuntimeFiles: String?
+    package var searchDirs: [String] = []
 
     package init() {}
 
@@ -78,6 +105,8 @@ package struct AppOptions: Equatable {
             case "--retry-ms": if let v = value().flatMap(Double.init), v >= 0 { o.retry = v / 1000 }; i += 1
             case "--open-settings": o.openSettings = true
             case "--install-hooks": o.installHooks = value().flatMap(AgentKind.init(rawValue:)); i += 1
+            case "--print-runtime-files": o.printRuntimeFiles = value(); i += 1
+            case "--search-dir": if let v = value() { o.searchDirs.append(v) }; i += 1
             case "--size":
                 let p = (value() ?? "").split(separator: "x").compactMap { Double($0) }
                 if p.count == 2, p[0] > 0, p[1] > 0 { o.size = CGSize(width: p[0], height: p[1]) }

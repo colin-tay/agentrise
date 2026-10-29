@@ -1,0 +1,64 @@
+# Copyright (c) 2026 Colin Tay
+# SPDX-License-Identifier: MIT
+name: Windows 问题反馈 / Windows problem
+description: 实验性 Windows 版的问题 / A problem with the experimental Windows build
+title: "[Windows] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢试用实验性的 Windows 版。日志在 `%LOCALAPPDATA%\Agentrise\agentrise.log`，附上它（去掉你不想公开的内容）会很有帮助。
+        Thanks for trying the experimental Windows build. The log is at `%LOCALAPPDATA%\Agentrise\agentrise.log`; attaching it (minus anything you'd rather not share) helps a lot.
+  - type: input
+    id: agentrise-version
+    attributes:
+      label: Agentrise 版本 / Agentrise version
+      description: zip 文件名里的版本，或托盘菜单"关于 Agentrise"里的版本 / The version in the zip's name, or in the tray menu's About box
+      placeholder: "1.0"
+    validations:
+      required: true
+  - type: input
+    id: windows-version
+    attributes:
+      label: Windows 版本 / Windows version
+      description: 按 Win+R 运行 `winver` 可以看到；也请写明是 x64 还是 ARM / Run `winver` (Win+R); please say whether the PC is x64 or ARM
+      placeholder: Windows 11 24H2 (26100.4061), x64
+    validations:
+      required: true
+  - type: input
+    id: install-location
+    attributes:
+      label: 解压位置 / Where you unzipped it
+      description: Agentrise.exe 所在的完整路径 / The full path of Agentrise.exe
+      placeholder: C:\Users\me\Apps\Agentrise\Agentrise.exe
+    validations:
+      required: true
+  - type: input
+    id: claude-code-version
+    attributes:
+      label: Claude Code 版本 / Claude Code version
+      description: "`claude --version` 的输出；没用 Claude Code 就写“无” / Output of `claude --version`; \"none\" if you don't use it"
+      placeholder: 2.1.312 (Claude Code)
+  - type: input
+    id: codex-version
+    attributes:
+      label: Codex 版本 / Codex version
+      description: "`codex --version` 的输出，以及安装方式（安装脚本、npm、winget）；没用 Codex 就写“无” / Output of `codex --version` and how it was installed (install script, npm, winget); \"none\" if you don't use it"
+      placeholder: codex-cli 0.164.0 (npm)
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+      description: 做了什么、期望看到什么、实际看到什么 / What you did, what you expected, what happened
+      placeholder: |
+        1. …
+        2. …
+        期望 / Expected: …
+        实际 / Actual: …
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图和日志 / Screenshots and log
+      description: 把截图或 agentrise.log 拖进这里 / Drag screenshots or agentrise.log here

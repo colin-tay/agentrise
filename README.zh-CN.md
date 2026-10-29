@@ -57,6 +57,41 @@ Codex 给的信息比 Claude Code 少，所以 Codex 的机器人不会显示：
 `swift test` 运行测试；`swift run agentrise-sim story` 会向正在运行的 App 发送一组模拟会话。
 修改 `assets/*.svg` 后，运行 `swift scripts/make-icons.swift` 重新生成 PNG 和 `Resources/AppIcon.icns`。
 
+## Windows（实验性）
+
+有一个实验性的 Windows 版：同一栋楼、同样的会话和美术，放在一个窗口里，带托盘图标。
+它**没有签名**，在真机上测得还很少。
+
+**下载。** 发布后，[Releases](https://github.com/colin-tay/agentrise/releases) 页面上会有
+`Agentrise-windows-x64-<版本>.zip`。没有安装程序：解压到任意目录，双击 `Agentrise.exe` 即可。
+Swift 和 Visual C++ 运行库的 DLL 就放在它旁边，不需要另装任何东西。（如果 Windows 仍提示缺少
+`VCRUNTIME140.dll` 或 `MSVCP140.dll`，请安装微软官方的
+[Visual C++ 2015–2022 x64 可再发行组件包](https://aka.ms/vs/17/release/vc_redist.x64.exe)。）
+
+**首次运行。**
+
+- **SmartScreen** 会拦下没见过的未签名程序（"Windows 已保护你的电脑"）。点 **更多信息 → 仍要运行**。
+- **智能应用控制**（Smart App Control）会直接拦截未签名程序，没有放行的按钮。它开着的话，这个版本
+  启动不了。在 **设置 → 隐私和安全性 → Windows 安全中心 → 应用和浏览器控制 → 智能应用控制** 里查看
+  它的状态。
+
+**能用的功能。** 大楼窗口（横屏、竖屏）和待处理面板；托盘图标显示等你的数量，有会话开始等你时闪烁；
+在托盘菜单的 **设置…** 里给 Claude Code 和 Codex 安装 hook（先预览、再备份原文件；hook 会复制到
+`%LOCALAPPDATA%\Agentrise\bin\`，之后移动解压目录不影响）；职级；开机自启；窗口置顶；单实例；
+单击机器人跳回对应的会话。
+
+**已知限制。**
+
+- 没有签名（见上）。只有 x64；Windows 11 ARM 上通过系统的 x64 模拟运行。
+- 单击终端会话只把终端窗口切到前台，切不到具体标签页。跳到 Claude 桌面端会话用的是 `claude://`
+  链接，在 Windows 上还没验证过。
+- Windows 版没有 Bark 推送和提示音。
+- 嵌在文字里的 emoji（名牌上的 ⚡）比 macOS 上小约 20%。
+- 下面这些只通过读代码和文档确认过，还没在真机上试过：不支持 hook `args` 字段的旧版 Claude Code、
+  Codex 执行 hook 用的 shell 和它的信任流程、npm 装的 Codex、跨显示器的 DPI 变化、以管理员身份运行。
+
+遇到问题？请[提一个 Windows issue](https://github.com/colin-tay/agentrise/issues/new?template=windows.yml)。
+
 ## 隐私
 
 hook 程序只在本机运行，通过只有当前用户能访问的 Unix socket 发送事件。它会丢掉 prompt 原文和文件内容，

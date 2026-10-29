@@ -15,6 +15,10 @@ let dpiAwareness = Startup.ensureDpiAwareness()
 _ = OleInitialize(nil)
 
 let options = AppOptions.parse(CommandLine.arguments)
+if let out = options.printRuntimeFiles {
+    // The packaging check (release workflow): no data directory, no log.
+    exit(RuntimeFilesCommandLine.run(out: out, searchDirs: options.searchDirs))
+}
 let paths = AppPaths(dataDir: options.dataDir)
 try? FileManager.default.createDirectory(at: paths.support, withIntermediateDirectories: true)
 Log.file = paths.logFile

@@ -146,6 +146,10 @@ private func powershellLine(_ script: String) -> String {
         #expect(AppOptions.parse(["Agentrise.exe"]).retry == 2)
         #expect(AppOptions.parse(["Agentrise.exe", "--open-settings"]).openSettings)
         #expect(!AppOptions.parse(["Agentrise.exe"]).openSettings)
+        let r = AppOptions.parse(["Agentrise.exe", "--print-runtime-files", "D:\\o.txt", "--search-dir", "C:\\a b", "--search-dir", "C:\\c"])
+        #expect(r.printRuntimeFiles == "D:\\o.txt")
+        #expect(r.searchDirs == ["C:\\a b", "C:\\c"])
+        #expect(AppOptions.parse(["Agentrise.exe"]).searchDirs.isEmpty)
     }
 }
 
@@ -374,6 +378,24 @@ private func withWideTest<R>(_ s: String, _ body: (UnsafePointer<WCHAR>) -> R) -
         #expect(!FileManager.default.fileExists(atPath: data.appendingPathComponent(".codex").path))
         let log = try String(contentsOf: data.appendingPathComponent("Agentrise").appendingPathComponent("agentrise.log"), encoding: .utf8)
         #expect(log.contains("这台电脑上没有 Codex"))
+    }
+
+    /// `--print-runtime-files` (the release workflow's check against the packaging script): the real Agentrise.exe
+    /// writes its closure with the hook's, the exes first, the Swift runtime found through `--search-dir`.
+    @Test func cliPrintsTheRuntimeFiles() throws {
+        let out = try scratchDir().appendingPathComponent("runtime files.txt")
+        let runtime = try #require(toolchainRuntimeDir(), "no swiftCore.dll on PATH")
+        #expect(try run(try agentriseExe(), ["--print-runtime-files", nativePath(out), "--search-dir", nativePath(runtime)],
+                        timeout: 30) == 0)
+        let lines = try String(contentsOf: out, encoding: .utf8).split(separator: "\n").map(String.init)
+        let names = lines.map { $0.split(separator: "\\").last.map(String.init)?.lowercased() ?? "" }
+        #expect(names.prefix(2) == ["agentrise.exe", "agentrise-hook.exe"])
+        #expect(names.contains("swiftcore.dll"))
+        #expect(names.contains("foundation.dll"))
+        #expect(!names.contains("kernel32.dll"))
+        #expect(Set(names).count == names.count)
+        let expected = RuntimeFilesCommandLine.files(appDir: try buildDir(), exe: try agentriseExe(), searchDirs: [nativePath(runtime)])
+        #expect(names == expected.map { $0.lastPathComponent.lowercased() })
     }
 
     /// The installed hook really runs from bin\ and reaches the app's socket path (exec form: no shell, the path has a

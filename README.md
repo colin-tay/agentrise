@@ -66,6 +66,45 @@ stays in the building (eventually asleep) instead of leaving.
 set of fake sessions to a running app. After editing `assets/*.svg`, run
 `swift scripts/make-icons.swift` to regenerate the PNGs and `Resources/AppIcon.icns`.
 
+## Windows (experimental)
+
+An experimental Windows build exists: the same tower, sessions and art, in a window with a tray icon.
+It is **unsigned** and has had little testing on real machines.
+
+**Download.** Zips named `Agentrise-windows-x64-<version>.zip` appear on the
+[Releases](https://github.com/colin-tay/agentrise/releases) page when one is published. There is no
+installer: unzip anywhere and double-click `Agentrise.exe`. The Swift and Visual C++ runtime DLLs ship
+next to it, so nothing else needs installing. (If Windows still reports a missing `VCRUNTIME140.dll`
+or `MSVCP140.dll`, install Microsoft's
+[Visual C++ 2015–2022 x64 Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe).)
+
+**First run.**
+
+- **SmartScreen** stops unsigned programs it hasn't seen before ("Windows protected your PC").
+  Choose **More info → Run anyway**.
+- **Smart App Control** blocks unsigned programs outright, with no way to run them. If it is on,
+  this build won't start. Check it in **Settings → Privacy & security → Windows Security → App &
+  browser control → Smart App Control**.
+
+**What works.** The tower window (landscape and portrait) with the pending panel; the tray icon with
+the waiting count, flashing when a session starts waiting; Claude Code and Codex hooks installed from
+**Settings…** in the tray menu (previewed, the old file backed up; the hook is copied to
+`%LOCALAPPDATA%\Agentrise\bin\`, so moving the unzipped folder later doesn't break it); ranks;
+start at sign-in; always on top; one instance; clicking a robot to jump back to its session.
+
+**Known limitations.**
+
+- Unsigned (see above). x64 only; on Windows 11 ARM it runs through Windows' x64 emulation.
+- Clicking a terminal session brings its terminal window forward, not the tab. Jumping to a Claude
+  desktop-app session uses its `claude://` link, which is unverified on Windows.
+- Not on Windows: Bark push and sounds.
+- Emoji inside text (the ⚡ on name plates) are drawn about 20% smaller than on macOS.
+- Things only checked by reading code and docs, not yet on a real machine: Claude Code versions
+  without the hook `args` field, Codex's shell for hooks and its trust prompt, npm-installed Codex,
+  per-monitor DPI changes, running as administrator.
+
+Found a problem? [Open a Windows issue](https://github.com/colin-tay/agentrise/issues/new?template=windows.yml).
+
 ## Privacy
 
 The hook helper runs locally and sends events over a Unix socket that only your user can
