@@ -33,9 +33,10 @@ import TowerKit
 
     @Test func argumentsOfAChildProcess() throws {
         let child = Process()
-        let comspec = ProcessInfo.processInfo.environment["ComSpec"] ?? #"C:\Windows\System32\cmd.exe"#
-        child.executableURL = URL(fileURLWithPath: comspec)
-        child.arguments = ["/c", "ping", "-n", "3", "127.0.0.1"]
+        // ping itself rather than through cmd.exe, so terminating the child leaves no grandchild running.
+        let root = ProcessInfo.processInfo.environment["SystemRoot"] ?? #"C:\Windows"#
+        child.executableURL = URL(fileURLWithPath: root + #"\System32\PING.EXE"#)
+        child.arguments = ["-n", "3", "127.0.0.1"]
         child.standardOutput = FileHandle.nullDevice
         try child.run()
         defer { child.terminate(); child.waitUntilExit() }
