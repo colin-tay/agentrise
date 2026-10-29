@@ -57,9 +57,9 @@ extension BakedImage {
 package final class D2DArtBackend: ArtBackend {
     package static let shared = D2DArtBackend()
 
-    let wic: UnsafeMutablePointer<IWICImagingFactory>
+    package let wic: UnsafeMutablePointer<IWICImagingFactory>
     /// ID2D1Factory1, multi-threaded.
-    let d2d: COMObject
+    package let d2d: COMObject
     /// IDWriteFactory1, shared.
     let dwrite: COMObject
     /// Round caps and joins, as every `Pen.stroke` draws.
@@ -70,7 +70,7 @@ package final class D2DArtBackend: ArtBackend {
     /// Makes sure the calling thread is in a COM apartment: on its first call, a thread with none joins the
     /// multi-threaded apartment for good (it is never left; the thread's end does that). A thread already in an
     /// apartment keeps it (CoInitializeEx answers RPC_E_CHANGED_MODE for an STA, S_FALSE for the MTA).
-    static func joinCOM() {
+    package static func joinCOM() {
         let key = "agentrise.D2DArtBackend.com"
         let thread = Thread.current.threadDictionary
         guard thread[key] == nil else { return }

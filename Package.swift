@@ -52,8 +52,25 @@ targets += [
                              .linkedLibrary("windowscodecs"), .linkedLibrary("ole32")]),
     .executableTarget(name: "ArtGallery", dependencies: ["AgentriseScene", "AgentriseWinArt"],
                       swiftSettings: [.swiftLanguageMode(.v5)]),
-    .testTarget(name: "AgentriseWinTests", dependencies: ["AgentriseWinArt", "AgentriseScene"],
+    .testTarget(name: "AgentriseWinTests", dependencies: ["AgentriseWin", "AgentriseWinArt", "AgentriseScene", "Agentrise", "TowerKit"],
                 swiftSettings: [.swiftLanguageMode(.v5)]),
+]
+// The Windows app, `Agentrise.exe`: the shell (window, Direct2D display, panel, tray, single instance) is a library,
+// so the tests can drive it; the executable is its `main.swift` plus the embedded manifest (Per-Monitor V2 DPI
+// awareness, comctl32 v6), linked as a GUI program (no console window).
+let manifest = Context.packageDirectory + "\\Sources\\AgentriseWinApp\\Agentrise.manifest"
+products.append(.executable(name: "Agentrise", targets: ["AgentriseWinApp"]))
+targets += [
+    .target(name: "AgentriseWin", dependencies: ["AgentriseWinArt", "CDirect2D", "AgentriseScene", "Agentrise", "TowerKit"],
+            swiftSettings: [.swiftLanguageMode(.v5)],
+            linkerSettings: [.linkedLibrary("user32"), .linkedLibrary("gdi32"), .linkedLibrary("shell32"),
+                             .linkedLibrary("advapi32"), .linkedLibrary("ole32"), .linkedLibrary("d2d1"),
+                             .linkedLibrary("windowscodecs")]),
+    .executableTarget(name: "AgentriseWinApp", dependencies: ["AgentriseWin"],
+                      exclude: ["Agentrise.manifest"],
+                      swiftSettings: [.swiftLanguageMode(.v5)],
+                      linkerSettings: [.unsafeFlags(["-Xlinker", "/SUBSYSTEM:WINDOWS", "-Xlinker", "/ENTRY:mainCRTStartup",
+                                                     "-Xlinker", "/MANIFEST:EMBED", "-Xlinker", "/MANIFESTINPUT:" + manifest])]),
 ]
 #endif
 

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Colin Tay
 // SPDX-License-Identifier: MIT
 //
-// Direct2D 1.1 / DirectWrite COM declarations for AgentriseWinArt (D2DPen).
+// Direct2D 1.1 / DirectWrite COM declarations for AgentriseWinArt (D2DPen) and the app's display (AgentriseWin).
 //
 // Swift 6.1.2's WinSDK module has no Direct2D or DirectWrite, and the SDK headers can't be used from a Clang
 // module (Sources/CD2DSpike/include/CD2DSpike.h, Task 1, explains why in full). So, as there:
@@ -58,7 +58,7 @@ typedef enum D2D1_CAP_STYLE {
 typedef enum D2D1_LINE_JOIN {
     D2D1_LINE_JOIN_MITER = 0, D2D1_LINE_JOIN_BEVEL = 1, D2D1_LINE_JOIN_ROUND = 2, D2D1_LINE_JOIN_MITER_OR_BEVEL = 3
 } D2D1_LINE_JOIN;
-typedef enum D2D1_DASH_STYLE { D2D1_DASH_STYLE_SOLID = 0 } D2D1_DASH_STYLE;
+typedef enum D2D1_DASH_STYLE { D2D1_DASH_STYLE_SOLID = 0, D2D1_DASH_STYLE_CUSTOM = 5 } D2D1_DASH_STYLE;
 typedef struct D2D1_STROKE_STYLE_PROPERTIES {
     D2D1_CAP_STYLE startCap, endCap, dashCap;
     D2D1_LINE_JOIN lineJoin;
@@ -94,6 +94,18 @@ typedef struct D2D1_LAYER_PARAMETERS {
     void *opacityBrush;             // ID2D1Brush *
     D2D1_LAYER_OPTIONS layerOptions;
 } D2D1_LAYER_PARAMETERS;
+
+// Bitmaps and window render targets (d2d1.h), for the app's display (AgentriseWin).
+typedef struct D2D1_BITMAP_PROPERTIES { D2D1_PIXEL_FORMAT pixelFormat; FLOAT dpiX, dpiY; } D2D1_BITMAP_PROPERTIES;
+typedef enum D2D1_PRESENT_OPTIONS {
+    D2D1_PRESENT_OPTIONS_NONE = 0, D2D1_PRESENT_OPTIONS_RETAIN_CONTENTS = 1, D2D1_PRESENT_OPTIONS_IMMEDIATELY = 2
+} D2D1_PRESENT_OPTIONS;
+typedef struct D2D1_HWND_RENDER_TARGET_PROPERTIES {
+    HWND hwnd;
+    D2D1_SIZE_U pixelSize;
+    D2D1_PRESENT_OPTIONS presentOptions;
+} D2D1_HWND_RENDER_TARGET_PROPERTIES;
+typedef enum D2D1_WINDOW_STATE { D2D1_WINDOW_STATE_NONE = 0, D2D1_WINDOW_STATE_OCCLUDED = 1 } D2D1_WINDOW_STATE;
 
 typedef enum D2D1_DRAW_TEXT_OPTIONS {
     D2D1_DRAW_TEXT_OPTIONS_NONE = 0, D2D1_DRAW_TEXT_OPTIONS_NO_SNAP = 1, D2D1_DRAW_TEXT_OPTIONS_CLIP = 2,
@@ -172,7 +184,8 @@ typedef struct CD2D_ID2D1FactoryVtbl {
     CD2D_SLOT(CreateDrawingStateBlock);
     HRESULT (STDMETHODCALLTYPE *CreateWicBitmapRenderTarget)(void *This, void *wicBitmap,
         const D2D1_RENDER_TARGET_PROPERTIES *props, void **renderTarget);
-    CD2D_SLOT(CreateHwndRenderTarget);
+    HRESULT (STDMETHODCALLTYPE *CreateHwndRenderTarget)(void *This, const D2D1_RENDER_TARGET_PROPERTIES *props,
+        const D2D1_HWND_RENDER_TARGET_PROPERTIES *hwndProps, void **hwndRenderTarget);
     CD2D_SLOT(CreateDxgiSurfaceRenderTarget);
     CD2D_SLOT(CreateDCRenderTarget);
 } CD2D_ID2D1FactoryVtbl;
@@ -221,8 +234,12 @@ typedef struct CD2D_ID2D1GeometrySinkVtbl {
 #define CD2D_ID2D1RENDERTARGET_SLOTS                                                     \
     CD2D_IUNKNOWN_SLOTS                                                                  \
     CD2D_SLOT(GetFactory);                                                               \
-    CD2D_SLOT(CreateBitmap);                                                             \
-    CD2D_SLOT(CreateBitmapFromWicBitmap);                                                \
+    HRESULT (STDMETHODCALLTYPE *CreateBitmap)(void *This, D2D1_SIZE_U size,              \
+        const void *srcData, UINT32 pitch, const D2D1_BITMAP_PROPERTIES *bitmapProps,    \
+        void **bitmap);                                                                  \
+    HRESULT (STDMETHODCALLTYPE *CreateBitmapFromWicBitmap)(void *This,                   \
+        void *wicBitmapSource, const D2D1_BITMAP_PROPERTIES *bitmapProps,                \
+        void **bitmap);                                                                  \
     CD2D_SLOT(CreateSharedBitmap);                                                       \
     CD2D_SLOT(CreateBitmapBrush);                                                        \
     HRESULT (STDMETHODCALLTYPE *CreateSolidColorBrush)(void *This,                       \
@@ -262,7 +279,8 @@ typedef struct CD2D_ID2D1GeometrySinkVtbl {
     void (STDMETHODCALLTYPE *DrawTextLayout)(void *This, D2D1_POINT_2F origin,           \
         void *textLayout, void *defaultFillBrush, D2D1_DRAW_TEXT_OPTIONS options);       \
     CD2D_SLOT(DrawGlyphRun);                                                             \
-    CD2D_SLOT(SetTransform);                                                             \
+    void (STDMETHODCALLTYPE *SetTransform)(void *This,                                   \
+        const D2D1_MATRIX_3X2_F *transform);                                             \
     CD2D_SLOT(GetTransform);                                                             \
     CD2D_SLOT(SetAntialiasMode);                                                         \
     CD2D_SLOT(GetAntialiasMode);                                                         \
@@ -286,7 +304,7 @@ typedef struct CD2D_ID2D1GeometrySinkVtbl {
     void (STDMETHODCALLTYPE *BeginDraw)(void *This);                                     \
     HRESULT (STDMETHODCALLTYPE *EndDraw)(void *This, D2D1_TAG *tag1, D2D1_TAG *tag2);    \
     CD2D_SLOT(GetPixelFormat);                                                           \
-    CD2D_SLOT(SetDpi);                                                                   \
+    void (STDMETHODCALLTYPE *SetDpi)(void *This, FLOAT dpiX, FLOAT dpiY);                \
     CD2D_SLOT(GetDpi);                                                                   \
     CD2D_SLOT(GetSize);                                                                  \
     /* Struct return: hidden out-pointer after This (see the top of this file). */      \
@@ -303,6 +321,14 @@ typedef struct CD2D_ID2D1BitmapRenderTargetVtbl {
     CD2D_ID2D1RENDERTARGET_SLOTS
     HRESULT (STDMETHODCALLTYPE *GetBitmap)(void *This, void **bitmap);
 } CD2D_ID2D1BitmapRenderTargetVtbl;
+
+// ID2D1HwndRenderTarget : ID2D1RenderTarget
+typedef struct CD2D_ID2D1HwndRenderTargetVtbl {
+    CD2D_ID2D1RENDERTARGET_SLOTS
+    D2D1_WINDOW_STATE (STDMETHODCALLTYPE *CheckWindowState)(void *This);
+    HRESULT (STDMETHODCALLTYPE *Resize)(void *This, const D2D1_SIZE_U *pixelSize);
+    CD2D_SLOT(GetHwnd);
+} CD2D_ID2D1HwndRenderTargetVtbl;
 
 // ID2D1DeviceContext : ID2D1RenderTarget (Direct2D 1.1)
 typedef struct CD2D_ID2D1DeviceContextVtbl {
