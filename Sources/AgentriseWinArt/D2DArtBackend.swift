@@ -135,10 +135,12 @@ package final class D2DArtBackend: ArtBackend {
     /// Emoji for emoji) DirectWrite picks by itself.
     static let family = wide("Segoe UI"), locale = wide("zh-CN")
 
+    /// DirectWrite weights. Segoe UI has no 500 face, and DirectWrite would match medium to Regular, visibly lighter
+    /// than SF Medium (the name plates' second line, the header): medium asks for Semibold, which reads closer.
     static func weight(_ w: FontWeight) -> UInt32 {
         switch w {
         case .regular: return 400
-        case .medium: return 500
+        case .medium: return 600
         case .semibold: return 600
         case .bold: return 700
         case .heavy: return 800
