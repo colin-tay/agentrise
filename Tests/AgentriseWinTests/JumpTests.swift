@@ -83,6 +83,23 @@ import Foundation
         #expect(j.window(forAgent: 100) == nil)
     }
 
+    /// Review I1 / Task 13 Minor 10: the agent's own pid is checked against the registry's start time, so a reused pid
+    /// doesn't bring an unrelated window forward.
+    @Test func reusedAgentPidIsNotFollowed() {
+        var got: [UInt] = []
+        let j = jump(activated: { got.append($0.handle) })
+        #expect(j.window(forAgent: 100, start: ProcessStart(fileTime: "70"))?.handle == 0x80)
+        #expect(j.window(forAgent: 100, start: ProcessStart(fileTime: "70000000000")) == nil)
+        #expect(!j.open(.terminal(bundleId: nil, pid: 100, start: ProcessStart(fileTime: "70000000000"))))
+        #expect(got.isEmpty)
+        // A start time that can't be read, or a creation time we couldn't get: the walk goes ahead.
+        #expect(j.window(forAgent: 100, start: ProcessStart(procStart: "Thu Jan 15")) != nil)
+        let unknown = jump([ProcessEntry(pid: 100, parent: 80, exe: "claude.exe")] + tree.filter { $0.pid != 100 })
+        #expect(unknown.window(forAgent: 100, start: ProcessStart(fileTime: "70000000000"))?.handle == 0x80)
+        #expect(j.open(.terminal(bundleId: nil, pid: 100, start: ProcessStart(fileTime: "70"))))
+        #expect(got == [0x80])
+    }
+
     @Test func cyclesAndDepthAreBounded() {
         let cycle = [ProcessEntry(pid: 8, parent: 12, exe: "a.exe"), ProcessEntry(pid: 12, parent: 8, exe: "b.exe")]
         #expect(Jump.ancestry(of: 8, in: cycle).map(\.pid) == [8, 12])

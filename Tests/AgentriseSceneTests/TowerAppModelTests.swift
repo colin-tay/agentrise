@@ -16,6 +16,8 @@ final class FakePlatform: PlatformServices {
     var supportDirectory: URL { homeDirectory.appendingPathComponent("support") }
     var socketPath: String { supportDirectory.appendingPathComponent("tower.sock").path }
     var running: (Int32) -> Bool = { _ in true }
+    /// Windows' reused-pid check; nil = the protocol's default (`isRunning`).
+    var sameProcess: ((Int32, ProcessStart?) -> Bool)?
     var opens = true
     var opened: [SessionLink] = []
     /// Claude Code's config dir; nil = ~/.claude under the temporary home.
@@ -29,15 +31,18 @@ final class FakePlatform: PlatformServices {
     }
 
     func isRunning(_ pid: Int32) -> Bool { running(pid) }
+    func isSameProcess(pid: Int32, start: ProcessStart?) -> Bool { sameProcess?(pid, start) ?? running(pid) }
     func openSession(_ link: SessionLink) -> Bool { opened.append(link); return opens }
 
     /// Writes <claude dir>/sessions/<pid>.json like a live Claude Code process.
-    func writeRegistry(pid: Int32, sessionId: String, entrypoint: String, hostSessionId: String? = nil, at t: Date) throws {
+    func writeRegistry(pid: Int32, sessionId: String, entrypoint: String, hostSessionId: String? = nil, procStartFt: String? = nil,
+                       at t: Date) throws {
         let dir = SessionRegistry.dir(claudeDir: claudeDirectory)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         var o: [String: Any] = ["sessionId": sessionId, "pid": pid, "status": "idle", "entrypoint": entrypoint,
                                 "cwd": "/work/demo", "updatedAt": t.timeIntervalSince1970 * 1000]
         if let hostSessionId { o["hostSessionId"] = hostSessionId }
+        if let procStartFt { o["procStartFt"] = procStartFt }
         try JSONSerialization.data(withJSONObject: o).write(to: dir.appendingPathComponent("\(pid).json"))
     }
 
@@ -192,6 +197,30 @@ final class ManualScheduler: TowerScheduler {
         #expect(model.visibleSessions.map(\.id) == ["live"])
     }
 
+    /// Review I1: a registry file left behind by a killed Claude Code whose pid now belongs to another process (alive,
+    /// but started at another time) is stale: the session leaves past the grace like one whose file is gone.
+    @Test func registryFileOfAReusedPidIsStale() throws {
+        let (model, platform, scheduler, _, _) = try make()
+        var left: [TowerEffect] = []
+        model.onEffects = { effects, _ in left += effects.filter { if case .sessionLeft = $0 { return true }; return false } }
+        var created: [Int32: String] = [101: "1000", 202: "2000"]
+        platform.sameProcess = { pid, start in start.map { $0.fileTime == created[pid] } ?? true }
+        try platform.writeRegistry(pid: 101, sessionId: "m", entrypoint: "cli", procStartFt: "1000", at: t0)
+        try platform.writeRegistry(pid: 202, sessionId: "k", entrypoint: "cli", procStartFt: "2000", at: t0)
+        model.refreshSources()
+        scheduler.advance(by: 1)
+        #expect(model.visibleSessions.map(\.id).sorted() == ["k", "m"])
+        created[101] = "9999"   // m's Claude Code was killed; its pid went to another program
+        for _ in 0..<8 {
+            scheduler.advance(by: 5)
+            model.refreshSources()
+            if scheduler.now.timeIntervalSince(t0) <= TowerStore.registryGrace { #expect(left.isEmpty) }
+        }
+        #expect(left == [.sessionLeft(sessionId: "m")])
+        scheduler.advance(by: 1)
+        #expect(model.visibleSessions.map(\.id) == ["k"])
+    }
+
     /// PR #4: a session whose registry file is gone leaves past the grace even though the registry stops
     /// changing, because `removeDeparted` runs on every refresh before the "nothing changed" early return.
     @Test func departedSessionLeavesOnAnUnchangedRefresh() throws {
@@ -241,14 +270,18 @@ final class ManualScheduler: TowerScheduler {
         #expect(model.visibleSessions.isEmpty)
     }
 
-    /// A terminal session's link carries Claude Code's pid from the registry (Windows walks up from it to the window).
+    /// A terminal session's link carries Claude Code's pid from the registry (Windows walks up from it to the window),
+    /// with the start time the registry recorded for it.
     @Test func terminalLinkCarriesTheRegistryPid() throws {
         let (model, platform, scheduler, _, _) = try make()
         try platform.writeRegistry(pid: 101, sessionId: "m", entrypoint: "cli", at: t0)
+        try platform.writeRegistry(pid: 202, sessionId: "k", entrypoint: "cli", procStartFt: "134000000000000000", at: t0)
         model.refreshSources()
         scheduler.advance(by: 1)
         model.open(sessionId: "m")
-        #expect(platform.opened == [.terminal(bundleId: nil, pid: 101)])
+        model.open(sessionId: "k")
+        #expect(platform.opened == [.terminal(bundleId: nil, pid: 101),
+                                    .terminal(bundleId: nil, pid: 202, start: ProcessStart(fileTime: "134000000000000000"))])
     }
 
     @Test func effectsArriveWithTheSessionsAsTheyAreNow() throws {

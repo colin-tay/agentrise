@@ -113,6 +113,29 @@ private func powershellLine(_ script: String) -> String {
         #expect(!WinPlatform.isRunning(pid))
     }
 
+    /// Review I1: our own pid with our real creation time (as `procStartFt`, or `procStart` in either scale) is the
+    /// same process; a wrong start time is not; no start time, or one we can't read, falls back to `isRunning`.
+    @Test func isSameProcessComparesCreationTimes() throws {
+        let me = Int32(bitPattern: GetCurrentProcessId())
+        let created = try #require(Jump.creationTime(UInt32(bitPattern: me)))
+        #expect(WinPlatform.isSameProcess(pid: me, start: ProcessStart(fileTime: "\(created)")))
+        #expect(WinPlatform.isSameProcess(pid: me, start: ProcessStart(procStart: "\(created)")))
+        let utcTicks = created + ProcessStart.dotNetTicksAtFileTimeEpoch
+        let localTicks = UInt64(Int64(utcTicks) + Int64(ProcessStart.localOffset(created)) * 10_000_000)
+        #expect(WinPlatform.isSameProcess(pid: me, start: ProcessStart(procStart: "\(utcTicks)")))
+        #expect(WinPlatform.isSameProcess(pid: me, start: ProcessStart(procStart: "\(localTicks)")))
+        let hourEarlier = created - 36_000_000_000
+        #expect(!WinPlatform.isSameProcess(pid: me, start: ProcessStart(fileTime: "\(hourEarlier)")))
+        #expect(!WinPlatform.isSameProcess(pid: me, start: ProcessStart(procStart: "\(hourEarlier + ProcessStart.dotNetTicksAtFileTimeEpoch)")))
+        #expect(!WinPlatform(paths: AppPaths(dataDir: nil)).isSameProcess(pid: me, start: ProcessStart(fileTime: "\(hourEarlier)")))
+        #expect(WinPlatform.isSameProcess(pid: me, start: nil))
+        #expect(WinPlatform.isSameProcess(pid: me, start: ProcessStart(procStart: "not a number")))
+        // Unknown creation time (access denied): only liveness counts.
+        #expect(WinPlatform.isSameProcess(pid: me, start: ProcessStart(fileTime: "\(hourEarlier)"), creation: { _ in nil }))
+        // Gone is gone, whatever the start time.
+        #expect(!WinPlatform.isSameProcess(pid: 0x7FFF_FFFC, start: ProcessStart(fileTime: "\(created)")))
+    }
+
     @Test func dataDirKeepsAgentsInside() {
         let dir = "C:\\Users\\张 三\\ar 测试"
         let paths = AppPaths(dataDir: dir, environment: ["CLAUDE_CONFIG_DIR": "C:\\elsewhere", "CODEX_HOME": "C:\\cx"])

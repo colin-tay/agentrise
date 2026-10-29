@@ -74,6 +74,17 @@ package final class WinPlatform: PlatformServices {
 
     package func isRunning(_ pid: Int32) -> Bool { Self.isRunning(pid) }
 
+    package func isSameProcess(pid: Int32, start: ProcessStart?) -> Bool { Self.isSameProcess(pid: pid, start: start) }
+
+    /// Running, and (when the registry recorded a start time) created when the registry says: Windows hands a dead
+    /// process's id to a new one soon, so a stale `<pid>.json` would otherwise stay "alive" (facts §1, note 1). A
+    /// creation time we can't read (access denied) or a start we can't parse leaves only `isRunning`.
+    package static func isSameProcess(pid: Int32, start: ProcessStart?, creation: (UInt32) -> UInt64? = Jump.creationTime) -> Bool {
+        guard isRunning(pid) else { return false }
+        guard let start, let created = creation(UInt32(bitPattern: pid)) else { return true }
+        return start.matches(creation: created) ?? true
+    }
+
     /// False only when the process is known to be gone: no process has that id any more, or it has exited. A process
     /// we may not open (access denied) or any other error counts as running, like `kill(pid, 0)` on macOS. Exited is
     /// "its handle is signalled", not `GetExitCodeProcess == STILL_ACTIVE` (a process that exited with 259 would

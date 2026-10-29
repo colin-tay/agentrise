@@ -15,6 +15,9 @@ package protocol PlatformServices: AnyObject {
     var socketPath: String { get }
     /// False only when the process is known to be gone (unknown or no permission counts as running).
     func isRunning(_ pid: Int32) -> Bool
+    /// Whether `pid` is still the process that Claude Code's registry recorded as starting at `start`: false when it
+    /// is gone or (Windows) its pid was reused. Default, and whenever `start` is nil: `isRunning(pid)`.
+    func isSameProcess(pid: Int32, start: ProcessStart?) -> Bool
     /// Brings the session's app forward; false when it can't be found (the model then shows a toast).
     func openSession(_ link: SessionLink) -> Bool
     /// Claude Code's config directory (sessions registry, transcripts). Default ~/.claude; Windows honours
@@ -25,6 +28,7 @@ package protocol PlatformServices: AnyObject {
 }
 
 extension PlatformServices {
+    package func isSameProcess(pid: Int32, start: ProcessStart?) -> Bool { isRunning(pid) }
     package var claudeDirectory: URL { homeDirectory.appendingPathComponent(".claude") }
     package var ranksFile: URL { RankBook.fileURL }
 }

@@ -67,16 +67,18 @@ package struct Jump {
             if openURL(url) { return true }
             guard let w = claudeAppWindow() else { return false }
             return activate(w)
-        case .terminal(_, let pid):
-            guard let pid, pid > 0, let w = window(forAgent: UInt32(pid)) else { return false }
+        case .terminal(_, let pid, let start):
+            guard let pid, pid > 0, let w = window(forAgent: UInt32(pid), start: start) else { return false }
             return activate(w)
         }
     }
 
-    /// The window that owns the agent `pid`'s terminal.
-    package func window(forAgent pid: UInt32) -> TopLevelWindow? {
+    /// The window that owns the agent `pid`'s terminal. With the registry's `start`, a `pid` created at another time
+    /// is someone else (the agent exited and its id was reused): not followed.
+    package func window(forAgent pid: UInt32, start: ProcessStart? = nil) -> TopLevelWindow? {
         let chain = Self.ancestry(of: pid, in: processes())
-        guard !chain.isEmpty else { return nil }   // the agent is gone
+        guard let agent = chain.first else { return nil }   // the agent is gone
+        if let start, let created = agent.created, start.matches(creation: created) == false { return nil }
         let candidates = windows().filter { $0.visible && !$0.secondary }
         for p in chain {
             if let w = candidates.first(where: { $0.pid == p.pid }) { return w }

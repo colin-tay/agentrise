@@ -22,7 +22,7 @@ final class MacPlatform: PlatformServices {
         case .desktop(let url):
             NSWorkspace.shared.open(url)   // as before: a link the system can't open shows no toast
             return true
-        case .terminal(let bundle, _):
+        case .terminal(let bundle, _, _):
             if let b = bundle, let app = NSRunningApplication.runningApplications(withBundleIdentifier: b).first {
                 app.activate()
             } else if let t = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Terminal").first {

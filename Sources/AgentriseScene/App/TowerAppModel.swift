@@ -96,7 +96,7 @@ package final class TowerAppModel {
 
     package func start() {
         RankBook.current = RankBook.load(from: platform.ranksFile)   // before the first seed, so every robot starts with the user's ranks
-        registry = SessionRegistry.load(dir: SessionRegistry.dir(claudeDir: claudeDir), isRunning: platform.isRunning)
+        registry = SessionRegistry.load(dir: SessionRegistry.dir(claudeDir: claudeDir), isSameProcess: { [platform] in platform.isSameProcess(pid: $0, start: $1) })
         cc = CCConnectIndex.load(home: home, enabled: settings.bool(forKey: CCConnectIndex.enabledKey))
         codexIndexStamp = CodexSessionIndex.stamp(of: codexIndexFile)
         codexIndex = CodexSessionIndex.load(from: codexIndexFile)
@@ -168,7 +168,7 @@ package final class TowerAppModel {
     /// Re-reads the registry, cc-connect and the Codex index (every 5 s).
     package func refreshSources() {
         let now = clock()
-        let newRegistry = SessionRegistry.load(dir: SessionRegistry.dir(claudeDir: claudeDir), isRunning: platform.isRunning)
+        let newRegistry = SessionRegistry.load(dir: SessionRegistry.dir(claudeDir: claudeDir), isSameProcess: { [platform] in platform.isSameProcess(pid: $0, start: $1) })
         let newCC = CCConnectIndex.load(home: home, enabled: settings.bool(forKey: CCConnectIndex.enabledKey))
         var codexRenamed = false
         let stamp = CodexSessionIndex.stamp(of: codexIndexFile)
@@ -278,8 +278,10 @@ package final class TowerAppModel {
             flash("这是飞书会话，回复在飞书里")
         case .terminal(let bundle):
             // The registry's pid is Claude Code's own process; the hook's `agentPid` is the fallback (and Codex's).
-            let pid = registry[sessionId]?.pid ?? s.agentPid
-            if !platform.openSession(.terminal(bundleId: bundle, pid: pid)) { flash("这是终端会话") }
+            let reg = registry[sessionId]
+            let pid = reg?.pid ?? s.agentPid
+            let start = reg?.pid != nil ? reg?.start : nil
+            if !platform.openSession(.terminal(bundleId: bundle, pid: pid, start: start)) { flash("这是终端会话") }
         }
     }
 
