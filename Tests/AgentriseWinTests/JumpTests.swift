@@ -86,7 +86,11 @@ import Foundation
     @Test func cyclesAndDepthAreBounded() {
         let cycle = [ProcessEntry(pid: 8, parent: 12, exe: "a.exe"), ProcessEntry(pid: 12, parent: 8, exe: "b.exe")]
         #expect(Jump.ancestry(of: 8, in: cycle).map(\.pid) == [8, 12])
-        let long = (1...40).map { ProcessEntry(pid: UInt32($0 * 4), parent: UInt32($0 * 4 + 4), exe: "x.exe") }
+        var long: [ProcessEntry] = []
+        for i in 1...40 {
+            let pid = UInt32(i) * 4
+            long.append(ProcessEntry(pid: pid, parent: pid + 4, exe: "x.exe"))
+        }
         #expect(Jump.ancestry(of: 4, in: long).count == Jump.maxDepth)
     }
 
