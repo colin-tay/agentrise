@@ -161,7 +161,6 @@ package final class Tray {
             refresh()
             if flashStep < Self.flashSteps { scheduler.after(Self.flashInterval, step) }
         }
-        flashStep = 0
         refresh()
         scheduler.after(Self.flashInterval, step)
     }
@@ -178,16 +177,31 @@ package final class Tray {
         _ = Shell_NotifyIconW(DWORD(NIM_MODIFY), &nid)
     }
 
+    /// The display scale changed (the taskbar's monitor, or the displays were rearranged): draw the icon at the new
+    /// notification-area size.
+    package func dpiChanged() { refresh() }
+
+    /// The notification area's dpi: the taskbar's (on the primary monitor), else the system's.
+    static func notificationAreaDpi() -> UINT {
+        if let taskbar = withWide("Shell_TrayWnd", { FindWindowW($0, nil) }) {
+            let dpi = GetDpiForWindow(taskbar)
+            if dpi > 0 { return dpi }
+        }
+        return GetDpiForSystem()
+    }
+
+    /// The tray icon's edge in pixels: the system's small-icon size at the notification area's dpi.
+    package static func iconPixels() -> Int { max(16, Int(GetSystemMetricsForDpi(SM_CXSMICON, notificationAreaDpi()))) }
+
     private func currentIcon() -> HICON? {
         let badge = TrayBadge.text(waiting: counts.waiting)
-        let px = Int(GetSystemMetricsForDpi(SM_CXSMICON, GetDpiForWindow(hwnd)))
-        let key = "\(badge ?? "")|\(dimmed)|\(px)"
+        let px = Self.iconPixels()
+        let prefix = "\(badge ?? "")|\(px)|"
+        let key = prefix + "\(dimmed)"
         if let i = icons[key] { return i }
-        guard let i = TrayIconArt.icon(badge: badge, dimmed: dimmed, pixels: max(16, px)) else { return nil }
-        // Keep the current count's two pictures; older ones go.
-        if icons.count >= 4 {
-            for (k, old) in icons where !k.hasPrefix("\(badge ?? "")|") { DestroyIcon(old); icons[k] = nil }
-        }
+        guard let i = TrayIconArt.icon(badge: badge, dimmed: dimmed, pixels: px) else { return nil }
+        // Keep only the current count's two pictures at the current size.
+        for (k, old) in icons where !k.hasPrefix(prefix) { DestroyIcon(old); icons[k] = nil }
         icons[key] = i
         return i
     }
@@ -210,15 +224,26 @@ package final class Tray {
 
     // MARK: Messages
 
+    package enum Action: Equatable { case menu, show }
+
+    /// What a NOTIFYICON_VERSION_4 callback event does. Under v4 the shell sends WM_RBUTTONUP and then
+    /// WM_CONTEXTMENU for a right-click, WM_LBUTTONUP and then NIN_SELECT for a left-click: only the second of each
+    /// pair acts (as Microsoft's NotificationIcon sample does), so each click does one thing. NIN_KEYSELECT is the
+    /// keyboard's select (Enter or Space on the focused icon).
+    package static func action(forEvent event: UINT) -> Action? {
+        switch event {
+        case UINT(WM_CONTEXTMENU): return .menu
+        case UINT(WM_USER), UINT(WM_USER + 1): return .show   // NIN_SELECT, NIN_KEYSELECT
+        default: return nil
+        }
+    }
+
     /// The icon's callback (NOTIFYICON_VERSION_4: the event in the low word of `l`, the anchor point in `w`).
     package func handle(_ w: WPARAM, _ l: LPARAM) {
-        switch UINT(loWord(l)) {
-        case UINT(WM_CONTEXTMENU), UINT(WM_RBUTTONUP):
-            showMenu(at: POINT(x: LONG(xParam(w)), y: LONG(yParam(w))))
-        case UINT(WM_USER), UINT(WM_USER + 1), UINT(WM_LBUTTONUP):   // NIN_SELECT, NIN_KEYSELECT
-            onCommand?(.show)
-        default:
-            break
+        switch Self.action(forEvent: UINT(loWord(l))) {
+        case .menu: showMenu(at: POINT(x: LONG(xParam(w)), y: LONG(yParam(w))))
+        case .show: onCommand?(.show)
+        case nil: break
         }
     }
 

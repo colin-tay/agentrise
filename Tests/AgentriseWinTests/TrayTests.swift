@@ -48,6 +48,28 @@ import WinSDK
         #expect(body[3] == 255 && faint[3] < 120, "body \(body), dimmed \(faint)")
     }
 
+    /// NOTIFYICON_VERSION_4: a right-click sends WM_RBUTTONUP then WM_CONTEXTMENU, a left-click WM_LBUTTONUP then
+    /// NIN_SELECT. Each click must do exactly one thing: only WM_CONTEXTMENU opens the menu, only NIN_SELECT and
+    /// NIN_KEYSELECT show the window, and every other event does nothing.
+    @Test func trayCallbackMapsEachV4EventToOneAction() {
+        let ninSelect = UINT(WM_USER), ninKeySelect = UINT(WM_USER + 1)
+        #expect(Tray.action(forEvent: UINT(WM_CONTEXTMENU)) == .menu)
+        #expect(Tray.action(forEvent: ninSelect) == .show)
+        #expect(Tray.action(forEvent: ninKeySelect) == .show)
+        let silent: [UINT] = [UINT(WM_RBUTTONUP), UINT(WM_RBUTTONDOWN), UINT(WM_LBUTTONUP), UINT(WM_LBUTTONDOWN),
+                              UINT(WM_LBUTTONDBLCLK), UINT(WM_MOUSEMOVE),
+                              UINT(WM_USER + 2), UINT(WM_USER + 3), UINT(WM_USER + 4), UINT(WM_USER + 5),   // NIN_BALLOON*
+                              UINT(WM_USER + 6), UINT(WM_USER + 7)]                                           // NIN_POPUPOPEN/CLOSE
+        for e in silent { #expect(Tray.action(forEvent: e) == nil, "event 0x\(String(e, radix: 16)) acts") }
+        // A right-click's pair opens one menu; a left-click's pair shows the window once.
+        #expect([UINT(WM_RBUTTONUP), UINT(WM_CONTEXTMENU)].compactMap(Tray.action(forEvent:)) == [.menu])
+        #expect([UINT(WM_LBUTTONUP), ninSelect].compactMap(Tray.action(forEvent:)) == [.show])
+    }
+
+    @Test func trayIconSizeIsTheSmallIconMetric() {
+        #expect(Tray.iconPixels() >= 16)
+    }
+
     @Test func trayIconMakesAnHICON() {
         let icon = TrayIconArt.icon(badge: "12", dimmed: false, pixels: 32)
         #expect(icon != nil)

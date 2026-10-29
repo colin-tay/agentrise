@@ -309,7 +309,7 @@ typedef struct CD2D_ID2D1GeometrySinkVtbl {
     CD2D_SLOT(GetSize);                                                                  \
     /* Struct return: hidden out-pointer after This (see the top of this file). */      \
     D2D1_SIZE_U *(STDMETHODCALLTYPE *GetPixelSize)(void *This, D2D1_SIZE_U *out);        \
-    CD2D_SLOT(GetMaximumBitmapSize);                                                     \
+    UINT32 (STDMETHODCALLTYPE *GetMaximumBitmapSize)(void *This);                        \
     CD2D_SLOT(IsSupported);
 
 typedef struct CD2D_ID2D1RenderTargetVtbl {

@@ -82,6 +82,7 @@ package final class WinApp {
     private var inSizeMove = false
     private var lastFrame: Date?
     private var pointerInPanel = false
+    private var windowIcons: [HICON] = []
     private static let alwaysOnTopKey = "alwaysOnTop"
     private static let sizeMoveTimer: UINT_PTR = 99
     private static let occludedProbe: DWORD = 250
@@ -150,6 +151,10 @@ package final class WinApp {
             if entering { SetTimer(self.window.hwnd, Self.sizeMoveTimer, 16, nil) } else { KillTimer(self.window.hwnd, Self.sizeMoveTimer) }
         }
         e.moved = { [unowned self] in self.savePlacement() }
+        e.dpiChanged = { [unowned self] in
+            self.makeWindowIcons()
+            self.tray.dpiChanged()
+        }
         e.other = { [unowned self] msg, w, l in self.other(msg, w, l) }
         window.events = e
     }
@@ -158,9 +163,7 @@ package final class WinApp {
 
     /// Runs until "退出" (or the screenshot is written); returns the exit code.
     package func run() -> Int32 {
-        let small = TrayIconArt.icon(badge: nil, dimmed: false, pixels: Int(GetSystemMetricsForDpi(SM_CXSMICON, GetDpiForWindow(window.hwnd))))
-        let big = TrayIconArt.icon(badge: nil, dimmed: false, pixels: Int(GetSystemMetricsForDpi(SM_CXICON, GetDpiForWindow(window.hwnd))))
-        window.setIcons(small: small, big: big)
+        makeWindowIcons()
         ShowWindow(window.hwnd, SW_SHOWNORMAL)
         let (pw, ph) = window.clientPixels
         resized(pw, ph, window.scale)
@@ -193,6 +196,21 @@ package final class WinApp {
         }
         shutdown()
         return exitCode
+    }
+
+    /// The title bar's and Alt-Tab's icons at the window's dpi; the ones they replace are destroyed.
+    private func makeWindowIcons() {
+        let dpi = GetDpiForWindow(window.hwnd)
+        let small = TrayIconArt.icon(badge: nil, dimmed: false, pixels: Int(GetSystemMetricsForDpi(SM_CXSMICON, dpi)))
+        let big = TrayIconArt.icon(badge: nil, dimmed: false, pixels: Int(GetSystemMetricsForDpi(SM_CXICON, dpi)))
+        window.setIcons(small: small, big: big)
+        destroyWindowIcons()
+        windowIcons = [small, big].compactMap { $0 }
+    }
+
+    private func destroyWindowIcons() {
+        for i in windowIcons { DestroyIcon(i) }
+        windowIcons = []
     }
 
     private func drawFrame() {
@@ -243,6 +261,9 @@ package final class WinApp {
         case Tray.taskbarCreated:
             tray.add()
             return 0
+        case UINT(WM_DISPLAYCHANGE), UINT(WM_SETTINGCHANGE):
+            tray.dpiChanged()   // the taskbar's monitor or scale may have changed
+            return nil
         case UINT(WM_DESTROY):
             return 0
         default:
@@ -310,6 +331,8 @@ package final class WinApp {
     private func shutdown() {
         savePlacement()
         tray.remove()
+        window.setIcons(small: nil, big: nil)
+        destroyWindowIcons()
         // Not relied on: the mutex (released when the process ends) decides who runs, and the next instance replaces
         // the socket file whether or not this one removed it.
         model.stop()

@@ -95,6 +95,30 @@ private let frame: TimeInterval = 1.0 / 60
         #expect(surface.pixelWidth == 1800 && surface.pixelHeight == 1200)
     }
 
+    /// A failed upload (here: every bitmap over the target's maximum size) is remembered: later frames don't bake,
+    /// tint or try it again, and the failure is counted once.
+    @Test func failedUploadsAreNotRetriedEveryFrame() {
+        D2DArtBackend.joinCOM()
+        let model = TowerSceneModel(size: CGSize(width: 600, height: 400), scale: 1, art: D2DArtBackend.shared)
+        let display = D2DDisplay(model: model)
+        let surface = D2DSurface(offscreenWidth: 600, height: 400, scale: 1)
+        surface.maximumBitmapSizeOverride = 8
+        model.setHeader(TowerCounts(working: 3))
+        model.render((0..<3).map { busy("s\($0)", team: $0) }, animated: false)
+        for _ in 0..<60 { display.frame(dt: frame, on: surface) }
+        let bakes = model.bakeCount, draws = display.drawCount, tints = display.tintCount
+        let failures = display.uploadFailures, uploads = display.uploadCount
+        #expect(failures > 0)
+        #expect(draws == 0, "a drawing over the maximum size is refused before it is baked")
+        #expect(tints == 0, "an image over the maximum size is refused before it is tinted")
+        for _ in 0..<120 { display.frame(dt: frame, on: surface) }
+        #expect(model.bakeCount == bakes)
+        #expect(display.drawCount == draws)
+        #expect(display.tintCount == tints)
+        #expect(display.uploadFailures == failures)
+        #expect(display.uploadCount == uploads)
+    }
+
     /// The offscreen snapshot is the window's content: opaque, its size in pixels.
     @Test func snapshotIsTheScene() throws {
         D2DArtBackend.joinCOM()

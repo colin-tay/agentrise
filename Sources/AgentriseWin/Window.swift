@@ -67,6 +67,8 @@ package final class TowerWindow {
         /// Entering (true) or leaving (false) a modal move/size loop.
         package var sizeMove: (Bool) -> Void = { _ in }
         package var moved: () -> Void = {}
+        /// The window moved to a monitor of another dpi (after `resized`).
+        package var dpiChanged: () -> Void = {}
         /// Any other message (tray callbacks, WM_COMMAND, the show request): nil when not handled.
         package var other: (UINT, WPARAM, LPARAM) -> LRESULT? = { _, _, _ in nil }
         package init() {}
@@ -157,9 +159,11 @@ package final class TowerWindow {
         SetWindowPos(hwnd, on ? Win.hwndTopmost : Win.hwndNoTopmost, 0, 0, 0, 0, UINT(SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE))
     }
 
+    /// Sets (nil: clears) the title bar's and Alt-Tab's icons. The caller owns them and destroys them once replaced.
     package func setIcons(small: HICON?, big: HICON?) {
-        if let small { SendMessageW(hwnd, UINT(WM_SETICON), WPARAM(ICON_SMALL), LPARAM(Int(bitPattern: UnsafeMutableRawPointer(small)))) }
-        if let big { SendMessageW(hwnd, UINT(WM_SETICON), WPARAM(ICON_BIG), LPARAM(Int(bitPattern: UnsafeMutableRawPointer(big)))) }
+        func handle(_ i: HICON?) -> LPARAM { LPARAM(Int(bitPattern: i.map { UnsafeMutableRawPointer($0) })) }
+        SendMessageW(hwnd, UINT(WM_SETICON), WPARAM(ICON_SMALL), handle(small))
+        SendMessageW(hwnd, UINT(WM_SETICON), WPARAM(ICON_BIG), handle(big))
     }
 
     private func point(_ l: LPARAM) -> CGPoint {
@@ -188,6 +192,7 @@ package final class TowerWindow {
             }
             let (pw, ph) = clientPixels
             events.resized(pw, ph, CGFloat(loWord(w)) / 96)
+            events.dpiChanged()
             return 0
         case UINT(WM_ERASEBKGND):
             return 1

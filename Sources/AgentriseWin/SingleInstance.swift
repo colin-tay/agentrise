@@ -38,11 +38,18 @@ package final class SingleInstance {
     /// The message the first instance's window answers by coming forward (registered, so it is unique system-wide).
     package static let showMessage: UINT = withWide("Agentrise.ShowWindow") { RegisterWindowMessageW($0) }
 
-    /// Asks the running instance's window to show itself. False when no window was found (the other instance is
-    /// still starting, or it is a test holding the mutex).
+    /// Asks the running instance's window to show itself, waiting up to `timeout` for the window to appear (the
+    /// other instance may hold the mutex but still be starting). False when no window was found by then (it is still
+    /// starting, or it is a test holding the mutex).
     @discardableResult
-    package static func signalFirstInstance() -> Bool {
-        guard let hwnd = withWide(TowerWindow.className, { FindWindowW($0, nil) }) else { return false }
+    package static func signalFirstInstance(timeout: TimeInterval = 2) -> Bool {
+        let end = Date().addingTimeInterval(timeout)
+        var found = withWide(TowerWindow.className) { FindWindowW($0, nil) }
+        while found == nil, Date() < end {
+            Sleep(100)
+            found = withWide(TowerWindow.className) { FindWindowW($0, nil) }
+        }
+        guard let hwnd = found else { return false }
         // We were started by the user, so we may hand the foreground on to the window's process.
         var pid: DWORD = 0
         GetWindowThreadProcessId(hwnd, &pid)

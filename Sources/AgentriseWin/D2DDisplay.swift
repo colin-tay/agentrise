@@ -54,6 +54,11 @@ package final class D2DSurface {
     private var offscreenBitmap: UnsafeMutablePointer<IWICBitmap>?
     /// The last attempt to make the target failed (logged once, not on every frame).
     private var reportedFailure = false
+    /// An upload or an EndDraw failed on this target (logged once until the target is made again).
+    private var reportedUploadFailure = false
+    var reportedEndDrawFailure = false
+    /// Tests: refuse bitmaps larger than this many pixels on a side (forces upload failures).
+    package var maximumBitmapSizeOverride: Int?
     package private(set) var pixelWidth: Int, pixelHeight: Int
     package private(set) var scale: CGFloat
 
@@ -67,6 +72,29 @@ package final class D2DSurface {
     var brushes: [Color: COMRef] = [:]
 
     struct TintKey: Hashable { let image: ObjectIdentifier; let color: Color }
+
+    /// Uploads that failed on this target, so they aren't tinted, baked or tried again every frame: until the device
+    /// changes (`discard`), the atlas changes (`failedImages`, cleared by the atlas sync) or the drawing is replaced
+    /// (a new instance).
+    var failedImages: [ObjectIdentifier: Weak<BakedImage>] = [:]
+    var failedTints: [TintKey: Weak<BakedImage>] = [:]
+    var failedDrawings: [ObjectIdentifier: Weak<ArtDrawing>] = [:]
+
+    /// The largest bitmap edge the target takes (`GetMaximumBitmapSize`).
+    var maximumBitmapSize: Int {
+        if let o = maximumBitmapSizeOverride { return o }
+        guard let target else { return 0 }
+        return Int(vtable(target, CD2D_ID2D1RenderTargetVtbl.self).GetMaximumBitmapSize!(target))
+    }
+
+    func fits(width: Int, height: Int) -> Bool { width <= maximumBitmapSize && height <= maximumBitmapSize }
+
+    /// Logs the first upload failure on this target; later ones are only counted.
+    func reportUploadFailure(_ what: String) {
+        guard !reportedUploadFailure else { return }
+        reportedUploadFailure = true
+        Log.write("\(what) (further upload failures on this target are not logged)")
+    }
 
     private static var factory: COMObject { D2DArtBackend.shared.d2d }
 
@@ -159,6 +187,11 @@ package final class D2DSurface {
         tinted.removeAll()
         drawings.removeAll()
         brushes.removeAll()
+        failedImages.removeAll()
+        failedTints.removeAll()
+        failedDrawings.removeAll()
+        reportedUploadFailure = false
+        reportedEndDrawFailure = false
         release(target)
         target = nil
         if let b = offscreenBitmap { release(UnsafeMutableRawPointer(b)) }
@@ -190,21 +223,29 @@ package final class D2DSurface {
     /// A bitmap of premultiplied BGRA pixels.
     func upload(bgra: UnsafeRawPointer, width: Int, height: Int) -> COMRef? {
         guard let target else { return nil }
+        guard fits(width: width, height: height) else {
+            reportUploadFailure("bitmap \(width)×\(height) px is larger than the target's maximum \(maximumBitmapSize) px")
+            return nil
+        }
         var props = Self.bitmapProperties
         var out: UnsafeMutableRawPointer?
         let hr = vtable(target, CD2D_ID2D1RenderTargetVtbl.self).CreateBitmap!(
             target, D2D1_SIZE_U(width: UInt32(width), height: UInt32(height)), bgra, UInt32(width * 4), &props, &out)
-        guard hr >= 0, let out else { Log.write("ID2D1RenderTarget::CreateBitmap failed: \(hex(hr))"); return nil }
+        guard hr >= 0, let out else { reportUploadFailure("ID2D1RenderTarget::CreateBitmap failed: \(hex(hr))"); return nil }
         return COMRef(out)
     }
 
     /// A bitmap of a baked WIC bitmap (32 bpp premultiplied BGRA).
-    func upload(wic: UnsafeMutablePointer<IWICBitmap>) -> COMRef? {
+    func upload(wic: UnsafeMutablePointer<IWICBitmap>, width: Int, height: Int) -> COMRef? {
         guard let target else { return nil }
+        guard fits(width: width, height: height) else {
+            reportUploadFailure("bitmap \(width)×\(height) px is larger than the target's maximum \(maximumBitmapSize) px")
+            return nil
+        }
         var props = Self.bitmapProperties
         var out: UnsafeMutableRawPointer?
         let hr = vtable(target, CD2D_ID2D1RenderTargetVtbl.self).CreateBitmapFromWicBitmap!(target, UnsafeMutableRawPointer(wic), &props, &out)
-        guard hr >= 0, let out else { Log.write("ID2D1RenderTarget::CreateBitmapFromWicBitmap failed: \(hex(hr))"); return nil }
+        guard hr >= 0, let out else { reportUploadFailure("ID2D1RenderTarget::CreateBitmapFromWicBitmap failed: \(hex(hr))"); return nil }
         return COMRef(out)
     }
 
@@ -245,6 +286,10 @@ package final class D2DDisplay {
     package private(set) var drawCount = 0
     /// GPU bitmaps made (pages, standalone and tinted images, drawings).
     package private(set) var uploadCount = 0
+    /// Tinted copies computed on the CPU (each image and colour once per target).
+    package private(set) var tintCount = 0
+    /// Uploads refused or failed (each remembered, not retried every frame).
+    package private(set) var uploadFailures = 0
     /// Called before each render (the panel re-draws itself here when its state changed).
     package var beforeRender: (() -> Void)?
     package static let background = Color(hex: 0x0A0E26)
@@ -300,7 +345,10 @@ package final class D2DDisplay {
             surface.discard()
             return false
         }
-        if hr < 0 { Log.write("ID2D1RenderTarget::EndDraw failed: \(hex(hr))") }
+        if hr < 0, !surface.reportedEndDrawFailure {
+            surface.reportedEndDrawFailure = true
+            Log.write("ID2D1RenderTarget::EndDraw failed: \(hex(hr)) (not logged again for this target)")
+        }
         // Drawings nothing shows any more (an old background is 8–33 MB at 2×) go now.
         if surface.drawings.contains(where: { $0.value.drawing.object == nil }) {
             surface.drawings = surface.drawings.filter { $0.value.drawing.object != nil }
@@ -371,7 +419,12 @@ package final class D2DDisplay {
     private func standalone(_ image: BakedImage, surface s: D2DSurface) -> COMRef? {
         let id = ObjectIdentifier(image)
         if let hit = s.standalone[id], hit.image.object === image { return hit.bitmap }
-        guard let b = s.upload(wic: image.wicImage.bitmap) else { return nil }
+        if s.failedImages[id]?.object === image { return nil }
+        guard let b = s.upload(wic: image.wicImage.bitmap, width: image.pixelWidth, height: image.pixelHeight) else {
+            s.failedImages[id] = Weak(object: image)
+            uploadFailures += 1
+            return nil
+        }
         uploadCount += 1
         s.standalone[id] = (Weak(object: image), b)
         return b
@@ -383,13 +436,25 @@ package final class D2DDisplay {
         let c = Color(r: 1 + (color.r - 1) * f, g: 1 + (color.g - 1) * f, b: 1 + (color.b - 1) * f)
         let key = D2DSurface.TintKey(image: ObjectIdentifier(image), color: c)
         if let hit = s.tinted[key], hit.image.object === image { return hit.bitmap }
+        if s.failedTints[key]?.object === image { return nil }
+        guard s.fits(width: image.pixelWidth, height: image.pixelHeight) else {
+            s.reportUploadFailure("tinted bitmap \(image.pixelWidth)×\(image.pixelHeight) px is larger than the target's maximum")
+            s.failedTints[key] = Weak(object: image)
+            uploadFailures += 1
+            return nil
+        }
+        tintCount += 1
         var px = image.wicImage.pixelsBGRA()
         for i in stride(from: 0, to: px.count, by: 4) {
             px[i] = UInt8((Double(px[i]) * c.b).rounded())
             px[i + 1] = UInt8((Double(px[i + 1]) * c.g).rounded())
             px[i + 2] = UInt8((Double(px[i + 2]) * c.r).rounded())
         }
-        guard let b = px.withUnsafeBytes({ s.upload(bgra: $0.baseAddress!, width: image.pixelWidth, height: image.pixelHeight) }) else { return nil }
+        guard let b = px.withUnsafeBytes({ s.upload(bgra: $0.baseAddress!, width: image.pixelWidth, height: image.pixelHeight) }) else {
+            s.failedTints[key] = Weak(object: image)
+            uploadFailures += 1
+            return nil
+        }
         uploadCount += 1
         s.tinted[key] = (Weak(object: image), b)
         return b
@@ -398,9 +463,22 @@ package final class D2DDisplay {
     private func drawing(_ d: ArtDrawing, surface s: D2DSurface) -> COMRef? {
         let id = ObjectIdentifier(d)
         if let hit = s.drawings[id], hit.drawing.object === d { return hit.bitmap }
+        if s.failedDrawings[id]?.object === d { return nil }
+        let (pw, ph) = d.pixelSize
+        // Refused before baking: a drawing the target can't hold is never baked (e.g. a background on a huge window).
+        guard s.fits(width: pw, height: ph) else {
+            s.reportUploadFailure("drawing \(pw)×\(ph) px is larger than the target's maximum \(s.maximumBitmapSize) px")
+            s.failedDrawings[id] = Weak(object: d)
+            uploadFailures += 1
+            return nil
+        }
         let baked = d.bake(with: D2DArtBackend.shared)
         drawCount += 1
-        guard let b = s.upload(wic: baked.wicImage.bitmap) else { return nil }
+        guard let b = s.upload(wic: baked.wicImage.bitmap, width: baked.pixelWidth, height: baked.pixelHeight) else {
+            s.failedDrawings[id] = Weak(object: d)
+            uploadFailures += 1
+            return nil
+        }
         uploadCount += 1
         s.drawings[id] = (Weak(object: d), b)
         return b
@@ -418,6 +496,7 @@ package final class D2DDisplay {
         }
         guard atlas.version != s.atlasVersion else { return }
         s.atlasVersion = atlas.version
+        s.failedImages.removeAll()
         let count = atlas.pageCount
         if s.pages.count > count { s.pages.removeLast(s.pages.count - count) }
         for i in 0..<count {
@@ -433,7 +512,7 @@ package final class D2DDisplay {
                     let p = buffer.bindMemory(to: UInt8.self)
                     for j in stride(from: 0, to: bytes, by: 4) { p.swapAt(j, j + 2) }
                     bitmap = s.upload(bgra: UnsafeRawPointer(p.baseAddress!), width: w, height: h)
-                    if bitmap != nil { uploadCount += 1 }
+                    if bitmap != nil { uploadCount += 1 } else { uploadFailures += 1 }   // retried on the next version
                 }
                 buffer.deallocate()
             }
@@ -452,6 +531,9 @@ package final class D2DDisplay {
             return !(page < s.pages.count && s.pages[page].bitmap != nil)
         }
         s.tinted = s.tinted.filter { $0.value.image.object != nil }
+        s.failedImages = s.failedImages.filter { $0.value.object != nil }
+        s.failedTints = s.failedTints.filter { $0.value.object != nil }
+        s.failedDrawings = s.failedDrawings.filter { $0.value.object != nil }
     }
 
     // MARK: Tethers
