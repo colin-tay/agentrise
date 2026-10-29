@@ -83,19 +83,6 @@ jobs:
         shell: pwsh
         run: swift build
 
-      - name: Direct2D spike
-        shell: pwsh
-        run: |
-          swift run D2DSpike spike.png
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Upload Direct2D spike image
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: d2d-spike
-          path: spike.png
-          if-no-files-found: error
-
       - name: Test
         shell: pwsh
         run: swift test

@@ -3,8 +3,15 @@
 //
 // Direct2D 1.1 / DirectWrite COM declarations for AgentriseWinArt (D2DPen) and the app's display (AgentriseWin).
 //
-// Swift 6.1.2's WinSDK module has no Direct2D or DirectWrite, and the SDK headers can't be used from a Clang
-// module (Sources/CD2DSpike/include/CD2DSpike.h, Task 1, explains why in full). So, as there:
+// Swift 6.1.2's WinSDK module has no Direct2D or DirectWrite (it does have wincodec.h, with full C vtables, as
+// WinSDK.WIC), and the SDK headers can't fill the gap (found by Task 1's spike):
+// - d2d1.h / d2d1_1.h compile in C (D2D_USE_C_DEFINITIONS), but in C they only forward-declare the interfaces: no
+//   lpVtbl structs;
+// - including them in a module anyway crashes swift-frontend 6.1.2 while it builds the module (clang ASTWriter
+//   assertion "expected a hidden declaration" at dxgitype.h's DXGI_MODE_DESC: the DXGI headers already belong to
+//   WinSDK's explicit DirectX submodule);
+// - dwrite.h is C++-only.
+// So:
 // - only <windows.h> and <wincodec.h> are included; dcommon.h (reached through wincodec.h) already gives
 //   D2D1_POINT_2F, D2D1_RECT_F, D2D1_SIZE_F/U, D2D1_MATRIX_3X2_F, D2D_VECTOR_4F, D2D1_PIXEL_FORMAT,
 //   D2D1_ALPHA_MODE and DWRITE_MEASURING_MODE, which must not be declared again;
@@ -15,7 +22,9 @@
 //   (d2d1.idl, d2d1_1.idl, dwrite.idl, dwrite_1.idl, dwrite_2.idl, dwrite_3.idl), which list methods in the
 //   order MSVC lays out the vtables (the C++ headers' overload grouping included);
 // - a method returning a struct by value takes a hidden out-pointer after This and returns it (MSVC x64):
-//   `RET *(STDMETHODCALLTYPE *M)(void *This, RET *out)`. Structs passed by value as arguments are fine.
+//   `RET *(STDMETHODCALLTYPE *M)(void *This, RET *out)`, the way the SDK's MIDL C definitions declare such getters
+//   (d3d12.h's GetDesc). A C function pointer returning an 8-byte struct would expect it in RAX and silently read
+//   garbage. Structs passed by value as arguments are fine.
 //
 // Swift code using this module must also `import WinSDK.DirectX` (D2D1_PIXEL_FORMAT holds a DXGI_FORMAT; without
 // it the 6.1.2 compiler crashes reconstructing debug types).

@@ -35,14 +35,6 @@ targets += [
 ]
 #endif
 #if os(Windows)
-// Direct2D/DirectWrite spike: draws a robot offscreen and writes it as a PNG (Windows CI only).
-targets += [
-    .target(name: "CD2DSpike"),
-    .executableTarget(name: "D2DSpike", dependencies: ["CD2DSpike"],
-                      swiftSettings: [.swiftLanguageMode(.v5)],
-                      linkerSettings: [.linkedLibrary("d2d1"), .linkedLibrary("dwrite"),
-                                       .linkedLibrary("windowscodecs"), .linkedLibrary("ole32")]),
-]
 // The Direct2D/DirectWrite art backend (`D2DPen`, `D2DArtBackend`) and its C declarations.
 targets += [
     .target(name: "CDirect2D"),
