@@ -107,7 +107,8 @@ jobs:
       # window after 8 s and exit with 0. ffmpeg's gdigrab captures the whole desktop meanwhile. A second, portrait run
       # shows the panel as a strip. Before both, `--install-hooks claude` (twice) copies the hook to the data
       # directory's Agentrise\bin and writes its exec-form entry into .claude\settings.json there; the events then go
-      # through that installed copy. The landscape run also opens the Settings window, so the desktop capture shows it.
+      # through that installed copy. The portrait run also opens the Settings window, and a second desktop capture shows
+      # it (in the landscape run the second instance brings the tower window forward over it).
       - name: App smoke test
         shell: pwsh
         run: |
@@ -176,7 +177,7 @@ jobs:
           $hook = $installed   # the events below run the installed copy, as Claude Code would
 
           # Landscape, as CI's 1024 × 768 desktop allows: a second instance, the events, the desktop capture.
-          $app = Start-App @('--data-dir', $data, '--screenshot', $shot, '--after', '8', '--size', '1200x800', '--open-settings')
+          $app = Start-App @('--data-dir', $data, '--screenshot', $shot, '--after', '8', '--size', '1200x800')
           Start-Sleep -Seconds 3
           $second = Start-App @('--data-dir', $data)
           if (-not $second.WaitForExit(10000)) { $second.Kill(); throw 'the second instance did not exit' }
@@ -191,9 +192,12 @@ jobs:
 
           # Portrait (the panel becomes a strip).
           $portrait = Join-Path $data 'shot-portrait.png'
-          $app = Start-App @('--data-dir', $data, '--screenshot', $portrait, '--after', '6', '--size', '560x720')
+          $app = Start-App @('--data-dir', $data, '--screenshot', $portrait, '--after', '6', '--size', '560x720', '--open-settings')
           Start-Sleep -Seconds 3
           Send-Events
+          Start-Sleep -Seconds 1
+          ffmpeg -hide_banner -loglevel error -y -f gdigrab -framerate 1 -i desktop -frames:v 1 smoke/desktop-settings.png
+          if ($LASTEXITCODE -ne 0) { Write-Output "::warning::gdigrab could not capture the desktop ($LASTEXITCODE)" }
           Wait-App $app $portrait
           Copy-Item $portrait smoke/shot-portrait.png
 
