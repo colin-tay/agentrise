@@ -19,6 +19,18 @@ import SpriteKit
         return s
     }
 
+    /// The app's own path: `TowerController` points the app model at the view's scene, and the model renders it,
+    /// animated unless the view is paused (`renderAnimated`), as `TowerAppModel.publishNow` does.
+    @MainActor private final class Rendering {
+        let view: TowerView
+        let controller: TowerController
+        init(_ frame: NSRect) {
+            view = TowerView(frame: frame)
+            controller = TowerController(vm: TowerViewModel(), view: view)
+        }
+        func render(_ sessions: [Session]) { view.model.render(sessions, animated: controller.model.renderAnimated()) }
+    }
+
     @Test func onLayoutFiresImmediatelyWithTheCurrentLayout() {
         let view = TowerView(frame: frame)
         var got: [BuildingLayout] = []
@@ -38,42 +50,42 @@ import SpriteKit
     }
 
     @Test func snapshotReturnsAnImage() {
-        let view = TowerView(frame: frame)
-        view.render([session("a")])
+        let r = Rendering(frame), view = r.view
+        r.render([session("a")])
         let image = view.snapshot()
         #expect(image != nil)
         #expect((image?.width ?? 0) > 0)
     }
 
     @Test func occludedRendersLeaveNoDepartingRobots() {
-        let view = TowerView(frame: frame)
+        let r = Rendering(frame), view = r.view
         let scene = view.model
-        view.render([session("a", subs: ["x"]), session("b", status: .sleeping)])
+        r.render([session("a", subs: ["x"]), session("b", status: .sleeping)])
         view.setOccluded(true)
         // While covered `update` doesn't run, but the controller keeps rendering.
-        view.render([session("a")])
+        r.render([session("a")])
         #expect(scene.robot("a:a:x") == nil)
         #expect(scene.transit.position(of: "a:a:x") == nil)
-        view.render([])
+        r.render([])
         #expect(scene.robot("s:a") == nil && scene.robot("s:b") == nil)
         #expect(scene.transit.position(of: "s:a") == nil)
         // Once visible again, departures animate as usual.
         view.setOccluded(false)
-        view.render([session("a", subs: ["x"])])
+        r.render([session("a", subs: ["x"])])
         #expect(scene.robot("s:a") != nil)
-        view.render([session("a")])
+        r.render([session("a")])
         #expect(scene.robot("a:a:x") != nil)
     }
 
     @Test func robotsLeavingWhenTheWindowGetsCoveredAreFinishedByTheNextRender() {
-        let view = TowerView(frame: frame)
+        let r = Rendering(frame), view = r.view
         let scene = view.model
-        view.render([session("a", subs: ["x"])])
-        view.render([session("a")])              // x starts leaving
+        r.render([session("a", subs: ["x"])])
+        r.render([session("a")])              // x starts leaving
         #expect(scene.robot("a:a:x") != nil)
-        view.render([session("a", subs: ["y"])])  // y fades in
+        r.render([session("a", subs: ["y"])])  // y fades in
         view.setOccluded(true)
-        view.render([session("a", subs: ["y"])])
+        r.render([session("a", subs: ["y"])])
         #expect(scene.robot("a:a:x") == nil)
         #expect(scene.transit.position(of: "a:a:x") == nil)
         #expect(scene.robot("a:a:y")?.fade == 1)

@@ -7,15 +7,13 @@ import Agentrise
 import AgentriseScene
 import AgentriseMacArt
 
-/// What the window and the controller need from a tower view (a seam for test doubles).
+/// What the window needs from a tower view (a seam for test doubles). The app model drives the scene itself
+/// (`TowerAppModel` renders `model` directly, animated unless the view is paused).
 protocol TowerDisplay: AnyObject {
     var onClickSession: ((String) -> Void)? { get set }
     var onHoverSession: ((String?) -> Void)? { get set }
     var onLayout: ((BuildingLayout) -> Void)? { get set }
-    func render(_ sessions: [Session])
-    func setHeader(_ c: TowerCounts)
     func highlight(_ sessionId: String?)
-    func noteSubResult(sessionId: String, subId: String, success: Bool)
     func setOccluded(_ o: Bool)
     func snapshot() -> CGImage?
 }
@@ -86,14 +84,7 @@ final class TowerView: SKView, TowerDisplay {
         if let w = window { display.backingScaleChanged(w.backingScaleFactor) }
     }
 
-    /// While the window is covered no frames run, so departures and fade-ins would never finish: render
-    /// without animation then (robots that are gone vanish at once).
-    func render(_ sessions: [Session]) { model.render(sessions, animated: !isPaused) }
-    func setHeader(_ c: TowerCounts) { model.setHeader(c) }
     func highlight(_ sessionId: String?) { model.highlight(sessionId) }
-    func noteSubResult(sessionId: String, subId: String, success: Bool) {
-        model.noteSubResult(sessionId: sessionId, subId: subId, success: success)
-    }
 
     /// A fully occluded window needs no frames (the model doesn't step either); everything else keeps running.
     func setOccluded(_ o: Bool) { isPaused = o }
