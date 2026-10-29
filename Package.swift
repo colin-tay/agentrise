@@ -22,9 +22,11 @@ var targets: [Target] = [
 #if os(macOS)
 products.append(.executable(name: "Agentrise", targets: ["AgentriseApp"]))
 targets += [
-    .executableTarget(name: "AgentriseApp", dependencies: ["Agentrise", "AgentriseScene", "TowerKit"],
+    // The Core Graphics art backend (`CGPen`, `CGArtBackend`): shared by the app, its tests and ArtGallery.
+    .target(name: "AgentriseMacArt", dependencies: ["AgentriseScene"], swiftSettings: [.swiftLanguageMode(.v5)]),
+    .executableTarget(name: "AgentriseApp", dependencies: ["Agentrise", "AgentriseScene", "AgentriseMacArt", "TowerKit"],
                       swiftSettings: [.swiftLanguageMode(.v5)]),
-    .testTarget(name: "AgentriseAppTests", dependencies: ["AgentriseApp", "Agentrise", "AgentriseScene", "TowerKit"],
+    .testTarget(name: "AgentriseAppTests", dependencies: ["AgentriseApp", "Agentrise", "AgentriseScene", "AgentriseMacArt", "TowerKit"],
                 exclude: ["Fixtures"],   // read from the source tree via #filePath
                 swiftSettings: [.swiftLanguageMode(.v5)]),
 ]

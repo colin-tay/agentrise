@@ -8,6 +8,7 @@ import Metal
 @testable import AgentriseApp
 @testable import Agentrise
 @testable import AgentriseScene
+import AgentriseMacArt
 
 /// The SpriteKit display of a `TowerSceneModel`, stepped headlessly with `SKRenderer`.
 @MainActor

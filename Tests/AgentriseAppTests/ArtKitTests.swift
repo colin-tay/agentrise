@@ -7,6 +7,7 @@ import SpriteKit
 @testable import AgentriseApp
 @testable import Agentrise
 @testable import AgentriseScene
+import AgentriseMacArt
 
 /// `CGArtBackend`'s bitmaps and textures. (`ArtKit`'s measures are tested in `AgentriseSceneTests.ArtKitTests`.)
 @Suite struct ArtKitTests {

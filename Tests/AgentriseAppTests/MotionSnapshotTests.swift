@@ -55,6 +55,7 @@ import SpriteKit
 @testable import AgentriseApp
 @testable import Agentrise
 @testable import AgentriseScene
+import AgentriseMacArt
 
 /// Records a node subtree's state every 1/60 s frame (see the file header for the format).
 @MainActor final class MotionTrace {

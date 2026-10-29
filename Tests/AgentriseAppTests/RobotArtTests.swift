@@ -8,6 +8,7 @@ import QuartzCore
 @testable import AgentriseApp
 @testable import Agentrise
 @testable import AgentriseScene
+import AgentriseMacArt
 
 /// What `RobotArt` draws through `CGArtBackend` (pixels). Sizes, anchors and caching are covered on every
 /// platform by `AgentriseSceneTests.RobotArtTests`.

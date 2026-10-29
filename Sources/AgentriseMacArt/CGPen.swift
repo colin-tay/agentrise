@@ -7,16 +7,16 @@ import AgentriseScene
 
 /// `Pen` on a y-down Core Graphics bitmap context (see `CGArtBackend`). Every command is the Core Graphics call
 /// sequence the art made before it was portable, so the baked pixels are the same.
-final class CGPen: Pen {
-    let ctx: CGContext
-    let scale: CGFloat
+package final class CGPen: Pen {
+    package let ctx: CGContext
+    package let scale: CGFloat
 
-    init(ctx: CGContext, scale: CGFloat) {
+    package init(ctx: CGContext, scale: CGFloat) {
         self.ctx = ctx
         self.scale = scale
     }
 
-    func fill(_ p: ArtPath, _ c: Color) {
+    package func fill(_ p: ArtPath, _ c: Color) {
         ctx.setFillColor(c.cgColor)
         // A lone rectangle goes through `fill(_:)`, as the old code did: its edge pixels round differently from a path's.
         if p.elements.count == 1, case let .rect(r) = p.elements[0] { return ctx.fill(r) }
@@ -24,7 +24,7 @@ final class CGPen: Pen {
         ctx.fillPath()
     }
 
-    func stroke(_ p: ArtPath, _ c: Color, width: CGFloat) {
+    package func stroke(_ p: ArtPath, _ c: Color, width: CGFloat) {
         ctx.addPath(p.cgPath)
         ctx.setStrokeColor(c.cgColor)
         ctx.setLineWidth(width)
@@ -33,7 +33,7 @@ final class CGPen: Pen {
         ctx.strokePath()
     }
 
-    func linearGradient(_ p: ArtPath, colors: [Color], locations: [CGFloat]?, from: CGPoint, to: CGPoint, extend: Bool) {
+    package func linearGradient(_ p: ArtPath, colors: [Color], locations: [CGFloat]?, from: CGPoint, to: CGPoint, extend: Bool) {
         guard let g = CGGradient(colorsSpace: CGArtBackend.colorSpace, colors: colors.map(\.cgColor) as CFArray, locations: locations) else { return }
         ctx.saveGState()
         ctx.addPath(p.cgPath)
@@ -42,7 +42,7 @@ final class CGPen: Pen {
         ctx.restoreGState()
     }
 
-    func shadowed(offset: CGSize, blur: CGFloat, color: Color, _ body: () -> Void) {
+    package func shadowed(offset: CGSize, blur: CGFloat, color: Color, _ body: () -> Void) {
         ctx.saveGState()
         ctx.setShadow(offset: deviceOffset(offset), blur: ArtKit.shadowBlur(radius: blur, scale: scale), color: color.cgColor)
         body()
@@ -50,7 +50,7 @@ final class CGPen: Pen {
     }
 
     /// Fills the path far off-canvas and offsets its shadow back into place.
-    func glow(_ p: ArtPath, blur: CGFloat, color: Color) {
+    package func glow(_ p: ArtPath, blur: CGFloat, color: Color) {
         let away: CGFloat = 4000
         ctx.saveGState()
         ctx.setShadow(offset: deviceOffset(CGSize(width: -away, height: 0)), blur: ArtKit.shadowBlur(radius: blur, scale: scale), color: color.cgColor)
@@ -61,7 +61,7 @@ final class CGPen: Pen {
         ctx.restoreGState()
     }
 
-    func layer(alpha: CGFloat, _ body: () -> Void) {
+    package func layer(alpha: CGFloat, _ body: () -> Void) {
         ctx.saveGState()
         if alpha != 1 { ctx.setAlpha(alpha) }
         ctx.beginTransparencyLayer(auxiliaryInfo: nil)
@@ -70,14 +70,14 @@ final class CGPen: Pen {
         ctx.restoreGState()
     }
 
-    func faded(alpha: CGFloat, _ body: () -> Void) {
+    package func faded(alpha: CGFloat, _ body: () -> Void) {
         ctx.saveGState()
         ctx.setAlpha(alpha)
         body()
         ctx.restoreGState()
     }
 
-    func clipped(to p: ArtPath, _ body: () -> Void) {
+    package func clipped(to p: ArtPath, _ body: () -> Void) {
         ctx.saveGState()
         if p.elements.count == 1, case let .rect(r) = p.elements[0] {
             ctx.clip(to: r)   // the old name label's call (Core Graphics treats rectangles apart, as with `fill`)
@@ -89,14 +89,14 @@ final class CGPen: Pen {
         ctx.restoreGState()
     }
 
-    func translated(by offset: CGSize, _ body: () -> Void) {
+    package func translated(by offset: CGSize, _ body: () -> Void) {
         ctx.saveGState()
         ctx.translateBy(x: offset.width, y: offset.height)
         body()
         ctx.restoreGState()
     }
 
-    func text(_ runs: [TextRun], shadow: TextShadow?, in rect: CGRect, maxLines: Int) {
+    package func text(_ runs: [TextRun], shadow: TextShadow?, in rect: CGRect, maxLines: Int) {
         let s = CGArtBackend.attributed(runs, width: rect.width, maxLines: maxLines)
         guard let shadow else { return CGArtBackend.draw(s, in: rect, ctx: ctx) }
         shadowed(offset: shadow.offset, blur: shadow.blur, color: shadow.color) {
@@ -104,17 +104,17 @@ final class CGPen: Pen {
         }
     }
 
-    func textLine(_ runs: [TextRun], in rect: CGRect, truncatesTail: Bool) {
+    package func textLine(_ runs: [TextRun], in rect: CGRect, truncatesTail: Bool) {
         CGArtBackend.draw(CGArtBackend.line(runs, truncatesTail: truncatesTail), in: rect, ctx: ctx)
     }
 
-    func emoji(_ s: String, size: CGFloat, center: CGPoint) {
+    package func emoji(_ s: String, size: CGFloat, center: CGPoint) {
         ArtKit.drawLabel(s, font: FontSpec(size: size, weight: .regular), color: Color(r: 1, g: 1, b: 1), center: center, pen: self)
     }
 
-    func setFontSmoothing(_ on: Bool) { ctx.setShouldSmoothFonts(on) }
+    package func setFontSmoothing(_ on: Bool) { ctx.setShouldSmoothFonts(on) }
 
-    func measure(_ runs: [TextRun], maxWidth: CGFloat, maxLines: Int) -> CGSize {
+    package func measure(_ runs: [TextRun], maxWidth: CGFloat, maxLines: Int) -> CGSize {
         CGArtBackend.measure(runs, maxWidth: maxWidth, maxLines: maxLines)
     }
 
@@ -123,11 +123,11 @@ final class CGPen: Pen {
 }
 
 extension Color {
-    var cgColor: CGColor { CGColor(colorSpace: CGArtBackend.colorSpace, components: [CGFloat(r), CGFloat(g), CGFloat(b), CGFloat(a)])! }
+    package var cgColor: CGColor { CGColor(colorSpace: CGArtBackend.colorSpace, components: [CGFloat(r), CGFloat(g), CGFloat(b), CGFloat(a)])! }
 }
 
 extension NSFont.Weight {
-    init(_ w: FontWeight) {
+    package init(_ w: FontWeight) {
         switch w {
         case .regular: self = .regular
         case .medium: self = .medium
@@ -141,7 +141,7 @@ extension NSFont.Weight {
 
 extension ArtPath {
     /// The Core Graphics path: a lone shape is made with its own `CGPath` initialiser, as the old code did.
-    var cgPath: CGPath {
+    package var cgPath: CGPath {
         if elements.count == 1 {
             switch elements[0] {
             case let .rect(r): return CGPath(rect: r, transform: nil)

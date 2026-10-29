@@ -4,6 +4,7 @@
 import SwiftUI
 import Agentrise
 import AgentriseScene
+import AgentriseMacArt
 
 /// AgentriseScene also declares a `Color`; in this SwiftUI file the name means SwiftUI's.
 private typealias Color = SwiftUI.Color

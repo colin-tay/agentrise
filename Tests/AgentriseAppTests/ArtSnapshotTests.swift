@@ -29,6 +29,7 @@ import UniformTypeIdentifiers
 @testable import AgentriseApp
 @testable import Agentrise
 @testable import AgentriseScene
+import AgentriseMacArt
 
 // MARK: - Shared snapshot plumbing (also used by MotionSnapshotTests)
 

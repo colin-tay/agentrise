@@ -5,6 +5,7 @@ import AppKit
 import SpriteKit
 import Agentrise
 import AgentriseScene
+import AgentriseMacArt
 
 /// Shows a `TowerSceneModel` with SpriteKit. Every frame (`update`) it steps the model and then mirrors its
 /// `SceneNode` tree into SpriteKit nodes: an `SKSpriteNode` per sprite, an `SKNode` per plain node, an

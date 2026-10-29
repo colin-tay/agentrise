@@ -5,6 +5,7 @@ import AppKit
 import SpriteKit
 import Agentrise
 import AgentriseScene
+import AgentriseMacArt
 
 /// What the window and the controller need from a tower view (a seam for test doubles).
 protocol TowerDisplay: AnyObject {

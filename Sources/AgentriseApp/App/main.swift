@@ -7,6 +7,7 @@ import Combine
 import TowerKit
 import ImageIO
 import Agentrise
+import AgentriseMacArt
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let vm = TowerViewModel()

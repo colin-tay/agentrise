@@ -8,24 +8,24 @@ import AgentriseScene
 
 /// Bakes the portable art with Core Graphics: a premultiplied RGBA sRGB bitmap context, y down, drawn through
 /// `CGPen`. `BakedImage.native` is the `CGImage`.
-final class CGArtBackend: ArtBackend {
-    static let shared = CGArtBackend()
+package final class CGArtBackend: ArtBackend {
+    package static let shared = CGArtBackend()
 
-    static let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
+    package static let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
 
-    func bake(size: CGSize, scale: CGFloat, _ draw: (Pen) -> Void) -> BakedImage {
+    package func bake(size: CGSize, scale: CGFloat, _ draw: (Pen) -> Void) -> BakedImage {
         let image = Self.image(size: size, scale: scale) { ctx in draw(CGPen(ctx: ctx, scale: scale)) }
         return BakedImage(pixelWidth: image.width, pixelHeight: image.height, scale: scale, native: image)
     }
 
-    func rgba(_ img: BakedImage) -> [UInt8] {
+    package func rgba(_ img: BakedImage) -> [UInt8] {
         let w = img.pixelWidth, h = img.pixelHeight
         var bytes = [UInt8](repeating: 0, count: w * h * 4)
         bytes.withUnsafeMutableBytes { buf in Self.copyPixels(img.cgImage, into: buf.baseAddress!) }
         return bytes
     }
 
-    func measure(_ runs: [TextRun], maxWidth: CGFloat, maxLines: Int) -> CGSize {
+    package func measure(_ runs: [TextRun], maxWidth: CGFloat, maxLines: Int) -> CGSize {
         Self.measure(runs, maxWidth: maxWidth, maxLines: maxLines)
     }
 
@@ -33,7 +33,7 @@ final class CGArtBackend: ArtBackend {
 
     /// Renders `draw` into a transparent bitmap of `ArtKit.pixelSize(size, scale:)` pixels. The closure works in
     /// points with the origin at the top-left corner and y growing downwards.
-    static func image(size: CGSize, scale: CGFloat, _ draw: (CGContext) -> Void) -> CGImage {
+    package static func image(size: CGSize, scale: CGFloat, _ draw: (CGContext) -> Void) -> CGImage {
         let (w, h) = ArtKit.pixelSize(size, scale: scale)
         let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
                             space: colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
@@ -48,7 +48,7 @@ final class CGArtBackend: ArtBackend {
     /// from raw data copies the bytes and frees its copy after the upload, so a big one-off bitmap (the
     /// building background is ~33 MB at 2×) only lives on the GPU. The pixels are the same: premultiplied
     /// RGBA in `colorSpace`, rows top-down. The freed memory may sit in malloc's cache until `releaseFreedPixels()`.
-    static func texture(size: CGSize, scale: CGFloat, _ draw: (CGContext) -> Void) -> SKTexture {
+    package static func texture(size: CGSize, scale: CGFloat, _ draw: (CGContext) -> Void) -> SKTexture {
         let (w, h) = ArtKit.pixelSize(size, scale: scale)
         let bytesPerRow = w * 4, count = bytesPerRow * h
         let buffer = calloc(count, 1)!
@@ -64,7 +64,7 @@ final class CGArtBackend: ArtBackend {
 
     /// A raw-data texture of a baked image (see `texture(size:scale:_:)`): once the caller lets go of `img`,
     /// its pixels live only on the GPU.
-    static func texture(_ img: BakedImage) -> SKTexture {
+    package static func texture(_ img: BakedImage) -> SKTexture {
         let w = img.pixelWidth, h = img.pixelHeight, count = w * h * 4
         let buffer = calloc(count, 1)!
         copyPixels(img.cgImage, into: buffer)
@@ -72,13 +72,13 @@ final class CGArtBackend: ArtBackend {
     }
 
     /// A texture from premultiplied RGBA rows (top row first) in `colorSpace`; see `texture(size:scale:_:)`.
-    static func texture(pixels: Data, width: Int, height: Int) -> SKTexture {
+    package static func texture(pixels: Data, width: Int, height: Int) -> SKTexture {
         SKTexture(data: pixels, size: CGSize(width: width, height: height), flipped: true)
     }
 
     /// Hands memory freed by uploaded textures back to the system. Large freed blocks otherwise stay in
     /// malloc's cache and still count towards the process footprint. Cheap; call it a moment after uploads.
-    static func releaseFreedPixels() { _ = malloc_zone_pressure_relief(nil, 0) }
+    package static func releaseFreedPixels() { _ = malloc_zone_pressure_relief(nil, 0) }
 
     private static func prepare(_ ctx: CGContext, height h: Int, scale: CGFloat) {
         ctx.translateBy(x: 0, y: CGFloat(h))
@@ -99,10 +99,10 @@ final class CGArtBackend: ArtBackend {
     // MARK: Text
 
     /// The system font in the art's weights.
-    static func font(_ f: FontSpec) -> NSFont { NSFont.systemFont(ofSize: f.size, weight: NSFont.Weight(f.weight)) }
+    package static func font(_ f: FontSpec) -> NSFont { NSFont.systemFont(ofSize: f.size, weight: NSFont.Weight(f.weight)) }
 
     /// `runs` as one centred attributed string, cut after `maxLines` lines when laid out `width` wide (0: all).
-    static func attributed(_ runs: [TextRun], width: CGFloat, maxLines: Int) -> NSAttributedString {
+    package static func attributed(_ runs: [TextRun], width: CGFloat, maxLines: Int) -> NSAttributedString {
         let text = NSMutableAttributedString()
         for r in runs {
             text.append(NSAttributedString(string: r.text, attributes: [.font: font(r.font), .foregroundColor: NSColor(r.color)]))
@@ -127,7 +127,7 @@ final class CGArtBackend: ArtBackend {
 
     /// `runs` as a plain attributed string (natural alignment), cut with an ellipsis where it overflows when
     /// `truncatesTail`: what the header and the tooltip rows drew before the art went through `Pen`.
-    static func line(_ runs: [TextRun], truncatesTail: Bool) -> NSAttributedString {
+    package static func line(_ runs: [TextRun], truncatesTail: Bool) -> NSAttributedString {
         let text = NSMutableAttributedString()
         for r in runs {
             text.append(NSAttributedString(string: r.text, attributes: [.font: font(r.font), .foregroundColor: NSColor(r.color)]))
@@ -140,14 +140,14 @@ final class CGArtBackend: ArtBackend {
         return text
     }
 
-    static func measure(_ runs: [TextRun], maxWidth: CGFloat, maxLines: Int) -> CGSize {
+    package static func measure(_ runs: [TextRun], maxWidth: CGFloat, maxLines: Int) -> CGSize {
         let width = maxWidth.isFinite ? maxWidth : .greatestFiniteMagnitude
         return attributed(runs, width: width, maxLines: maxLines)
             .boundingRect(with: CGSize(width: width, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin]).size
     }
 
     /// Draws an attributed string top-aligned in `rect`. `ctx` must be a y-down context.
-    static func draw(_ s: NSAttributedString, in rect: CGRect, ctx: CGContext) {
+    package static func draw(_ s: NSAttributedString, in rect: CGRect, ctx: CGContext) {
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: true)
         s.draw(with: rect, options: [.usesLineFragmentOrigin])
@@ -157,13 +157,13 @@ final class CGArtBackend: ArtBackend {
 
 extension BakedImage {
     /// The Core Graphics image of an image baked by `CGArtBackend`.
-    var cgImage: CGImage { native as! CGImage }
+    package var cgImage: CGImage { native as! CGImage }
 }
 
 extension RobotArt {
     /// Robot art baked with Core Graphics.
-    convenience init(scale: CGFloat) { self.init(scale: scale, backend: CGArtBackend.shared) }
+    package convenience init(scale: CGFloat) { self.init(scale: scale, backend: CGArtBackend.shared) }
 
     /// `shared(scale:backend:)` with Core Graphics.
-    static func shared(scale: CGFloat) -> RobotArt { shared(scale: scale, backend: CGArtBackend.shared) }
+    package static func shared(scale: CGFloat) -> RobotArt { shared(scale: scale, backend: CGArtBackend.shared) }
 }
