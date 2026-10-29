@@ -59,9 +59,14 @@ private let frame: TimeInterval = 1.0 / 60
         // Something was drawn over the background.
         let bg = D2DDisplay.background
         let px = surface.pixelsBGRA() ?? []
-        let differing = stride(from: 0, to: px.count, by: 4).filter {
-            abs(Int(px[$0 + 2]) - Int(bg.r * 255)) > 8 || abs(Int(px[$0 + 1]) - Int(bg.g * 255)) > 8 || abs(Int(px[$0]) - Int(bg.b * 255)) > 8
-        }.count
+        let want: [Int] = [Int(bg.b * 255), Int(bg.g * 255), Int(bg.r * 255)]   // BGRA
+        var differing = 0
+        for i in stride(from: 0, to: px.count, by: 4) {
+            for k in 0..<3 where abs(Int(px[i + k]) - want[k]) > 8 {
+                differing += 1
+                break
+            }
+        }
         #expect(differing > px.count / 4 / 4, "only \(differing) pixels differ from the background")
     }
 
