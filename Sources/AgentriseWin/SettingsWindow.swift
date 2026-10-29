@@ -287,11 +287,19 @@ private enum S {
     static let btnFace: Int32 = 15      // COLOR_BTNFACE
 }
 
-/// The system's message font at `dpi` (Segoe UI with its font links, or the language's UI font).
+/// The system's message font at `dpi` (its size and weight), in Microsoft YaHei UI: the text is Simplified Chinese,
+/// and Segoe UI's font links on a non-Chinese Windows mix several CJK fonts in one line (as the panel's text falls
+/// back to YaHei too, spec §5.1).
 private func messageFont(dpi: UInt32) -> HFONT? {
     var m = NONCLIENTMETRICSW()
     m.cbSize = UINT(MemoryLayout<NONCLIENTMETRICSW>.size)
     guard SystemParametersInfoForDpi(UINT(SPI_GETNONCLIENTMETRICS), m.cbSize, &m, 0, dpi) else { return nil }
+    withUnsafeMutableBytes(of: &m.lfMessageFont.lfFaceName) { raw in
+        let units = raw.bindMemory(to: UInt16.self)
+        let name = Array("Microsoft YaHei UI".utf16).prefix(units.count - 1)
+        for (i, u) in name.enumerated() { units[i] = u }
+        units[name.count] = 0
+    }
     return CreateFontIndirectW(&m.lfMessageFont)
 }
 
