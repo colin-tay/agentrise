@@ -30,5 +30,18 @@ import TowerKit
         let env = ["USERPROFILE": #"C:\Users\u"#]
         #expect(TowerPaths.socketPath(environment: env).hasSuffix(#"Users\u\AppData\Local\Agentrise\tower.sock"#))
     }
+
+    @Test func argumentsOfAChildProcess() throws {
+        let child = Process()
+        let comspec = ProcessInfo.processInfo.environment["ComSpec"] ?? #"C:\Windows\System32\cmd.exe"#
+        child.executableURL = URL(fileURLWithPath: comspec)
+        child.arguments = ["/c", "ping", "-n", "3", "127.0.0.1"]
+        child.standardOutput = FileHandle.nullDevice
+        try child.run()
+        defer { child.terminate(); child.waitUntilExit() }
+        let args = try #require(ProcessAncestry.arguments(of: child.processIdentifier))
+        #expect(args.contains("-n"))
+        #expect(args.contains("3"))
+    }
     #endif
 }

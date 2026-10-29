@@ -37,8 +37,50 @@ public enum ProcessAncestry {
         return found
     }
 
-    /// Reading another process's command line is not supported on Windows.
-    public static func arguments(of pid: Int32) -> [String]? { nil }
+    /// The command line of another process, split the way the C runtime splits it, or nil when it
+    /// can't be read: `NtQueryInformationProcess(ProcessCommandLineInformation)`, then `CommandLineToArgvW`.
+    public static func arguments(of pid: Int32) -> [String]? {
+        guard let query = ntQueryInformationProcess, pid > 0,
+              let process = OpenProcess(DWORD(PROCESS_QUERY_LIMITED_INFORMATION) | DWORD(PROCESS_VM_READ),
+                                        false, DWORD(bitPattern: pid)) else { return nil }
+        defer { CloseHandle(process) }
+        // The first call only asks for the size; the reply is a UNICODE_STRING followed by its text.
+        var size: ULONG = 0
+        var status = query(process, processCommandLineInformation, nil, 0, &size)
+        for _ in 0..<2 {
+            guard status == statusInfoLengthMismatch, size > 0, size <= 1 << 20 else { return nil }
+            let buffer = UnsafeMutableRawPointer.allocate(byteCount: Int(size), alignment: 16)
+            defer { buffer.deallocate() }
+            status = query(process, processCommandLineInformation, buffer, size, &size)
+            guard status >= 0 else { continue }                // grew between the calls: ask again
+            // UNICODE_STRING: USHORT Length (bytes), USHORT MaximumLength, then the PWSTR Buffer.
+            let length = Int(buffer.load(as: UInt16.self))
+            guard length > 0 else { return [] }
+            let bufferOffset = MemoryLayout<UnsafeRawPointer>.alignment
+            guard let text = buffer.load(fromByteOffset: bufferOffset, as: UnsafeRawPointer?.self),
+                  text >= UnsafeRawPointer(buffer),
+                  text + length <= UnsafeRawPointer(buffer + Int(size)) else { return nil }   // points into the reply
+            var units = Array(UnsafeBufferPointer(start: text.assumingMemoryBound(to: UInt16.self), count: length / 2))
+            units.append(0)
+            var argc: Int32 = 0
+            guard let argv = CommandLineToArgvW(units, &argc) else { return nil }
+            defer { LocalFree(UnsafeMutableRawPointer(argv)) }
+            return (0..<Int(argc)).map { argv[$0].map { String(decodingCString: $0, as: UTF16.self) } ?? "" }
+        }
+        return nil
+    }
+
+    private typealias NtQueryInformationProcess = @convention(c) (
+        HANDLE?, Int32, UnsafeMutableRawPointer?, ULONG, UnsafeMutablePointer<ULONG>?) -> Int32
+    private static let processCommandLineInformation: Int32 = 60
+    private static let statusInfoLengthMismatch = Int32(bitPattern: 0xC000_0004)
+
+    /// WinSDK's Swift module doesn't declare it, so ntdll's export is looked up at run time.
+    private static let ntQueryInformationProcess: NtQueryInformationProcess? = {
+        guard let ntdll = "ntdll.dll".withCString(encodedAs: UTF16.self, { GetModuleHandleW($0) }),
+              let proc = GetProcAddress(ntdll, "NtQueryInformationProcess") else { return nil }
+        return unsafeBitCast(proc, to: NtQueryInformationProcess.self)
+    }()
 
     /// pid -> (executable name, parent pid) for every process, from one Toolhelp32 snapshot.
     private static func snapshot() -> [Int32: (name: String, parent: Int32)] {
