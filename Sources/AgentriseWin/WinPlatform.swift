@@ -5,17 +5,25 @@
 import Foundation
 import WinSDK
 import TowerKit
+import Agentrise
 import AgentriseScene
 
 /// Where the app keeps and reads its files. Normally `%USERPROFILE%` and `%LOCALAPPDATA%\Agentrise`; with
 /// `--data-dir <dir>` both live under `<dir>` (CI and local test runs never touch the real `~/.claude`): the home is
 /// `<dir>` and the support directory is `<dir>\Agentrise`, which is what `TowerPaths` (and so `agentrise-hook.exe`)
 /// computes when `LOCALAPPDATA` is `<dir>`, so a hook run with that variable sends to this instance's socket.
+///
+/// Claude Code's config dir is `%CLAUDE_CONFIG_DIR%` when set, else `<home>\.claude` (facts §1, §3); Codex's is
+/// `%CODEX_HOME%`, else `<home>\.codex` (facts §4). With `--data-dir` neither variable is read: both are under `<dir>`.
 package struct AppPaths {
     package let home: URL
     package let support: URL
     /// `TowerPaths.socketPath` for the same environment (what the hook computes).
     package let socketPath: String
+    /// Claude Code's config directory (`sessions\`, `projects\`, `settings.json`).
+    package let claudeDir: URL
+    /// Codex's home (`hooks.json`, `session_index.jsonl`).
+    package let codexHome: URL
 
     package init(dataDir: String?, environment: [String: String] = ProcessInfo.processInfo.environment) {
         if let dataDir, !dataDir.isEmpty {
@@ -24,18 +32,27 @@ package struct AppPaths {
             home = URL(fileURLWithPath: dir, isDirectory: true)
             support = TowerPaths.supportDir(environment: ["LOCALAPPDATA": dir])
             socketPath = TowerPaths.socketPath(environment: ["LOCALAPPDATA": dir])
+            claudeDir = home.appendingPathComponent(".claude", isDirectory: true)
+            codexHome = home.appendingPathComponent(".codex", isDirectory: true)
         } else {
             let profile = environment.first { $0.key.uppercased() == "USERPROFILE" }?.value
             home = profile.flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0, isDirectory: true) }
                 ?? FileManager.default.homeDirectoryForCurrentUser
             support = TowerPaths.supportDir(environment: environment)
             socketPath = TowerPaths.socketPath(environment: environment)
+            claudeDir = HookPlan.claudeConfigDir(env: environment, home: home)
+            codexHome = HookPlan.codexHome(env: environment, home: home)
         }
     }
 
     package var windowFile: URL { support.appendingPathComponent("window.json") }
     package var settingsFile: URL { support.appendingPathComponent("settings.json") }
     package var logFile: URL { support.appendingPathComponent("agentrise.log") }
+    package var ranksFile: URL { support.appendingPathComponent("ranks.json") }
+    /// Where the hook helper and its DLLs are copied (`%LOCALAPPDATA%\Agentrise\bin`, spec §5.9).
+    package var binDir: URL { support.appendingPathComponent("bin", isDirectory: true) }
+    package var claudeSettings: URL { claudeDir.appendingPathComponent("settings.json") }
+    package var codexHooks: URL { codexHome.appendingPathComponent("hooks.json") }
 }
 
 /// `C:\…` with backslashes and no trailing separator, as Win32 and `TowerPaths` spell paths (the URL's file-system
@@ -47,16 +64,18 @@ package func nativePath(_ url: URL) -> String {
     return p
 }
 
-/// The Windows side of `PlatformServices`: minimal working versions for now (Task 13 hardens them and adds jumping
-/// back to a session).
+/// The Windows side of `PlatformServices`.
 package final class WinPlatform: PlatformServices {
     package let paths: AppPaths
+    package var jump = Jump()
 
     package init(paths: AppPaths) { self.paths = paths }
 
     package var homeDirectory: URL { paths.home }
     package var supportDirectory: URL { paths.support }
     package var socketPath: String { paths.socketPath }
+    package var claudeDirectory: URL { paths.claudeDir }
+    package var ranksFile: URL { paths.ranksFile }
 
     package func isRunning(_ pid: Int32) -> Bool { Self.isRunning(pid) }
 
@@ -73,8 +92,9 @@ package final class WinPlatform: PlatformServices {
         return code == Win.stillActive
     }
 
-    /// Jumping back to a session is Task 13: until then every jump reports "not found", which shows the model's toast.
-    package func openSession(_ link: SessionLink) -> Bool { false }
+    /// Spec §5.8: a desktop session's `claude://` link, else the window of the terminal that runs the agent. False
+    /// (the model's "can't locate" toast) when neither can be found.
+    package func openSession(_ link: SessionLink) -> Bool { jump.open(link) }
 }
 
 /// The app model's switches (and the shell's own, like "always on top"), in `<support>\settings.json`.
@@ -95,7 +115,7 @@ package final class JSONSettingsStore: SettingsStore {
         try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try? enc.encode(values).write(to: file, options: .atomic)
+        if let data = try? enc.encode(values) { try? SafeFile.write(data, to: file) }
     }
 }
 #endif

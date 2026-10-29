@@ -15,19 +15,50 @@ package enum AppInfo {
     package static let repository = "https://github.com/colin-tay/agentrise"
 }
 
+/// `Agentrise.exe --install-hooks claude|codex`: what Settings does after its preview, without asking. For Codex it
+/// then asks `codex app-server` to trust the hooks, if Codex is on the machine. Returns the exit code.
+package enum HookCommandLine {
+    package static func run(_ agent: AgentKind, paths: AppPaths, sourceDir: URL = HookHelperFiles.appDir()) -> Int32 {
+        let installer = WinHookInstaller(paths: paths, sourceDir: sourceDir)
+        do {
+            let backup = try installer.install(agent)
+            Log.write("install-hooks \(agent.rawValue): \(SafeFile.nativePath(of: installer.file(agent).url)) written"
+                      + (backup.map { ", backup \($0.lastPathComponent)" } ?? ", no previous file")
+                      + "; helper \(installer.helper.hookPath)")
+        } catch {
+            Log.write("install-hooks \(agent.rawValue) failed: \(error.localizedDescription)")
+            return 1
+        }
+        if agent == .codex {
+            do {
+                let n = try CodexAppServer.withLocal(paths: paths) { try $0.trustAgentriseHooks() }
+                Log.write("install-hooks codex: trusted \(n) hooks")
+            } catch {
+                Log.write("install-hooks codex: not trusted (\(error.localizedDescription)); run /hooks in Codex")
+            }
+        }
+        return 0
+    }
+}
+
 /// The command line. Besides normal launches, for CI and local smoke runs:
 /// - `--data-dir <dir>`: home and support directory under `<dir>` (see `AppPaths`);
 /// - `--screenshot <file.png> [--after <seconds>]`: after `seconds` (default 8), writes the window's content (rendered
 ///   offscreen by `D2DDisplay`) as a PNG and exits with 0 (1 when it couldn't);
 /// - `--smoke-second`: only the single-instance check: with an instance running, signal it and exit 0; with none,
 ///   exit 3 (nothing to defer to) without opening a window;
-/// - `--size <w>x<h>`: the window's client size in points (like the macOS `--size`).
+/// - `--retry-ms <n>`: how long a second instance looks for the first one's window (default 2000);
+/// - `--size <w>x<h>`: the window's client size in points (like the macOS `--size`);
+/// - `--install-hooks claude|codex`: installs that agent's hooks without asking (no preview; the backup is still
+///   written), logs the result and exits 0 (1 on failure). Runs whether or not Agentrise is running.
 package struct AppOptions: Equatable {
     package var dataDir: String?
     package var screenshot: String?
     package var screenshotAfter: TimeInterval = 8
     package var smokeSecond = false
+    package var retry: TimeInterval = 2
     package var size: CGSize?
+    package var installHooks: AgentKind?
 
     package init() {}
 
@@ -41,6 +72,8 @@ package struct AppOptions: Equatable {
             case "--screenshot": o.screenshot = value(); i += 1
             case "--after": if let v = value().flatMap(TimeInterval.init) { o.screenshotAfter = v }; i += 1
             case "--smoke-second": o.smokeSecond = true
+            case "--retry-ms": if let v = value().flatMap(Double.init), v >= 0 { o.retry = v / 1000 }; i += 1
+            case "--install-hooks": o.installHooks = value().flatMap(AgentKind.init(rawValue:)); i += 1
             case "--size":
                 let p = (value() ?? "").split(separator: "x").compactMap { Double($0) }
                 if p.count == 2, p[0] > 0, p[1] > 0 { o.size = CGSize(width: p[0], height: p[1]) }
@@ -83,6 +116,8 @@ package final class WinApp {
     private var lastFrame: Date?
     private var pointerInPanel = false
     private var windowIcons: [HICON] = []
+    private var settingsWindow: SettingsWindow?
+    private var hookRefreshes = 0
     private static let alwaysOnTopKey = "alwaysOnTop"
     private static let sizeMoveTimer: UINT_PTR = 99
     private static let occludedProbe: DWORD = 250
@@ -108,6 +143,10 @@ package final class WinApp {
         panel.layout(scene.geo, scale: scale)
         model = TowerAppModel(platform: WinPlatform(paths: paths), scene: scene, settings: settings, scheduler: scheduler)
         tray = Tray(window: window.hwnd, scheduler: scheduler)
+        // An elevated Agentrise still hears a normal second instance and a restarted Explorer (UIPI).
+        for m in [SingleInstance.showMessage, Tray.taskbarCreated] {
+            ChangeWindowMessageFilterEx(window.hwnd, m, DWORD(1) /* MSGFLT_ALLOW */, nil)
+        }
         wire()
     }
 
@@ -172,12 +211,15 @@ package final class WinApp {
         scheduler.every(60) { [weak self] in self?.panel.refreshAges() }
         if let shot = options.screenshot {
             scheduler.after(options.screenshotAfter) { [weak self] in self?.screenshot(to: shot) }
+        } else {
+            refreshHookHelper()
         }
         Log.write("running: \(pw)×\(ph) px at \(window.scale)×, socket \(paths.socketPath)")
         var msg = MSG()
         while running {
             while PeekMessageW(&msg, nil, 0, 0, UINT(PM_REMOVE)) {
                 if msg.message == UINT(WM_QUIT) { running = false; break }
+                if let s = settingsWindow, s.dialogMessage(&msg) { continue }   // Tab, Enter, Esc in Settings
                 TranslateMessage(&msg)
                 DispatchMessageW(&msg)
             }
@@ -291,10 +333,33 @@ package final class WinApp {
         withWide(text) { t in withWide("关于 Agentrise") { _ = MessageBoxW(hwnd, t, $0, UINT(MB_OK | MB_ICONINFORMATION)) } }
     }
 
-    /// The settings window (Task 13): ranks, hook install/uninstall for Claude Code and Codex, start at login.
-    /// The tray menu's "设置…" already calls this.
+    /// The settings window: hooks for Claude Code and Codex, ranks, start at login, cc-connect (the tray's "设置…").
     package func openSettings() {
-        Log.write("settings: not built yet (Task 13)")
+        if let s = settingsWindow { s.show(); return }
+        let controller = SettingsController(installer: WinHookInstaller(paths: paths), settings: settings, scheduler: scheduler,
+                                            ranksFile: paths.ranksFile)
+        controller.onRanksSaved = { [unowned self] in self.model.reloadRanks() }
+        let s = SettingsWindow(controller: controller, near: window.hwnd)
+        s.onClose = { [unowned self] in self.settingsWindow = nil }
+        settingsWindow = s
+        s.show()
+    }
+
+    /// After an upgrade the hook in `bin\` is the old one: copy the new one over it (only if it was installed). A
+    /// hook running at that moment may keep a file locked; then try again a little later (at most 20 times).
+    private func refreshHookHelper() {
+        let helper = WinHookInstaller(paths: paths).helper
+        scheduler.inBackground { [scheduler] in
+            let r = helper.refreshIfInstalled()
+            scheduler.onMain { [weak self] in
+                guard let self, let r else { return }
+                if !r.copied.isEmpty { Log.write("hook helper updated: \(r.copied.joined(separator: ", "))") }
+                guard !r.locked.isEmpty else { return }
+                Log.write("hook helper: \(r.locked.joined(separator: ", ")) in use; trying again in 30 s")
+                self.hookRefreshes += 1
+                if self.hookRefreshes < 20 { self.scheduler.after(30) { [weak self] in self?.refreshHookHelper() } }
+            }
+        }
     }
 
     // MARK: Screenshot
@@ -329,6 +394,7 @@ package final class WinApp {
     }
 
     private func shutdown() {
+        settingsWindow?.close()
         savePlacement()
         tray.remove()
         window.setIcons(small: nil, big: nil)

@@ -105,7 +105,9 @@ jobs:
       # Tests/AgentriseTests/Fixtures/codex, which use Claude Code's hook schema) through agentrise-hook.exe pointed
       # at the same directory with LOCALAPPDATA (how the hook always computes its socket), write a screenshot of its
       # window after 8 s and exit with 0. ffmpeg's gdigrab captures the whole desktop meanwhile. A second, portrait run
-      # shows the panel as a strip.
+      # shows the panel as a strip. Before both, `--install-hooks claude` (twice) copies the hook to the data
+      # directory's Agentrise\bin and writes its exec-form entry into .claude\settings.json there; the events then go
+      # through that installed copy.
       - name: App smoke test
         shell: pwsh
         run: |
@@ -151,6 +153,28 @@ jobs:
             if (-not (Test-Path $png)) { throw "no $png" }
           }
 
+          # Hooks: install Claude Code's twice into the data directory (never the runner's real ~\.claude). The second
+          # run must not add a second entry, and must back the first file up.
+          $settings = Join-Path $data '.claude\settings.json'
+          $installed = Join-Path $data 'Agentrise\bin\agentrise-hook.exe'
+          foreach ($i in 1, 2) {
+            $p = Start-App @('--data-dir', $data, '--install-hooks', 'claude')
+            if (-not $p.WaitForExit(30000)) { $p.Kill(); throw '--install-hooks did not exit' }
+            if ($p.ExitCode -ne 0) { Get-Content $log; throw "--install-hooks exited with $($p.ExitCode)" }
+          }
+          if (-not (Test-Path -LiteralPath $installed)) { throw "no $installed" }
+          Get-Content -Raw -Encoding utf8 -LiteralPath $settings
+          $json = Get-Content -Raw -Encoding utf8 -LiteralPath $settings | ConvertFrom-Json
+          foreach ($prop in $json.hooks.PSObject.Properties) {
+            $ours = @($prop.Value | Where-Object { $_.hooks[0].command -eq $installed })
+            if ($ours.Count -ne 1) { throw "$($prop.Name): $($ours.Count) Agentrise entries, expected 1" }
+            if (($ours[0].hooks[0].args -join ' ') -ne '--agent claude') { throw "$($prop.Name): wrong args" }
+          }
+          if (@($json.hooks.PSObject.Properties).Count -ne 12) { throw 'expected 12 Claude Code events' }
+          $backups = @(Get-ChildItem -LiteralPath (Join-Path $data '.claude') -Filter 'settings.json.agentrise-backup-*')
+          if ($backups.Count -lt 1) { throw 'the second install wrote no backup' }
+          $hook = $installed   # the events below run the installed copy, as Claude Code would
+
           # Landscape, as CI's 1024 × 768 desktop allows: a second instance, the events, the desktop capture.
           $app = Start-App @('--data-dir', $data, '--screenshot', $shot, '--after', '8', '--size', '1200x800')
           Start-Sleep -Seconds 3
@@ -180,6 +204,7 @@ jobs:
           if ($text -notmatch 'comctl32 6\.') { throw 'comctl32 6 is not active (manifest)' }
           if ($text -notmatch 'second instance: showed the running one') { throw 'the second instance did not defer to the first' }
           if (([regex]::Matches($text, 'sessions 1,')).Count -ne 2) { throw 'the hook events did not reach the app' }
+          if (([regex]::Matches($text, 'install-hooks claude: .* written')).Count -ne 2) { throw 'install-hooks did not log its writes' }
 
       - name: Upload app screenshots
         if: always()

@@ -512,7 +512,9 @@ package final class D2DDisplay {
                     let p = buffer.bindMemory(to: UInt8.self)
                     for j in stride(from: 0, to: bytes, by: 4) { p.swapAt(j, j + 2) }
                     bitmap = s.upload(bgra: UnsafeRawPointer(p.baseAddress!), width: w, height: h)
-                    if bitmap != nil { uploadCount += 1 } else { uploadFailures += 1 }   // retried on the next version
+                    // A failed page is kept as (revision, nil): it is tried again only when this page's revision changes, the
+                    // atlas is replaced, or the device changes (`discard`).
+                    if bitmap != nil { uploadCount += 1 } else { uploadFailures += 1 }
                 }
                 buffer.deallocate()
             }

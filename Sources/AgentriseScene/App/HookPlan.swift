@@ -23,24 +23,35 @@ package enum InstallerError: LocalizedError {
 package struct HookFile {
     package let url: URL
     package let events: [String]
-    /// The hook command for a given helper path.
-    package let command: @Sendable (String) -> String
+    /// The command fields of a handler for a given helper path.
+    package let handler: @Sendable (String) -> HookCommand
     /// Backups are named `<file name>.<backupTag>-<yyyyMMdd-HHmmss>`.
     package let backupTag: String
     package var timeout = 5
     /// Events whose entry is not marked async (the agent would run it synchronously anyway).
     package var syncEvents: Set<String> = []
 
-    package init(url: URL, events: [String], command: @escaping @Sendable (String) -> String, backupTag: String,
+    package init(url: URL, events: [String], handler: @escaping @Sendable (String) -> HookCommand, backupTag: String,
                  timeout: Int = 5, syncEvents: Set<String> = []) {
-        self.url = url; self.events = events; self.command = command; self.backupTag = backupTag
+        self.url = url; self.events = events; self.handler = handler; self.backupTag = backupTag
         self.timeout = timeout; self.syncEvents = syncEvents
     }
+
+    /// A file whose handlers are a single `command` string (the macOS form).
+    package init(url: URL, events: [String], command: @escaping @Sendable (String) -> String, backupTag: String,
+                 timeout: Int = 5, syncEvents: Set<String> = []) {
+        self.init(url: url, events: events, handler: { HookCommand(command: command($0)) }, backupTag: backupTag,
+                  timeout: timeout, syncEvents: syncEvents)
+    }
+
+    /// The `command` string of a handler for a given helper path.
+    package var command: @Sendable (String) -> String { { [handler] in handler($0).command } }
 
     private var name: String { url.lastPathComponent }
 
     package func entry(hookPath: String, event: String? = nil) -> [String: Any] {
-        var h: [String: Any] = ["type": "command", "command": command(hookPath), "timeout": timeout]
+        var h: [String: Any] = ["type": "command", "timeout": timeout]
+        for (k, v) in handler(hookPath).fields { h[k] = v }
         if !(event.map(syncEvents.contains) ?? false) { h["async"] = true }
         return ["hooks": [h]]
     }
@@ -108,14 +119,18 @@ package struct HookFile {
         var backup: URL?
         if let raw {
             backup = backupURL(at: Date())
+            #if os(Windows)
+            try SafeFile.write(raw, to: backup!)
+            #else
             try raw.write(to: backup!)
+            #endif
         }
         // Another program may have written meanwhile.
         if (try? Data(contentsOf: url)) != raw { throw InstallerError.changedSinceRead(name) }
         let data = try JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .withoutEscapingSlashes])
         #if os(Windows)
-        // Foundation has no `replaceItemAt` on Windows; its atomic write moves a temporary file over the target.
-        try (data + Data("\n".utf8)).write(to: url, options: .atomic)
+        // Foundation has no `replaceItemAt` on Windows, and its atomic write races child processes (see `SafeFile`).
+        try SafeFile.write(data + Data("\n".utf8), to: url)
         #else
         let fm = FileManager.default
         let perms = (try? fm.attributesOfItem(atPath: url.path)[.posixPermissions]) as? NSNumber
@@ -128,9 +143,57 @@ package struct HookFile {
     }
 }
 
+/// Which platform's spelling a hook handler uses.
+package enum HookPlatform: Equatable {
+    /// macOS: one `command` string run by `sh -c`, the helper's path in double quotes.
+    case posix
+    /// Windows (facts §2, §4). Claude Code: exec form (`command` is the exe, `args` its arguments, no shell), or the
+    /// documented fallback for versions without `args`: `"shell": "powershell"` with `& '<path>' --agent claude`.
+    /// Codex has no exec form; it runs `commandWindows` in PowerShell (`& '<path>' --agent codex`) and ignores `shell`.
+    case windows(WindowsHookShell)
+
+    /// What this build writes: `.posix` on macOS, Claude Code's exec form on Windows.
+    package static var current: HookPlatform {
+        #if os(Windows)
+        return .windows(.exec)
+        #else
+        return .posix
+        #endif
+    }
+}
+
+/// How Claude Code on Windows runs Agentrise's hook.
+package enum WindowsHookShell: Equatable { case exec, powershell }
+
+/// The fields of one hook handler that say what to run (`type`, `timeout` and `async` are `HookFile`'s).
+package struct HookCommand: Equatable {
+    package var command: String
+    /// Claude Code's exec form: the argument vector (`command` is then the executable).
+    package var args: [String]?
+    /// Claude Code: the shell that runs `command` ("powershell"); ignored when `args` is set.
+    package var shell: String?
+    /// Codex on Windows: used instead of `command` there.
+    package var commandWindows: String?
+
+    package init(command: String, args: [String]? = nil, shell: String? = nil, commandWindows: String? = nil) {
+        self.command = command; self.args = args; self.shell = shell; self.commandWindows = commandWindows
+    }
+
+    /// The JSON fields, only those that are set.
+    package var fields: [String: Any] {
+        var f: [String: Any] = ["command": command]
+        if let args { f["args"] = args }
+        if let shell { f["shell"] = shell }
+        if let commandWindows { f["commandWindows"] = commandWindows }
+        return f
+    }
+}
+
 /// Which hooks Agentrise installs into which agent, and how its own entries are recognised.
 package enum HookPlan {
     package static let marker = "/Agentrise/bin/agentrise-hook"
+    /// The same directory as Windows spells it (`%LOCALAPPDATA%\Agentrise\bin\agentrise-hook.exe`).
+    package static let windowsMarker = "\\Agentrise\\bin\\agentrise-hook"
     /// The hooks installed into Claude Code, in this order. Never PermissionRequest.
     package static let claudeEvents: [HookEventName] = [
         .sessionStart, .sessionEnd, .userPromptSubmit, .preToolUse, .postToolUse, .postToolUseFailure,
@@ -144,29 +207,72 @@ package enum HookPlan {
 
     package static func claudeSettingsURL(home: URL) -> URL { home.appendingPathComponent(".claude/settings.json") }
 
+    /// `$CLAUDE_CONFIG_DIR` when set, else ~/.claude (facts §1, §3; the Windows app reads it, macOS keeps ~/.claude).
+    package static func claudeConfigDir(env: [String: String], home: URL) -> URL {
+        if let d = env["CLAUDE_CONFIG_DIR"], !d.isEmpty { return URL(fileURLWithPath: (d as NSString).expandingTildeInPath, isDirectory: true) }
+        return home.appendingPathComponent(".claude", isDirectory: true)
+    }
+
     /// `$CODEX_HOME` when set, else ~/.codex.
     package static func codexHome(env: [String: String], home: URL) -> URL {
         if let h = env["CODEX_HOME"], !h.isEmpty { return URL(fileURLWithPath: (h as NSString).expandingTildeInPath) }
         return home.appendingPathComponent(".codex")
     }
 
-    package static func claude(home: URL) -> HookFile {
-        HookFile(url: claudeSettingsURL(home: home), events: claudeEvents.map(\.rawValue),
-                 command: { "\"\($0)\"" }, backupTag: "agentrise-backup")
+    /// The command fields that run the helper at `hookPath` for `agent`.
+    package static func command(hookPath: String, agent: AgentKind, platform: HookPlatform) -> HookCommand {
+        switch (platform, agent) {
+        case (.posix, .claude): return HookCommand(command: "\"\(hookPath)\"")
+        case (.posix, .codex): return HookCommand(command: "\"\(hookPath)\" --agent codex")
+        case (.windows(.exec), .claude): return HookCommand(command: hookPath, args: ["--agent", "claude"])
+        case (.windows(.powershell), .claude):
+            return HookCommand(command: "& \(powerShellQuoted(hookPath)) --agent claude", shell: "powershell")
+        case (.windows, .codex):
+            return HookCommand(command: "\"\(hookPath)\" --agent codex",
+                               commandWindows: "& \(powerShellQuoted(hookPath)) --agent codex")
+        }
+    }
+
+    /// A PowerShell single-quoted string: a quote inside is doubled. PowerShell also takes the typographic single
+    /// quotes (U+2018–U+201B) as quotes, so they are doubled too.
+    package static func powerShellQuoted(_ s: String) -> String {
+        var out = "'"
+        for c in s {
+            out.append(c)
+            if c == "'" || c == "\u{2018}" || c == "\u{2019}" || c == "\u{201A}" || c == "\u{201B}" { out.append(c) }
+        }
+        return out + "'"
+    }
+
+    package static func claude(home: URL, platform: HookPlatform = .current) -> HookFile {
+        claude(settings: claudeSettingsURL(home: home), platform: platform)
+    }
+
+    /// Claude Code's user settings at `settings` (`<config dir>/settings.json`).
+    package static func claude(settings: URL, platform: HookPlatform) -> HookFile {
+        HookFile(url: settings, events: claudeEvents.map(\.rawValue),
+                 handler: { command(hookPath: $0, agent: .claude, platform: platform) }, backupTag: "agentrise-backup")
     }
 
     /// Codex 0.164 clamps SessionEnd and Interrupt hooks to 3 s and runs an async SessionEnd hook synchronously,
     /// warning about each on every session start; entries that ask for neither keep its status line quiet.
-    package static func codex(codexHome: URL) -> HookFile {
+    package static func codex(codexHome: URL, platform: HookPlatform = .current) -> HookFile {
         HookFile(url: codexHome.appendingPathComponent("hooks.json"), events: codexEvents.map(\.rawValue),
-                 command: { "\"\($0)\" --agent codex" }, backupTag: "agentrise-backup",
+                 handler: { command(hookPath: $0, agent: .codex, platform: platform) }, backupTag: "agentrise-backup",
                  timeout: 3, syncEvents: [HookEventName.sessionEnd.rawValue])
     }
 
     package static func isOurs(_ group: Any) -> Bool {
         guard let g = group as? [String: Any], let hs = g["hooks"] as? [[String: Any]] else { return false }
-        return hs.contains { ($0["command"] as? String)?.contains(marker) == true }
+        return hs.contains { isOurs(handler: $0) }
     }
+
+    /// A handler (or an app-server's listing of one) that runs Agentrise's helper, in either platform's spelling.
+    package static func isOurs(handler h: [String: Any]) -> Bool {
+        ["command", "commandWindows"].contains { (h[$0] as? String).map(isOurCommand) == true }
+    }
+
+    package static func isOurCommand(_ c: String) -> Bool { c.contains(marker) || c.contains(windowsMarker) }
 
     /// True once a Codex hook event has reached the app: Settings shows the Codex hook as working.
     package static let codexSeenKey = "codexSeen"

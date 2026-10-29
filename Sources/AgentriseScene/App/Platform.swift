@@ -3,6 +3,7 @@
 
 import Foundation
 import TowerKit
+import Agentrise
 
 /// What the app model needs from the operating system. macOS: `MacPlatform` in the app.
 package protocol PlatformServices: AnyObject {
@@ -16,6 +17,16 @@ package protocol PlatformServices: AnyObject {
     func isRunning(_ pid: Int32) -> Bool
     /// Brings the session's app forward; false when it can't be found (the model then shows a toast).
     func openSession(_ link: SessionLink) -> Bool
+    /// Claude Code's config directory (sessions registry, transcripts). Default ~/.claude; Windows honours
+    /// `CLAUDE_CONFIG_DIR` like Claude Code does.
+    var claudeDirectory: URL { get }
+    /// The user's rank names and keywords (`ranks.json`). Default: where the macOS app always kept it.
+    var ranksFile: URL { get }
+}
+
+extension PlatformServices {
+    package var claudeDirectory: URL { homeDirectory.appendingPathComponent(".claude") }
+    package var ranksFile: URL { RankBook.fileURL }
 }
 
 /// The few switches the app model reads and writes (macOS: `UserDefaults`, same keys as before).

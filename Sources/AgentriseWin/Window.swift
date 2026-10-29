@@ -4,6 +4,7 @@
 #if os(Windows)
 import Foundation
 import WinSDK
+import Agentrise
 
 /// Where the window was, in `<support>\window.json`: its normal (restored) frame in screen pixels.
 package struct WindowPlacement: Codable, Equatable {
@@ -23,7 +24,8 @@ package struct WindowPlacement: Codable, Equatable {
         try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try? enc.encode(self).write(to: file, options: .atomic)
+        // Not Foundation's atomic write: its temporary file's handle is inheritable (see `SafeFile`).
+        if let data = try? enc.encode(self) { try? SafeFile.write(data, to: file) }
     }
 
     var rect: RECT { RECT(left: LONG(x), top: LONG(y), right: LONG(x + width), bottom: LONG(y + height)) }

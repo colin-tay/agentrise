@@ -21,10 +21,15 @@ Log.file = paths.logFile
 Log.write("Agentrise \(AppInfo.version) start: \(CommandLine.arguments.dropFirst().joined(separator: " "))")
 Log.write("startup: \(dpiAwareness); comctl32 \(Startup.comctl32Version() ?? "unknown")")
 
+if let agent = options.installHooks {
+    // Installs hooks without asking (CI's smoke test, scripts); independent of a running instance.
+    exit(HookCommandLine.run(agent, paths: paths))
+}
+
 if options.smokeSecond {
     // Only the single-instance check (secondInstanceDefersToFirst, CI): defer to a running instance, or say there is none.
     if SingleInstance.acquire() == nil {
-        let signalled = SingleInstance.signalFirstInstance()
+        let signalled = SingleInstance.signalFirstInstance(timeout: options.retry)
         Log.write("smoke-second: another instance runs (window \(signalled ? "signalled" : "not found")); exiting")
         exit(0)
     }
@@ -34,7 +39,7 @@ if options.smokeSecond {
 
 guard let instance = SingleInstance.acquire() else {
     // Agentrise already runs: bring its window forward and leave.
-    let signalled = SingleInstance.signalFirstInstance()
+    let signalled = SingleInstance.signalFirstInstance(timeout: options.retry)
     Log.write("second instance: \(signalled ? "showed the running one" : "the running one has no window yet"); exiting")
     exit(0)
 }

@@ -16,13 +16,21 @@ package struct RegistryEntry {
     package var updatedAt: Date?
 }
 
-/// ~/.claude/sessions/<pid>.json, written by every live Claude Code process.
+/// ~/.claude/sessions/<pid>.json, written by every live Claude Code process (Windows: `%USERPROFILE%\.claude\sessions`,
+/// or `%CLAUDE_CONFIG_DIR%\sessions`; facts §1).
 package enum SessionRegistry {
     package static func dir(home: URL) -> URL { home.appendingPathComponent(".claude/sessions") }
 
+    /// `<Claude Code's config dir>/sessions`.
+    package static func dir(claudeDir: URL) -> URL { claudeDir.appendingPathComponent("sessions") }
+
     package static func load(home: URL, isRunning: (Int32) -> Bool) -> [String: RegistryEntry] {
+        load(dir: dir(home: home), isRunning: isRunning)
+    }
+
+    package static func load(dir: URL, isRunning: (Int32) -> Bool) -> [String: RegistryEntry] {
         var out: [String: RegistryEntry] = [:]
-        let files = (try? FileManager.default.contentsOfDirectory(at: dir(home: home), includingPropertiesForKeys: nil)) ?? []
+        let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
         for f in files where f.pathExtension == "json" {
             guard let d = try? Data(contentsOf: f),
                   let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
@@ -43,7 +51,7 @@ package enum SessionRegistry {
 extension CCConnectIndex {
     package static func dir(home: URL) -> URL { home.appendingPathComponent(".cc-connect/sessions") }
 
-    package static func load(home: URL) -> [String: String] {
+    package static func load(home: URL, enabled: Bool = enabled) -> [String: String] {
         var out: [String: String] = [:]
         guard enabled else { return out }
         let files = (try? FileManager.default.contentsOfDirectory(at: dir(home: home), includingPropertiesForKeys: nil)) ?? []
@@ -91,9 +99,13 @@ package enum CodexSessionIndex {
 
 package enum TranscriptModelReader {
     package static func model(transcriptPath: String?, sessionId: String, home: URL) -> String? {
+        model(transcriptPath: transcriptPath, sessionId: sessionId, claudeDir: home.appendingPathComponent(".claude"))
+    }
+
+    package static func model(transcriptPath: String?, sessionId: String, claudeDir: URL) -> String? {
         var path = transcriptPath
         if path == nil {
-            let projects = home.appendingPathComponent(".claude/projects")
+            let projects = claudeDir.appendingPathComponent("projects")
             let dirs = (try? FileManager.default.contentsOfDirectory(at: projects, includingPropertiesForKeys: nil)) ?? []
             path = dirs.map { $0.appendingPathComponent("\(sessionId).jsonl").path }
                 .first { FileManager.default.fileExists(atPath: $0) }
@@ -181,10 +193,11 @@ package enum CodexCommandLine {
     }
 }
 
-/// Where clicking a session goes: the Claude app's deep link, or the terminal app that ran it.
+/// Where clicking a session goes: the Claude app's deep link, or the terminal app that ran it. `pid` is the agent's
+/// process (the registry's, else the hook's `agentPid`): Windows finds the terminal window by walking up from it.
 package enum SessionLink: Equatable {
     case desktop(URL)
-    case terminal(bundleId: String?)
+    case terminal(bundleId: String?, pid: Int32? = nil)
 
     package static func url(hostSessionId: String) -> URL? { URL(string: "claude://claude.ai/epitaxy/\(hostSessionId)") }
 }

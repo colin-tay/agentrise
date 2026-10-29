@@ -88,21 +88,22 @@ package final class TowerAppModel {
     }
 
     private var home: URL { platform.homeDirectory }
+    private var claudeDir: URL { platform.claudeDirectory }
     private var codexIndexFile: URL { CodexSessionIndex.file(home: home) }
 
     /// The sessions shown in the tower, in team order, as last published.
     package var visibleSessions: [Session] { lastPublished }
 
     package func start() {
-        RankBook.current = RankBook.load()   // before the first seed, so every robot starts with the user's ranks
-        registry = SessionRegistry.load(home: home, isRunning: platform.isRunning)
-        cc = CCConnectIndex.load(home: home)
+        RankBook.current = RankBook.load(from: platform.ranksFile)   // before the first seed, so every robot starts with the user's ranks
+        registry = SessionRegistry.load(dir: SessionRegistry.dir(claudeDir: claudeDir), isRunning: platform.isRunning)
+        cc = CCConnectIndex.load(home: home, enabled: settings.bool(forKey: CCConnectIndex.enabledKey))
         codexIndexStamp = CodexSessionIndex.stamp(of: codexIndexFile)
         codexIndex = CodexSessionIndex.load(from: codexIndexFile)
         let now = clock()
         for (id, r) in registry {
             var ctx = SessionResolver.context(sessionId: id, event: nil, registry: registry, cc: cc, larkNumbers: &larkNumbers)
-            ctx.model = TranscriptModelReader.model(transcriptPath: nil, sessionId: id, home: home)
+            ctx.model = TranscriptModelReader.model(transcriptPath: nil, sessionId: id, claudeDir: claudeDir)
             store.seed(id: id, context: ctx, busy: r.status == "busy", lastActive: r.updatedAt ?? now, now: now)
             store.touchRegistry(id, now: now)
         }
@@ -141,9 +142,9 @@ package final class TowerAppModel {
         // Only Claude Code keeps its model in a transcript we know how to read; Codex sends it on every event.
         if isClaude, let s = store.sessions[e.sessionId], !s.modelKnown, e.event != .sessionEnd, !modelLookups.contains(e.sessionId) {
             modelLookups.insert(e.sessionId)
-            let path = e.transcriptPath, sid = e.sessionId, home = home
+            let path = e.transcriptPath, sid = e.sessionId, claudeDir = claudeDir
             scheduler.inBackground { [weak self, scheduler] in
-                let m = TranscriptModelReader.model(transcriptPath: path, sessionId: sid, home: home)
+                let m = TranscriptModelReader.model(transcriptPath: path, sessionId: sid, claudeDir: claudeDir)
                 scheduler.onMain {
                     guard let self, let m else { return }   // tried once; don't rescan on every event
                     var c = SessionContext(); c.model = m; c.source = self.store.sessions[sid]?.isHidden == true ? nil : self.store.sessions[sid]?.source
@@ -167,8 +168,8 @@ package final class TowerAppModel {
     /// Re-reads the registry, cc-connect and the Codex index (every 5 s).
     package func refreshSources() {
         let now = clock()
-        let newRegistry = SessionRegistry.load(home: home, isRunning: platform.isRunning)
-        let newCC = CCConnectIndex.load(home: home)
+        let newRegistry = SessionRegistry.load(dir: SessionRegistry.dir(claudeDir: claudeDir), isRunning: platform.isRunning)
+        let newCC = CCConnectIndex.load(home: home, enabled: settings.bool(forKey: CCConnectIndex.enabledKey))
         var codexRenamed = false
         let stamp = CodexSessionIndex.stamp(of: codexIndexFile)
         if stamp != codexIndexStamp {
@@ -193,7 +194,7 @@ package final class TowerAppModel {
         for (id, r) in registry {
             if store.sessions[id] == nil {
                 var ctx = SessionResolver.context(sessionId: id, event: nil, registry: registry, cc: cc, larkNumbers: &larkNumbers)
-                ctx.model = TranscriptModelReader.model(transcriptPath: nil, sessionId: id, home: home)
+                ctx.model = TranscriptModelReader.model(transcriptPath: nil, sessionId: id, claudeDir: claudeDir)
                 store.seed(id: id, context: ctx, busy: r.status == "busy", lastActive: r.updatedAt ?? now, now: now)
             }
             store.touchRegistry(id, now: now)   // after the seed, so a fresh session is already marked as seen
@@ -276,7 +277,9 @@ package final class TowerAppModel {
         case .lark:
             flash("这是飞书会话，回复在飞书里")
         case .terminal(let bundle):
-            if !platform.openSession(.terminal(bundleId: bundle)) { flash("这是终端会话") }
+            // The registry's pid is Claude Code's own process; the hook's `agentPid` is the fallback (and Codex's).
+            let pid = registry[sessionId]?.pid ?? s.agentPid
+            if !platform.openSession(.terminal(bundleId: bundle, pid: pid)) { flash("这是终端会话") }
         }
     }
 

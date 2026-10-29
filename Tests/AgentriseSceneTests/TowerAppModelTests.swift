@@ -18,6 +18,10 @@ final class FakePlatform: PlatformServices {
     var running: (Int32) -> Bool = { _ in true }
     var opens = true
     var opened: [SessionLink] = []
+    /// Claude Code's config dir; nil = ~/.claude under the temporary home.
+    var claudeDir: URL?
+    var claudeDirectory: URL { claudeDir ?? homeDirectory.appendingPathComponent(".claude") }
+    var ranksFile: URL { homeDirectory.appendingPathComponent("ranks.json") }
 
     init() throws {
         homeDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("agentrise-home-\(UUID().uuidString)")
@@ -27,9 +31,9 @@ final class FakePlatform: PlatformServices {
     func isRunning(_ pid: Int32) -> Bool { running(pid) }
     func openSession(_ link: SessionLink) -> Bool { opened.append(link); return opens }
 
-    /// Writes ~/.claude/sessions/<pid>.json like a live Claude Code process.
+    /// Writes <claude dir>/sessions/<pid>.json like a live Claude Code process.
     func writeRegistry(pid: Int32, sessionId: String, entrypoint: String, hostSessionId: String? = nil, at t: Date) throws {
-        let dir = SessionRegistry.dir(home: homeDirectory)
+        let dir = SessionRegistry.dir(claudeDir: claudeDirectory)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         var o: [String: Any] = ["sessionId": sessionId, "pid": pid, "status": "idle", "entrypoint": entrypoint,
                                 "cwd": "/work/demo", "updatedAt": t.timeIntervalSince1970 * 1000]
@@ -38,7 +42,7 @@ final class FakePlatform: PlatformServices {
     }
 
     func removeRegistry(pid: Int32) throws {
-        try FileManager.default.removeItem(at: SessionRegistry.dir(home: homeDirectory).appendingPathComponent("\(pid).json"))
+        try FileManager.default.removeItem(at: SessionRegistry.dir(claudeDir: claudeDirectory).appendingPathComponent("\(pid).json"))
     }
 }
 
@@ -208,6 +212,43 @@ final class ManualScheduler: TowerScheduler {
         #expect(left == [.sessionLeft(sessionId: "m")])
         scheduler.advance(by: 1)
         #expect(model.visibleSessions.isEmpty)
+    }
+
+    /// The same departure rules with the registry where the Windows app reads it: `.claude\sessions` under a data
+    /// directory (`--data-dir`) whose name has a space and Chinese characters.
+    @Test func departureWithAWindowsStyleRegistryDir() throws {
+        let (model, platform, scheduler, _, _) = try make()
+        platform.claudeDir = platform.homeDirectory.appendingPathComponent("ar 测试").appendingPathComponent(".claude")
+        #expect(SessionRegistry.dir(claudeDir: platform.claudeDirectory).lastPathComponent == "sessions")
+        var left: [TowerEffect] = []
+        model.onEffects = { effects, _ in left += effects.filter { if case .sessionLeft = $0 { return true }; return false } }
+        try platform.writeRegistry(pid: 101, sessionId: "m", entrypoint: "cli", at: t0)
+        try platform.writeRegistry(pid: 202, sessionId: "dead", entrypoint: "cli", at: t0)
+        platform.running = { $0 != 202 }   // a stale file: its process is gone
+        model.refreshSources()
+        scheduler.advance(by: 1)
+        #expect(model.visibleSessions.map(\.id) == ["m"])
+        // Nothing was read from the default place.
+        #expect(!FileManager.default.fileExists(atPath: SessionRegistry.dir(home: platform.homeDirectory).path))
+        try platform.removeRegistry(pid: 101)
+        for _ in 0..<8 {
+            scheduler.advance(by: 5)
+            model.refreshSources()
+            if scheduler.now.timeIntervalSince(t0) <= TowerStore.registryGrace { #expect(left.isEmpty) }
+        }
+        #expect(left == [.sessionLeft(sessionId: "m")])
+        scheduler.advance(by: 1)
+        #expect(model.visibleSessions.isEmpty)
+    }
+
+    /// A terminal session's link carries Claude Code's pid from the registry (Windows walks up from it to the window).
+    @Test func terminalLinkCarriesTheRegistryPid() throws {
+        let (model, platform, scheduler, _, _) = try make()
+        try platform.writeRegistry(pid: 101, sessionId: "m", entrypoint: "cli", at: t0)
+        model.refreshSources()
+        scheduler.advance(by: 1)
+        model.open(sessionId: "m")
+        #expect(platform.opened == [.terminal(bundleId: nil, pid: 101)])
     }
 
     @Test func effectsArriveWithTheSessionsAsTheyAreNow() throws {

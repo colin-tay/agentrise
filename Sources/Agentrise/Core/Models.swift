@@ -167,7 +167,7 @@ package struct Session: Equatable {
     package var lastSeenInRegistry: Date?
     package var agent: AgentKind = .claude
     /// The agent's own process, for agents without a session registry to tell when it is gone.
-    var agentPid: Int32?
+    package internal(set) var agentPid: Int32?
 
     package var isLark: Bool { source == .lark }
 }

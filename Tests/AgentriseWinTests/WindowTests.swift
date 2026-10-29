@@ -203,7 +203,7 @@ private let frame: TimeInterval = 1.0 / 60
 
 /// `Agentrise.exe` next to this test image (`swift build` puts it there): `AGENTRISE_EXE` if set, else the build
 /// directory.
-private func agentriseExe() throws -> URL {
+func agentriseExe() throws -> URL {
     if let exe = ProcessInfo.processInfo.environment["AGENTRISE_EXE"], !exe.isEmpty { return URL(fileURLWithPath: exe) }
     final class Marker {}
     var starts = [Bundle(for: Marker.self).bundleURL]
@@ -224,7 +224,7 @@ private struct ExeNotFound: Error, CustomStringConvertible {
 }
 
 /// Runs `exe` and waits up to `timeout`; the exit code, or nil when it still ran (it is then killed).
-private func run(_ exe: URL, _ args: [String], timeout: TimeInterval) throws -> Int32? {
+func run(_ exe: URL, _ args: [String], timeout: TimeInterval) throws -> Int32? {
     let p = Process()
     p.executableURL = exe
     p.arguments = args
@@ -243,11 +243,11 @@ private func run(_ exe: URL, _ args: [String], timeout: TimeInterval) throws -> 
         var held = SingleInstance.acquire()
         #expect(held != nil, "another Agentrise holds \(SingleInstance.mutexName)")
         #expect(SingleInstance.acquire() == nil)   // the mutex decides: a second taker is refused
-        let code = try run(exe, ["--smoke-second", "--data-dir", nativePath(dir)], timeout: 5)
+        let code = try run(exe, ["--smoke-second", "--retry-ms", "200", "--data-dir", nativePath(dir)], timeout: 5)
         #expect(code == 0)
         // With no instance running, the same check finds none (exit 3) and opens no window.
         held = nil
-        #expect(try run(exe, ["--smoke-second", "--data-dir", nativePath(dir)], timeout: 5) == 3)
+        #expect(try run(exe, ["--smoke-second", "--retry-ms", "200", "--data-dir", nativePath(dir)], timeout: 5) == 3)
         // The log went to the data directory, whose name has a space and Chinese characters.
         let log = try String(contentsOf: dir.appendingPathComponent("Agentrise").appendingPathComponent("agentrise.log"), encoding: .utf8)
         #expect(log.contains("smoke-second: another instance runs"))
@@ -261,51 +261,4 @@ private func run(_ exe: URL, _ args: [String], timeout: TimeInterval) throws -> 
     }
 }
 
-@Suite struct WinPlatformTests {
-    /// `--data-dir` puts home, support directory and socket under the directory, where the hook finds the socket
-    /// through `LOCALAPPDATA` (Review Focus 3: a space and Chinese characters).
-    @Test func dataDirWithSpacesAndChinese() {
-        let dir = "C:\\Users\\张 三\\ar 测试"
-        let paths = AppPaths(dataDir: dir + "\\")
-        #expect(nativePath(paths.home) == dir)
-        #expect(nativePath(paths.support) == dir + "\\Agentrise")
-        #expect(paths.socketPath == TowerPaths.socketPath(environment: ["LOCALAPPDATA": dir]))
-        #expect(paths.socketPath == dir + "\\Agentrise\\tower.sock")
-        #expect(nativePath(paths.windowFile) == dir + "\\Agentrise\\window.json")
-    }
-
-    @Test func windowPlacementAndSettingsRoundTrip() throws {
-        let dir = try tempDir()
-        let file = dir.appendingPathComponent("window.json")
-        let p = WindowPlacement(x: -1200, y: 40, width: 1300, height: 860)
-        p.save(file)
-        #expect(WindowPlacement.load(file) == p)
-        let settings = JSONSettingsStore(file: dir.appendingPathComponent("settings.json"))
-        settings.set(true, forKey: "alwaysOnTop")
-        #expect(JSONSettingsStore(file: dir.appendingPathComponent("settings.json")).bool(forKey: "alwaysOnTop"))
-        #expect(!settings.bool(forKey: "other"))
-    }
-
-    @Test func isRunningKnowsLiveAndGoneProcesses() throws {
-        #expect(WinPlatform.isRunning(Int32(bitPattern: GetCurrentProcessId())))
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "C:\\Windows\\System32\\cmd.exe")
-        p.arguments = ["/c", "exit", "0"]
-        try p.run()
-        p.waitUntilExit()
-        #expect(!WinPlatform.isRunning(p.processIdentifier))
-        #expect(!WinPlatform.isRunning(0))
-    }
-
-    @Test func optionsParse() {
-        let o = AppOptions.parse(["Agentrise.exe", "--data-dir", "D:\\a\\ar 测试", "--screenshot", "shot.png", "--after", "8",
-                                  "--size", "1200x800"])
-        #expect(o.dataDir == "D:\\a\\ar 测试")
-        #expect(o.screenshot == "shot.png")
-        #expect(o.screenshotAfter == 8)
-        #expect(o.size == CGSize(width: 1200, height: 800))
-        #expect(!o.smokeSecond)
-        #expect(AppOptions.parse(["Agentrise.exe", "--smoke-second"]).smokeSecond)
-    }
-}
 #endif

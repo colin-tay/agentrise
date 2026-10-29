@@ -60,13 +60,14 @@ enum WindowRoutes {
     static func key(_ hwnd: HWND) -> Int { Int(bitPattern: UnsafeMutableRawPointer(hwnd)) }
 
     /// Registers a window class whose procedure is `route`. Registering the same name twice is harmless.
-    static func registerClass(_ name: String, cursor: Int = Win.arrowCursor) {
+    static func registerClass(_ name: String, cursor: Int = Win.arrowCursor, background: HBRUSH? = nil) {
         withWide(name) { cls in
             var wc = WNDCLASSEXW()
             wc.cbSize = UINT(MemoryLayout<WNDCLASSEXW>.size)
             wc.style = UINT(CS_HREDRAW | CS_VREDRAW)
             wc.lpfnWndProc = route
             wc.hInstance = moduleHandle
+            wc.hbrBackground = background
             wc.hCursor = LoadCursorW(nil, intResource(cursor))
             wc.lpszClassName = cls
             _ = RegisterClassExW(&wc)
