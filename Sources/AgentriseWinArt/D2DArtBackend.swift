@@ -147,16 +147,20 @@ package final class D2DArtBackend: ArtBackend {
     }
 
     /// A DirectWrite layout of `runs` (one font size, weight and, with `brush`, drawing brush per run) `width` wide
-    /// (`.infinity`: unwrapped), centred or leading, cut after `maxLines` lines (0: all) the way `CGArtBackend` cuts
-    /// them (the kept lines' trailing line break dropped), or one line cut with an ellipsis (`truncatesTail`).
-    /// Line height and baseline are scaled to the macOS system font's (`D2DPen.lineHeightFactor`).
-    func textLayout(_ runs: [TextRun], width: CGFloat, maxLines: Int, centred: Bool, truncatesTail: Bool,
+    /// (`.infinity`: unwrapped), centred or leading, or one line cut with an ellipsis (`truncatesTail`). It keeps at
+    /// most `maxLines` lines (0: all) and, with `height`, only the lines that fit in it whole (the first always),
+    /// as AppKit draws in a rect; a cut layout drops the kept lines' trailing line break, as `CGArtBackend` does.
+    /// Line height and baseline are scaled to the macOS system font's (`D2DPen.lineHeightFactor`); a layout of
+    /// emoji only is scaled to Apple Color Emoji's size (`D2DPen.emojiScale`).
+    func textLayout(_ runs: [TextRun], width: CGFloat, maxLines: Int, height: CGFloat? = nil, centred: Bool, truncatesTail: Bool,
                     brush: ((Color) -> COMObject)?) -> COMRef {
+        let emojiOnly = !runs.isEmpty && runs.allSatisfy { Self.isEmoji($0.text) }
+        let sizeScale = emojiOnly ? D2DPen.emojiScale : 1
         let first = runs.first?.font ?? FontSpec(size: 12, weight: .regular)
         let dw = vtable(dwrite, CD2D_IDWriteFactory1Vtbl.self)
         let format = COMRef(created("IDWriteFactory::CreateTextFormat") {
             dw.CreateTextFormat!(dwrite, Self.family, nil, Self.weight(first.weight), UInt32(CD2D_DWRITE_FONT_STYLE_NORMAL),
-                                 UInt32(CD2D_DWRITE_FONT_STRETCH_NORMAL), Float(first.size), Self.locale, $0)
+                                 UInt32(CD2D_DWRITE_FONT_STRETCH_NORMAL), Float(first.size * sizeScale), Self.locale, $0)
         })
         let text = Array(runs.map(\.text).joined().utf16)
         let unwrapped = !width.isFinite || truncatesTail
@@ -174,8 +178,10 @@ package final class D2DArtBackend: ArtBackend {
         check(vt.SetParagraphAlignment!(object, UInt32(CD2D_DWRITE_PARAGRAPH_ALIGNMENT_NEAR)), "IDWriteTextLayout::SetParagraphAlignment")
         check(vt.SetWordWrapping!(object, UInt32(unwrapped ? CD2D_DWRITE_WORD_WRAPPING_NO_WRAP : CD2D_DWRITE_WORD_WRAPPING_WRAP)),
               "IDWriteTextLayout::SetWordWrapping")
+        // Scaled emoji keep the line box of their unscaled size, their centre where the unscaled glyph's was.
         var spacing = DWRITE_LINE_SPACING(method: UInt32(CD2D_DWRITE_LINE_SPACING_METHOD_PROPORTIONAL),
-                                          height: Float(D2DPen.lineHeightFactor), baseline: Float(D2DPen.baselineFactor),
+                                          height: Float(D2DPen.lineHeightFactor / sizeScale),
+                                          baseline: Float(emojiOnly ? D2DPen.emojiBaselineFactor : D2DPen.baselineFactor),
                                           leadingBefore: 0, fontLineGapUsage: UInt32(CD2D_DWRITE_FONT_LINE_GAP_USAGE_DEFAULT))
         check(vt.SetLineSpacing3!(object, &spacing), "IDWriteTextLayout3::SetLineSpacing")
         if truncatesTail {
@@ -188,21 +194,39 @@ package final class D2DArtBackend: ArtBackend {
             let length = UInt32(r.text.utf16.count)
             let range = DWRITE_TEXT_RANGE(startPosition: start, length: length)
             check(vt.SetFontWeight!(object, Self.weight(r.font.weight), range), "IDWriteTextLayout::SetFontWeight")
-            check(vt.SetFontSize!(object, Float(r.font.size), range), "IDWriteTextLayout::SetFontSize")
+            check(vt.SetFontSize!(object, Float(r.font.size * sizeScale), range), "IDWriteTextLayout::SetFontSize")
             if let brush { check(vt.SetDrawingEffect!(object, brush(r.color), range), "IDWriteTextLayout::SetDrawingEffect") }
             start += length
         }
-        guard maxLines > 0 else { return layout }
+        guard maxLines > 0 || height != nil else { return layout }
         var count: UInt32 = 0
         _ = vt.GetLineMetrics!(object, nil, 0, &count)   // E_NOT_SUFFICIENT_BUFFER, with the count
-        guard count > UInt32(maxLines) else { return layout }
         var lines = [DWRITE_LINE_METRICS](repeating: DWRITE_LINE_METRICS(), count: Int(count))
         check(vt.GetLineMetrics!(object, &lines, count, &count), "IDWriteTextLayout::GetLineMetrics")
-        var keep = lines.prefix(maxLines).reduce(0) { $0 + Int($1.length) }
+        var limit = maxLines > 0 ? min(maxLines, lines.count) : lines.count
+        if let height {
+            var bottom: CGFloat = 0, fitting = 0
+            for l in lines {
+                bottom += CGFloat(l.height)
+                guard bottom <= height + 1e-3 else { break }
+                fitting += 1
+            }
+            limit = min(limit, max(1, fitting))
+        }
+        guard limit < lines.count else { return layout }
+        var keep = lines.prefix(limit).reduce(0) { $0 + Int($1.length) }
         let newlines: Set<UInt16> = [0x0A, 0x0B, 0x0C, 0x0D, 0x85, 0x2028, 0x2029]
         while keep > 0, newlines.contains(text[keep - 1]) { keep -= 1 }
         return textLayout(Self.prefix(runs, utf16: keep), width: width, maxLines: 0, centred: centred,
                           truncatesTail: truncatesTail, brush: brush)
+    }
+
+    /// Whether `s` is only emoji (characters shown as colour emoji by default, or asked to be with U+FE0F), so
+    /// macOS draws all of it in Apple Color Emoji.
+    static func isEmoji(_ s: String) -> Bool {
+        !s.isEmpty && s.allSatisfy { c in
+            c.unicodeScalars.contains { $0.value == 0xFE0F } || (c.unicodeScalars.first?.properties.isEmojiPresentation ?? false)
+        }
     }
 
     /// The first `count` UTF-16 code units of `runs` (a line boundary, so never inside a character).

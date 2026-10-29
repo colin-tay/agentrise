@@ -23,7 +23,7 @@ package final class D2DPen: Pen {
     /// `blur`). Calibrated against the macOS renders (CG's blur is `ArtKit.blurPerShadowRadius` = 0.65 × scale device
     /// pixels per point, measured to be a Gaussian of σ ≈ 0.32–0.36 pt per point of radius), then by eye on the
     /// side-by-side comparisons (`ComparisonScenes`).
-    package static let blurCalibration: CGFloat = 0.325
+    package static let blurCalibration: CGFloat = 0.31
 
     /// DirectWrite lays Segoe UI out with a line height of 1.33 em and its baseline 1.08 em down; AppKit lays the
     /// macOS system font out at about 1.25 em with its baseline 1 em down (both measured at the art's sizes). Each
@@ -31,6 +31,13 @@ package final class D2DPen: Pen {
     /// does on macOS in the same boxes.
     static let lineHeightFactor: CGFloat = 0.94
     static let baselineFactor: CGFloat = 0.927
+
+    /// Segoe UI Emoji draws its glyphs about 0.8 × the size of Apple Color Emoji's at the same point size (measured
+    /// on the emoji props), so a text of emoji only (a prop, `Pen.emoji`) is laid out this much larger, on a line
+    /// box of the unscaled size and with its baseline put back so the glyph's centre stays where it was. Emoji
+    /// inside other text keep their size, so the text's lines and baselines don't move.
+    static let emojiScale: CGFloat = 1.25
+    static let emojiBaselineFactor: CGFloat = 0.80
 
     /// Text rendering: grayscale antialiasing (the bitmaps are transparent), natural symmetric rendering, gamma 1.8
     /// (DirectWrite's default) and, while font smoothing is on, the default grayscale enhanced contrast, which
@@ -214,7 +221,8 @@ package final class D2DPen: Pen {
         guard !runs.isEmpty else { return }
         command(brushAlpha: false) { dc, _ in
             var brushes: [COMRef] = []
-            let layout = backend.textLayout(runs, width: r.width, maxLines: maxLines, centred: centred, truncatesTail: truncatesTail) { c in
+            let layout = backend.textLayout(runs, width: r.width, maxLines: maxLines, height: r.height, centred: centred,
+                                            truncatesTail: truncatesTail) { c in
                 let b = self.solid(c, opacity: 1, on: dc)
                 brushes.append(b)
                 return b.object
