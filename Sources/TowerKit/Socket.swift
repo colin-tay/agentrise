@@ -85,8 +85,10 @@ private func withSockaddr<R>(_ addr: [UInt8], _ body: (UnsafePointer<sockaddr>, 
 }
 
 /// Deletes a file (including an AF_UNIX socket's reparse-point file) by its native path.
-private func deleteFile(_ path: String) {
-    _ = path.withCString(encodedAs: UTF16.self) { DeleteFileW($0) }
+private func deleteFile(_ path: String, _ who: String = "?") {
+    let ok = path.withCString(encodedAs: UTF16.self) { DeleteFileW($0) }
+    let err = ok ? 0 : GetLastError()
+    if !ok && err != 2 { print("DIAG deleteFile(\(who)) failed err=\(err) path=\(path)") }
 }
 
 public enum SocketClient {
@@ -219,8 +221,11 @@ public final class SocketServer: @unchecked Sendable {
         stopped = true
         lock.unlock()
         guard !wasStopped else { return }
-        SocketClient.send(Data(), to: path)                    // wake the blocked accept; it closes the listener
-        deleteFile(path)
+        let t0 = Date()
+        let woke = SocketClient.send(Data(), to: path)                    // wake the blocked accept; it closes the listener
+        let dt = Date().timeIntervalSince(t0)
+        if !woke || dt > 0.05 { print("DIAG stop wake=\(woke) took=\(dt) path=\(path)") }
+        deleteFile(path, "stop")
     }
 }
 #else
