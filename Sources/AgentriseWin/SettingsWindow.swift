@@ -30,6 +30,8 @@ package final class SettingsController {
     package private(set) var hookStatus = ""
     package private(set) var codexStatus = ""
     package private(set) var rankStatus = ""
+    /// Next to the start-at-login checkbox: why it couldn't be changed.
+    package private(set) var autostartStatus = ""
     package private(set) var codexBusy = false
 
     package init(installer: WinHookInstaller, settings: SettingsStore, scheduler: TowerScheduler,
@@ -181,7 +183,10 @@ package final class SettingsController {
     package var autostartOn: Bool { autostart.isEnabled }
 
     package func setAutostart(_ on: Bool) {
-        do { try autostart.set(on) } catch { hookStatus = error.localizedDescription }
+        do {
+            try autostart.set(on)
+            autostartStatus = ""
+        } catch { autostartStatus = error.localizedDescription }
         changed()
     }
 
@@ -224,7 +229,7 @@ package enum SettingsLayout {
     package static let hookStatus: Int32 = 107
     package static let rankName: Int32 = 110, rankWords: Int32 = 120   // + the rank's row (0…3)
     package static let rankSave: Int32 = 131, rankStatus: Int32 = 132
-    package static let autostart: Int32 = 141, feishu: Int32 = 142
+    package static let autostart: Int32 = 141, feishu: Int32 = 142, autostartStatus: Int32 = 143
 
     package static let clientSize = (width: Int32(520), height: Int32(466))
 
@@ -250,7 +255,8 @@ package enum SettingsLayout {
             Control(id: rankSave, kind: .button, text: "保存", frame: (28, 330, 80, 26)),
             Control(id: rankStatus, kind: .label, text: "", frame: (116, 334, 376, 20)),
             Control(id: 140, kind: .group, text: "其他", frame: (12, 378, 496, 78)),
-            Control(id: autostart, kind: .check, text: "开机自动启动", frame: (28, 402, 300, 20)),
+            Control(id: autostart, kind: .check, text: "开机自动启动", frame: (28, 402, 140, 20)),
+            Control(id: autostartStatus, kind: .label, text: "", frame: (176, 404, 316, 20)),
             Control(id: feishu, kind: .check, text: "识别 cc-connect 转发的飞书会话", frame: (28, 428, 400, 20)),
         ]
         return c
@@ -448,6 +454,7 @@ package final class SettingsWindow {
         setText(controls[SettingsLayout.hookStatus], [c.hookStatus, c.codexStatus].filter { !$0.isEmpty }.joined(separator: "\r\n"))
         setText(controls[SettingsLayout.rankStatus], c.rankStatus)
         check(SettingsLayout.autostart, c.autostartOn)
+        setText(controls[SettingsLayout.autostartStatus], c.autostartStatus)
         check(SettingsLayout.feishu, c.feishu)
         for id in [SettingsLayout.claudeState, SettingsLayout.codexState] { if let h = controls[id] { InvalidateRect(h, nil, true) } }
     }
@@ -559,6 +566,8 @@ package enum PreviewDialog {
                 result = false
                 return 0
             case S.destroy:
+                // Destroyed from outside (quitting from the tray while it is open): the modal loop ends, nothing is written.
+                result = result ?? false
                 WindowRoutes.remove(h)
                 return 0
             default:

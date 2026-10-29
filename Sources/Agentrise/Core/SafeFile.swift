@@ -62,6 +62,28 @@ package enum SafeFile {
         throw Failure(operation: "替换 \(url.lastPathComponent)", code: code)
     }
 
+    /// The file's canonical path as Windows resolves it (`GetFinalPathNameByHandleW`: long names, links followed), with
+    /// the `\\?\` prefix stripped (`\\?\UNC\server\share` becomes `\\server\share`). Nil when it can't be opened.
+    package static func finalPath(of url: URL) -> String? {
+        let h = nativePath(of: url).withCString(encodedAs: UTF16.self) {
+            CreateFileW($0, 0, DWORD(FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE), nil, DWORD(OPEN_EXISTING),
+                        DWORD(0x0200_0000) /* FILE_FLAG_BACKUP_SEMANTICS */, nil)
+        }
+        guard let h, h != INVALID_HANDLE_VALUE else { return nil }
+        defer { CloseHandle(h) }
+        var buf = [WCHAR](repeating: 0, count: 1024)
+        var n = Int(GetFinalPathNameByHandleW(h, &buf, DWORD(buf.count), 0))
+        if n >= buf.count {
+            buf = [WCHAR](repeating: 0, count: n + 1)
+            n = Int(GetFinalPathNameByHandleW(h, &buf, DWORD(buf.count), 0))
+        }
+        guard n > 0, n < buf.count else { return nil }
+        let p = String(decoding: buf.prefix(n), as: UTF16.self)
+        if p.hasPrefix("\\\\?\\UNC\\") { return "\\\\" + p.dropFirst(8) }
+        if p.hasPrefix("\\\\?\\") { return String(p.dropFirst(4)) }
+        return p
+    }
+
     /// `C:\…` with backslashes and no trailing separator.
     package static func nativePath(of url: URL) -> String {
         var p = url.withUnsafeFileSystemRepresentation { $0.map { String(cString: $0) } } ?? url.path

@@ -93,14 +93,30 @@ package enum RuntimeFiles {
 ///
 /// A file is copied only when the destination's bytes differ (an upgrade, or a downgrade). A hook that is running at
 /// that moment keeps its exe and DLLs open, and Windows won't overwrite an image in use, but it does let one be
-/// renamed: the old file is moved aside (`<name>.old-<id>`, deleted on a later run) and the new one moved in. If even
-/// that fails the file counts as locked and the caller tries again later.
+/// renamed: the old file is moved aside (`<name>.old-<id>`, deleted on a later run) and the new one moved in. Every
+/// failure after the old file was moved aside moves it back, so `bin\` never loses a file; a file that could not be
+/// replaced counts as locked and the caller tries again later. A crash in between leaves only `<name>.old-<id>`,
+/// which the next run moves back before anything else.
 package struct HookHelperFiles {
     package static let hookExe = "agentrise-hook.exe"
+
+    /// The file operations a replace is made of (tests inject failures).
+    package struct FileOps {
+        /// `CopyFileW` (its handles are not inheritable).
+        package var copy: (_ from: String, _ to: String) -> Bool = { f, t in withWide(f) { s in withWide(t) { CopyFileW(s, $0, false) } } }
+        /// `MoveFileExW` with `WRITE_THROUGH`, and `REPLACE_EXISTING` when `replace`.
+        package var move: (_ from: String, _ to: String, _ replace: Bool) -> Bool = { f, t, replace in
+            let flags = DWORD(MOVEFILE_WRITE_THROUGH) | (replace ? DWORD(MOVEFILE_REPLACE_EXISTING) : 0)
+            return withWide(f) { s in withWide(t) { MoveFileExW(s, $0, flags) } }
+        }
+        package var delete: (String) -> Bool = { p in withWide(p) { DeleteFileW($0) } }
+        package init() {}
+    }
 
     /// Where `Agentrise.exe` (and so `agentrise-hook.exe`) is.
     package let sourceDir: URL
     package let binDir: URL
+    package var ops = FileOps()
 
     package init(sourceDir: URL, binDir: URL) { self.sourceDir = sourceDir; self.binDir = binDir }
 
@@ -126,21 +142,28 @@ package struct HookHelperFiles {
     package func sync() throws -> Result {
         guard FileManager.default.fileExists(atPath: source.path) else { throw InstallerError.missingHelper }
         try FileManager.default.createDirectory(at: binDir, withIntermediateDirectories: true)
-        removeLeftovers()
+        recoverAndClean()
         var r = Result()
         for f in files() {
             let dest = binDir.appendingPathComponent(f.lastPathComponent)
             if Self.sameBytes(f, dest) { continue }
-            if Self.replace(dest, with: f) { r.copied.append(f.lastPathComponent) } else { r.locked.append(f.lastPathComponent) }
+            if replace(dest, with: f) { r.copied.append(f.lastPathComponent) } else { r.locked.append(f.lastPathComponent) }
         }
         return r
     }
 
-    /// At app start: only when the hook was installed before (it is in `bin\`), bring it up to date. Nil when there
-    /// is nothing installed or the app has no hook next to it.
-    package func refreshIfInstalled() -> Result? {
-        guard FileManager.default.fileExists(atPath: installed.path) else { return nil }
-        return try? sync()
+    /// Whether the hook was installed before: it is in `bin\`, or only its moved-aside copy is (a crash mid-replace).
+    package var wasInstalled: Bool {
+        if FileManager.default.fileExists(atPath: installed.path) { return true }
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: binDir.path)) ?? []
+        return names.contains { $0.hasPrefix(Self.hookExe + ".old-") }
+    }
+
+    /// At app start: only when the hook was installed before, bring it up to date. Nil when nothing is installed.
+    /// Throws what `sync` throws (the caller retries).
+    package func refreshIfInstalled() throws -> Result? {
+        guard wasInstalled else { return nil }
+        return try sync()
     }
 
     static func sameBytes(_ a: URL, _ b: URL) -> Bool {
@@ -150,30 +173,35 @@ package struct HookHelperFiles {
         return (try? Data(contentsOf: a)) == (try? Data(contentsOf: b))
     }
 
-    /// Copies `src` next to `dest` (`CopyFileW`: its handles are not inheritable), then moves it over `dest`; when
-    /// `dest` is in use, moves `dest` aside first.
-    static func replace(_ dest: URL, with src: URL) -> Bool {
+    /// Copies `src` next to `dest`, then moves it over `dest`; when `dest` is in use, moves `dest` aside first. On any
+    /// failure `dest` is as it was (moved back if it had been moved aside) and the temporary copy is gone.
+    func replace(_ dest: URL, with src: URL) -> Bool {
         let d = SafeFile.nativePath(of: dest)
         let tmp = d + ".new-" + UUID().uuidString.prefix(8)
-        let copied = withWide(SafeFile.nativePath(of: src)) { s in withWide(tmp) { CopyFileW(s, $0, false) } }
-        guard copied else { return false }
-        let flags = DWORD(MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)
-        if withWide(tmp, { t in withWide(d) { MoveFileExW(t, $0, flags) } }) { return true }
+        guard ops.copy(SafeFile.nativePath(of: src), tmp) else { _ = ops.delete(tmp); return false }
+        if ops.move(tmp, d, true) { return true }
         let aside = d + ".old-" + UUID().uuidString.prefix(8)
-        if withWide(d, { s in withWide(aside) { MoveFileExW(s, $0, DWORD(MOVEFILE_WRITE_THROUGH)) } }),
-           withWide(tmp, { t in withWide(d) { MoveFileExW(t, $0, flags) } }) {
-            return true
-        }
-        _ = withWide(tmp) { DeleteFileW($0) }
+        guard ops.move(d, aside, false) else { _ = ops.delete(tmp); return false }
+        if ops.move(tmp, d, true) { return true }
+        // Roll back: the old file goes back where it was.
+        if !ops.move(aside, d, false) { _ = ops.move(aside, d, true) }
+        _ = ops.delete(tmp)
         return false
     }
 
-    /// Old copies moved aside by an earlier update, and temporary copies a crash left behind.
-    private func removeLeftovers() {
+    /// A file only found moved aside (a crash between the two moves) goes back; then old copies an update moved aside
+    /// and temporary copies are deleted (those still in use stay until a later run).
+    private func recoverAndClean() {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: binDir.path)) ?? []
-        for n in names where n.contains(".old-") || n.contains(".new-") {
-            _ = withWide(SafeFile.nativePath(of: binDir.appendingPathComponent(n))) { DeleteFileW($0) }
+        let dir = SafeFile.nativePath(of: binDir)
+        for n in names where n.contains(".old-") {
+            let original = String(n[..<n.range(of: ".old-")!.lowerBound])
+            if !FileManager.default.fileExists(atPath: binDir.appendingPathComponent(original).path) {
+                _ = ops.move(dir + "\\" + n, dir + "\\" + original, false)
+            }
         }
+        let left = (try? FileManager.default.contentsOfDirectory(atPath: binDir.path)) ?? []
+        for n in left where n.contains(".old-") || n.contains(".new-") { _ = ops.delete(dir + "\\" + n) }
     }
 }
 
@@ -207,9 +235,16 @@ package struct WinHookInstaller {
         package var errorDescription: String? { "agentrise-hook 正在运行，没能更新它，请稍后再试" }
     }
 
+    package struct CodexMissing: LocalizedError {
+        package let codexHome: String
+        package var errorDescription: String? { "这台电脑上没有 Codex（找不到 \(codexHome)），没有写入 hooks.json" }
+    }
+
     /// Copies the helper, then merges the entries in. Returns the backup of the previous file, if there was one.
+    /// Codex's hooks are only written where Codex is (its home exists): its home is never created.
     @discardableResult
     package func install(_ agent: AgentKind) throws -> URL? {
+        if agent == .codex, !codexPresent { throw CodexMissing(codexHome: SafeFile.nativePath(of: paths.codexHome)) }
         let r = try helper.sync()
         // A hook still running keeps an old copy only if it could not even be moved aside; with no copy at all the
         // entries would point at nothing.

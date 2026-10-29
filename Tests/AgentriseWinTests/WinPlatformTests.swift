@@ -102,6 +102,15 @@ private func powershellLine(_ script: String) -> String {
         #expect(!WinPlatform.isRunning(0x7FFF_FFFC))
         // The System process (pid 4) can't be opened for this query by a normal user, or can and is alive: running.
         #expect(WinPlatform.isRunning(4))
+        // Exit code 259 is STILL_ACTIVE's value: a process that exited with it is still gone (review Minor 2).
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "C:\\Windows\\System32\\cmd.exe")
+        p.arguments = ["/c", "exit", "259"]
+        try p.run()
+        let pid = p.processIdentifier
+        p.waitUntilExit()
+        #expect(p.terminationStatus == 259)
+        #expect(!WinPlatform.isRunning(pid))
     }
 
     @Test func dataDirKeepsAgentsInside() {
@@ -144,6 +153,9 @@ private func powershellLine(_ script: String) -> String {
     /// Decision 2: Foundation's atomic write fails with error 32 when a child spawned meanwhile inherits its temporary
     /// file's handle (Task 10). `SafeFile` writes with a non-inheritable handle: hundreds of writes while another
     /// thread keeps spawning children never fail.
+    ///
+    /// The control is Task 10's CI run 40844013498: the same loop with Foundation's `.atomic` write failed 383 of 400
+    /// times with error 32. (No disabled copy of that test is kept here.)
     @Test func writesSurviveConcurrentChildren() throws {
         let dir = try scratchDir()
         let file = dir.appendingPathComponent("settings.json")
@@ -242,11 +254,11 @@ private func withWideTest<R>(_ s: String, _ body: (UnsafePointer<WCHAR>) -> R) -
         let cmd = URL(fileURLWithPath: "C:\\Windows\\System32\\cmd.exe")
         try FileManager.default.copyItem(at: cmd, to: src.appendingPathComponent(HookHelperFiles.hookExe))
         let helper = HookHelperFiles(sourceDir: src, binDir: bin)
-        #expect(helper.refreshIfInstalled() == nil)   // nothing installed yet
+        #expect(try helper.refreshIfInstalled() == nil)   // nothing installed yet
         var r = try helper.sync()
         #expect(r.copied == [HookHelperFiles.hookExe])
         #expect(try helper.sync().upToDate)
-        #expect(helper.refreshIfInstalled()?.upToDate == true)
+        #expect(try helper.refreshIfInstalled()?.upToDate == true)
 
         // The installed copy is running (a hook mid-event) when the app brings a new version.
         let running = Process()
@@ -256,7 +268,7 @@ private func withWideTest<R>(_ s: String, _ body: (UnsafePointer<WCHAR>) -> R) -
         defer { running.terminate() }
         let newer = try Data(contentsOf: cmd) + Data("version 2".utf8)
         try newer.write(to: helper.source)
-        r = try #require(helper.refreshIfInstalled())
+        r = try #require(try helper.refreshIfInstalled())
         #expect(r.copied == [HookHelperFiles.hookExe])
         #expect(r.locked.isEmpty)
         #expect(try Data(contentsOf: helper.installed) == newer)
@@ -270,6 +282,50 @@ private func withWideTest<R>(_ s: String, _ body: (UnsafePointer<WCHAR>) -> R) -
             Thread.sleep(forTimeInterval: 0.05)
         }
         #expect(left == [HookHelperFiles.hookExe])
+    }
+
+    /// Review Important 1: a replace that fails after the old exe was moved aside moves it back, and a later try works.
+    @Test func failedReplaceRollsBack() throws {
+        let src = try scratchDir()
+        let bin = try scratchDir().appendingPathComponent("bin")
+        let old = Data("old hook".utf8), new = Data("new hook".utf8)
+        try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+        try new.write(to: src.appendingPathComponent(HookHelperFiles.hookExe))
+        var helper = HookHelperFiles(sourceDir: src, binDir: bin)
+        try old.write(to: helper.installed)
+        // Moving the new copy in fails (the replace and, after the old one was moved aside, the move into its place).
+        var failing = HookHelperFiles.FileOps()
+        let real = failing.move
+        var asideMoves = 0
+        failing.move = { from, to, replace in
+            if from.contains(".new-") { return false }
+            if to.contains(".old-") { asideMoves += 1 }
+            return real(from, to, replace)
+        }
+        helper.ops = failing
+        let r = try #require(try helper.refreshIfInstalled())
+        #expect(r.locked == [HookHelperFiles.hookExe] && r.copied.isEmpty)
+        #expect(asideMoves == 1)   // it did get as far as moving the old one aside
+        #expect(try Data(contentsOf: helper.installed) == old)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: bin.path) == [HookHelperFiles.hookExe])
+        // The retry, with working file operations.
+        helper.ops = HookHelperFiles.FileOps()
+        #expect(try helper.refreshIfInstalled()?.copied == [HookHelperFiles.hookExe])
+        #expect(try Data(contentsOf: helper.installed) == new)
+    }
+
+    /// A crash between moving the old exe aside and moving the new one in: the next run puts the old one back first.
+    @Test func crashMidReplaceIsRecovered() throws {
+        let src = try scratchDir()
+        let bin = try scratchDir().appendingPathComponent("bin")
+        try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+        try Data("new".utf8).write(to: src.appendingPathComponent(HookHelperFiles.hookExe))
+        let helper = HookHelperFiles(sourceDir: src, binDir: bin)
+        try Data("old".utf8).write(to: bin.appendingPathComponent(HookHelperFiles.hookExe + ".old-1234abcd"))
+        #expect(helper.wasInstalled)
+        #expect(try helper.refreshIfInstalled()?.copied == [HookHelperFiles.hookExe])
+        #expect(try String(contentsOf: helper.installed, encoding: .utf8) == "new")
+        #expect(try FileManager.default.contentsOfDirectory(atPath: bin.path) == [HookHelperFiles.hookExe])
     }
 
     @Test func missingHelperIsReported() throws {
@@ -300,6 +356,8 @@ private func withWideTest<R>(_ s: String, _ body: (UnsafePointer<WCHAR>) -> R) -
         #expect(h["command"] as? String == nativePath(data) + "\\Agentrise\\bin\\agentrise-hook.exe")
         #expect(h["args"] as? [String] == ["--agent", "claude"])
 
+        #expect(throws: WinHookInstaller.CodexMissing.self) { try installer.install(.codex) }   // no .codex yet
+        try FileManager.default.createDirectory(at: paths.codexHome, withIntermediateDirectories: true)
         try installer.install(.codex)
         let cx = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: paths.codexHooks)) as? [String: Any])
         let ch = try #require(((cx["hooks"] as? [String: [[String: Any]]])?["Stop"]?.first?["hooks"] as? [[String: Any]])?.first)
@@ -307,6 +365,15 @@ private func withWideTest<R>(_ s: String, _ body: (UnsafePointer<WCHAR>) -> R) -
         try installer.uninstall(.claude)
         try installer.uninstall(.codex)
         #expect(!installer.isInstalled(.claude) && !installer.isInstalled(.codex))
+    }
+
+    /// `--install-hooks codex` without Codex on the machine: refused (exit 2), and `.codex` is not created.
+    @Test func cliRefusesCodexWhenAbsent() throws {
+        let data = try scratchDir()
+        #expect(try run(try agentriseExe(), ["--data-dir", nativePath(data), "--install-hooks", "codex"], timeout: 30) == 2)
+        #expect(!FileManager.default.fileExists(atPath: data.appendingPathComponent(".codex").path))
+        let log = try String(contentsOf: data.appendingPathComponent("Agentrise").appendingPathComponent("agentrise.log"), encoding: .utf8)
+        #expect(log.contains("这台电脑上没有 Codex"))
     }
 
     /// The installed hook really runs from bin\ and reaches the app's socket path (exec form: no shell, the path has a
@@ -452,6 +519,18 @@ private func withWideTest<R>(_ s: String, _ body: (UnsafePointer<WCHAR>) -> R) -
 }
 
 @Suite struct CodexLaunchTests {
+    /// A shim whose path cmd can't quote (`%` expands even inside quotes) is not used; `&`, a space and Chinese are fine.
+    @Test func shimPathsCmdCanCarry() {
+        #expect(CodexLaunch.cmdCanQuote("C:\\R&D\\npm\\codex.cmd"))
+        #expect(CodexLaunch.cmdCanQuote("C:\\Users\\张 三\\npm\\codex.cmd"))
+        #expect(!CodexLaunch.cmdCanQuote("C:\\x%PATH%y\\codex.cmd"))
+        for dir in ["C:\\R&D", "C:\\Users\\张 三\\npm"] {
+            #expect(CodexLaunch.locate(env: ["PATH": dir], isFile: { $0 == dir + "\\codex.cmd" }) == .cmdShim(dir + "\\codex.cmd"))
+        }
+        let bad = "C:\\x%PATH%y"
+        #expect(CodexLaunch.locate(env: ["PATH": bad], isFile: { $0 == bad + "\\codex.cmd" }) == nil)
+    }
+
     @Test func locatePrefersARealExe() {
         let env = ["Path": "C:\\Tools;C:\\Users\\u\\AppData\\Roaming\\npm", "LOCALAPPDATA": "C:\\Users\\u\\AppData\\Local",
                    "USERPROFILE": "C:\\Users\\u", "APPDATA": "C:\\Users\\u\\AppData\\Roaming"]
@@ -471,7 +550,10 @@ private func withWideTest<R>(_ s: String, _ body: (UnsafePointer<WCHAR>) -> R) -
         #expect(exe.line == "\"C:\\Program Files\\codex.exe\" app-server")
         let shim = CodexLaunch.cmdShim("C:\\Users\\张 三\\npm\\codex.cmd").commandLine(["app-server"], comSpec: "C:\\WINDOWS\\system32\\cmd.exe")
         #expect(shim.application == "C:\\WINDOWS\\system32\\cmd.exe")
-        #expect(shim.line == "C:\\WINDOWS\\system32\\cmd.exe /d /s /c \"\"C:\\Users\\张 三\\npm\\codex.cmd\" app-server\"")
+        #expect(shim.line == "\"C:\\WINDOWS\\system32\\cmd.exe\" /d /v:off /s /c \"\"C:\\Users\\张 三\\npm\\codex.cmd\" \"app-server\"\"")
+        // cmd's metacharacters stay inside the quotes.
+        let rd = CodexLaunch.cmdShim("C:\\R&D (x)\\a^b|c\\codex.cmd").commandLine(["app-server"], comSpec: "C:\\WINDOWS\\system32\\cmd.exe")
+        #expect(rd.line == "\"C:\\WINDOWS\\system32\\cmd.exe\" /d /v:off /s /c \"\"C:\\R&D (x)\\a^b|c\\codex.cmd\" \"app-server\"\"")
         #expect(CodexProcess.quoted("a\\b c\\") == "\"a\\b c\\\\\"")
         #expect(CodexProcess.quoted("say \"hi\"") == "\"say \\\"hi\\\"\"")
         #expect(CodexProcess.quoted("") == "\"\"")
@@ -518,6 +600,18 @@ private func withWideTest<R>(_ s: String, _ body: (UnsafePointer<WCHAR>) -> R) -
         }
         #expect(!WinPlatform.isRunning(Int32(bitPattern: rpc.pid)))
         if let child { #expect(!WinPlatform.isRunning(Int32(bitPattern: child.pid))) }
+    }
+
+    /// The cmd fallback really runs a shim in a directory named with `&`, parentheses, a space and Chinese.
+    @Test func shimInAnAwkwardDirectoryRuns() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("R&D (测试) \(UUID().uuidString.prefix(6))")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let shim = dir.appendingPathComponent("codex.cmd")
+        // Answers request 1 whatever it is, and says which argument it got.
+        try Data("@echo {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"arg\":\"%~1\"}}\r\n".utf8).write(to: shim)
+        let rpc = try CodexProcess(launch: .cmdShim(nativePath(shim)), arguments: ["app-server"], timeout: 15)
+        defer { rpc.close() }
+        #expect(try rpc.call("initialize", [:])["arg"] as? String == "app-server")
     }
 
     @Test func reportsAServerThatExits() throws {

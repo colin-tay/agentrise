@@ -11,8 +11,13 @@ import AgentriseScene
 package enum CodexLaunch: Equatable {
     /// A real `codex.exe`, started directly.
     case exe(String)
-    /// Only npm's `codex.cmd` shim: `cmd.exe /d /s /c ""<shim>" <args>"` (CreateProcess can't start a .cmd).
+    /// Only npm's `codex.cmd` shim: `cmd.exe /d /v:off /s /c ""<shim>" <args>"` (CreateProcess can't start a .cmd).
     case cmdShim(String)
+
+    /// Whether cmd can carry `path` inside double quotes: there `& | < > ( ) ^` are plain characters and `!` is
+    /// with delayed expansion off (`/v:off`), but `%` still expands variables (`%PATH%`) and a `"` would end the quotes.
+    /// A shim path with either is not used (Settings then says to trust the hook in Codex by hand).
+    package static func cmdCanQuote(_ path: String) -> Bool { !path.contains("%") && !path.contains("\"") }
 
     /// Looks, in order, for the standalone `codex.exe` (on `PATH`, then the installer's
     /// `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin` and `%USERPROFILE%\.codex\packages\standalone\current\bin`), npm's
@@ -36,7 +41,7 @@ package enum CodexLaunch: Equatable {
             exes.append(join(roaming, "npm\\node_modules\\@openai\\codex\\node_modules\\@openai\\codex-win32-x64\\vendor\\x86_64-pc-windows-msvc\\bin\\codex.exe"))
         }
         if let exe = exes.first(where: isFile) { return .exe(exe) }
-        if let shim = pathDirs.map({ join($0, "codex.cmd") }).first(where: isFile) { return .cmdShim(shim) }
+        if let shim = pathDirs.map({ join($0, "codex.cmd") }).first(where: { cmdCanQuote($0) && isFile($0) }) { return .cmdShim(shim) }
         return nil
     }
 
@@ -47,9 +52,10 @@ package enum CodexLaunch: Equatable {
             return (exe, ([exe] + arguments).map(CodexProcess.quoted).joined(separator: " "))
         case .cmdShim(let shim):
             let cmd = comSpec ?? "C:\\Windows\\System32\\cmd.exe"
-            // /s: cmd strips the outer quotes and runs the rest as written.
-            let inner = ([shim] + arguments).map(CodexProcess.quoted).joined(separator: " ")
-            return (cmd, "\(CodexProcess.quoted(cmd)) /d /s /c \"\(inner)\"")
+            // /s: cmd strips the outer quotes and runs the rest as written. Every word inside is quoted, whatever it
+            // holds, so cmd's metacharacters in the path (`C:\R&D\codex.cmd`) stay part of it (`cmdCanQuote`).
+            let inner = ([shim] + arguments).map { "\"\($0)\"" }.joined(separator: " ")
+            return (cmd, "\"\(cmd)\" /d /v:off /s /c \"\(inner)\"")
         }
     }
 }
@@ -77,6 +83,9 @@ package final class CodexProcess: RPCTransport {
     private var lines: [Data] = []
     private var eof = false
     private let readerDone = DispatchSemaphore(value: 0)
+    /// The reader thread's id, for `CancelSynchronousIo` when its read never ends.
+    private var readerThread: DWORD = 0
+    private static let spawnLock = NSLock()
     private let deadline: Date
     private var nextId = 1
     private var closed = false
@@ -90,16 +99,15 @@ package final class CodexProcess: RPCTransport {
     /// Starts `application` with the full `commandLine`, `environment` replacing the app's (nil: inherit).
     package init(application: String, commandLine: String, environment: [String: String]? = nil, timeout: TimeInterval = 15) throws {
         deadline = Date().addingTimeInterval(timeout)
-        var sa = SECURITY_ATTRIBUTES(nLength: DWORD(MemoryLayout<SECURITY_ATTRIBUTES>.size), lpSecurityDescriptor: nil, bInheritHandle: true)
+        // Nothing is inheritable at first: the child's three ends become inheritable only around `CreateProcessW`
+        // (another child spawned meanwhile could otherwise inherit `outWrite`, and the reader would never see EOF).
+        var sa = SECURITY_ATTRIBUTES(nLength: DWORD(MemoryLayout<SECURITY_ATTRIBUTES>.size), lpSecurityDescriptor: nil, bInheritHandle: false)
         var inRead: HANDLE?, inWrite: HANDLE?, outRead: HANDLE?, outWrite: HANDLE?
         guard CreatePipe(&inRead, &inWrite, &sa, 0) else { throw SpawnFailure(step: "CreatePipe", code: GetLastError()) }
         guard CreatePipe(&outRead, &outWrite, &sa, 0) else {
             let e = GetLastError(); CloseHandle(inRead); CloseHandle(inWrite)
             throw SpawnFailure(step: "CreatePipe", code: e)
         }
-        // The app's ends stay in the app.
-        SetHandleInformation(inWrite, DWORD(HANDLE_FLAG_INHERIT), 0)
-        SetHandleInformation(outRead, DWORD(HANDLE_FLAG_INHERIT), 0)
         let nul = withWide("NUL") {
             CreateFileW($0, DWORD(0x4000_0000) /* GENERIC_WRITE */, DWORD(FILE_SHARE_READ | FILE_SHARE_WRITE), &sa,
                         DWORD(OPEN_EXISTING), 0, nil)
@@ -142,6 +150,12 @@ package final class CodexProcess: RPCTransport {
         var line = Array(commandLine.utf16) + [0]
         var envBlock = environment.map(Self.environmentBlock)
         let flags = DWORD(CREATE_NO_WINDOW) | DWORD(EXTENDED_STARTUPINFO_PRESENT) | DWORD(CREATE_SUSPENDED) | DWORD(CREATE_UNICODE_ENVIRONMENT)
+        // The window in which the child's ends are inheritable: as short as it can be, and never overlapping another
+        // `CodexProcess` spawn. (A Foundation `Process` started in that instant could still inherit them; `close()`
+        // then cancels the blocked read instead of leaking the reader.)
+        Self.spawnLock.lock()
+        let inherit = DWORD(HANDLE_FLAG_INHERIT)
+        for h in [inRead, outWrite, nul] { SetHandleInformation(h, inherit, inherit) }
         let started: Bool = withWide(application) { app in
             withUnsafeMutablePointer(to: &si) { ex in
                 ex.withMemoryRebound(to: STARTUPINFOW.self, capacity: 1) { startup in
@@ -154,8 +168,9 @@ package final class CodexProcess: RPCTransport {
                 }
             }
         }
-        guard started else { throw fail("CreateProcessW") }
+        guard started else { Self.spawnLock.unlock(); throw fail("CreateProcessW") }
         closeChildEnds()
+        Self.spawnLock.unlock()
         envBlock = nil
 
         // The job: it dies with the app.
@@ -231,8 +246,18 @@ package final class CodexProcess: RPCTransport {
         _ = WaitForSingleObject(process, 1000)
         TerminateJobObject(job, 1)
         CloseHandle(job)   // KILL_ON_JOB_CLOSE, in case termination was refused
-        // The reader ends once every write end of its pipe is gone (the child's went with it).
-        if readerDone.wait(timeout: .now() + 2) == .success { CloseHandle(stdoutRead) }
+        // The reader ends once every write end of its pipe is gone (the child's went with it). If some other process
+        // still holds one, cancel the blocked read, so neither the reader thread nor this object leaks.
+        var ended = readerDone.wait(timeout: .now() + 2) == .success
+        for _ in 0..<10 where !ended {
+            cond.lock(); let id = readerThread; cond.unlock()
+            if id != 0, let t = OpenThread(DWORD(0x0001) /* THREAD_TERMINATE */, false, id) {
+                CancelSynchronousIo(t)
+                CloseHandle(t)
+            }
+            ended = readerDone.wait(timeout: .now() + 0.1) == .success
+        }
+        if ended { CloseHandle(stdoutRead) }
         CloseHandle(process)
     }
 
@@ -252,6 +277,7 @@ package final class CodexProcess: RPCTransport {
     }
 
     private func readLoop() {
+        cond.lock(); readerThread = GetCurrentThreadId(); cond.unlock()
         var chunk = [UInt8](repeating: 0, count: 8192)
         while true {
             var n: DWORD = 0

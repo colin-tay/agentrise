@@ -27,7 +27,7 @@ package enum HookCommandLine {
                       + "; helper \(installer.helper.hookPath)")
         } catch {
             Log.write("install-hooks \(agent.rawValue) failed: \(error.localizedDescription)")
-            return 1
+            return error is WinHookInstaller.CodexMissing ? 2 : 1
         }
         if agent == .codex {
             do {
@@ -51,7 +51,8 @@ package enum HookCommandLine {
 /// - `--size <w>x<h>`: the window's client size in points (like the macOS `--size`);
 /// - `--open-settings`: opens the Settings window at start (CI's desktop capture shows it);
 /// - `--install-hooks claude|codex`: installs that agent's hooks without asking (no preview; the backup is still
-///   written), logs the result and exits 0 (1 on failure). Runs whether or not Agentrise is running.
+///   written), logs the result and exits 0 (1 on failure, 2 for Codex when Codex isn't on this machine: its home is
+///   never created). Runs whether or not Agentrise is running.
 package struct AppOptions: Equatable {
     package var dataDir: String?
     package var screenshot: String?
@@ -120,7 +121,7 @@ package final class WinApp {
     private var pointerInPanel = false
     private var windowIcons: [HICON] = []
     private var settingsWindow: SettingsWindow?
-    private var hookRefreshes = 0
+    private var hookRefreshFailing = false
     private static let alwaysOnTopKey = "alwaysOnTop"
     private static let sizeMoveTimer: UINT_PTR = 99
     private static let occludedProbe: DWORD = 250
@@ -350,18 +351,31 @@ package final class WinApp {
     }
 
     /// After an upgrade the hook in `bin\` is the old one: copy the new one over it (only if it was installed). A
-    /// hook running at that moment may keep a file locked; then try again a little later (at most 20 times).
-    private func refreshHookHelper() {
+    /// hook running at that moment may keep a file locked, or the copy may fail; then it tries again with a growing
+    /// pause (30 s, doubling, at most 10 min) until it succeeds or the app quits. Logged once when it starts failing
+    /// and once when it succeeds.
+    private func refreshHookHelper(pause: TimeInterval = 30) {
         let helper = WinHookInstaller(paths: paths).helper
         scheduler.inBackground { [scheduler] in
-            let r = helper.refreshIfInstalled()
+            let outcome = Swift.Result { try helper.refreshIfInstalled() }
             scheduler.onMain { [weak self] in
-                guard let self, let r else { return }
-                if !r.copied.isEmpty { Log.write("hook helper updated: \(r.copied.joined(separator: ", "))") }
-                guard !r.locked.isEmpty else { return }
-                Log.write("hook helper: \(r.locked.joined(separator: ", ")) in use; trying again in 30 s")
-                self.hookRefreshes += 1
-                if self.hookRefreshes < 20 { self.scheduler.after(30) { [weak self] in self?.refreshHookHelper() } }
+                guard let self else { return }
+                var problem: String?
+                switch outcome {
+                case .success(nil): return
+                case .success(let r?):
+                    if !r.copied.isEmpty { Log.write("hook helper updated: \(r.copied.joined(separator: ", "))") }
+                    if !r.locked.isEmpty { problem = "\(r.locked.joined(separator: ", ")) could not be replaced (in use?)" }
+                case .failure(let e): problem = e.localizedDescription
+                }
+                guard let problem else {
+                    if self.hookRefreshFailing { Log.write("hook helper: up to date after retrying") }
+                    self.hookRefreshFailing = false
+                    return
+                }
+                if !self.hookRefreshFailing { Log.write("hook helper: \(problem); trying again until it works") }
+                self.hookRefreshFailing = true
+                self.scheduler.after(pause) { [weak self] in self?.refreshHookHelper(pause: min(pause * 2, 600)) }
             }
         }
     }

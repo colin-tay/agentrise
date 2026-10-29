@@ -93,10 +93,16 @@ package struct CodexAppServer {
 
     #if os(Windows)
     /// Codex reports the file as `source_path.display()`: `C:\Users\u\.codex\hooks.json` (facts §4). Windows paths
-    /// are case-insensitive, so the set holds lowercased spellings (`isIn` lowercases too).
+    /// are case-insensitive, so the set holds lowercased spellings (`isIn` lowercases too). If Codex canonicalises
+    /// the path (`std::fs::canonicalize`: `\\?\C:\…`, 8.3 names expanded, links followed), the canonical form matches
+    /// too, with and without the `\\?\` prefix (unverified which Codex reports: the author's trial checks it).
     private var filePaths: Set<String> {
         let native = SafeFile.nativePath(of: hooksFile)
-        return Set([native, native.replacingOccurrences(of: "\\", with: "/"), hooksFile.path].map { $0.lowercased() })
+        var all = [native, native.replacingOccurrences(of: "\\", with: "/"), hooksFile.path]
+        if let canonical = SafeFile.finalPath(of: hooksFile) {
+            all += [canonical, canonical.hasPrefix("\\\\") ? "\\\\?\\UNC\\" + canonical.dropFirst(2) : "\\\\?\\" + canonical]
+        }
+        return Set(all.map { $0.lowercased() })
     }
 
     private func isIn(_ paths: Set<String>, _ h: [String: Any]) -> Bool {

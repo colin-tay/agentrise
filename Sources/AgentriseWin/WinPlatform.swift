@@ -57,12 +57,7 @@ package struct AppPaths {
 
 /// `C:\…` with backslashes and no trailing separator, as Win32 and `TowerPaths` spell paths (the URL's file-system
 /// representation).
-package func nativePath(_ url: URL) -> String {
-    var p = url.withUnsafeFileSystemRepresentation { $0.map { String(cString: $0) } } ?? url.path
-    p = p.replacingOccurrences(of: "/", with: "\\")
-    while p.count > 3, p.hasSuffix("\\") { p.removeLast() }
-    return p
-}
+package func nativePath(_ url: URL) -> String { SafeFile.nativePath(of: url) }
 
 /// The Windows side of `PlatformServices`.
 package final class WinPlatform: PlatformServices {
@@ -80,12 +75,18 @@ package final class WinPlatform: PlatformServices {
     package func isRunning(_ pid: Int32) -> Bool { Self.isRunning(pid) }
 
     /// False only when the process is known to be gone: no process has that id any more, or it has exited. A process
-    /// we may not open (access denied) or any other error counts as running, like `kill(pid, 0)` on macOS.
+    /// we may not open (access denied) or any other error counts as running, like `kill(pid, 0)` on macOS. Exited is
+    /// "its handle is signalled", not `GetExitCodeProcess == STILL_ACTIVE` (a process that exited with 259 would
+    /// look alive). A process that grants the query but not `SYNCHRONIZE` falls back to its exit code.
     package static func isRunning(_ pid: Int32) -> Bool {
         guard pid > 0 else { return false }
-        guard let h = OpenProcess(DWORD(PROCESS_QUERY_LIMITED_INFORMATION), false, DWORD(bitPattern: pid)) else {
-            return GetLastError() != DWORD(ERROR_INVALID_PARAMETER)   // no such process
+        let query = DWORD(PROCESS_QUERY_LIMITED_INFORMATION)
+        if let h = OpenProcess(query | DWORD(0x0010_0000) /* SYNCHRONIZE */, false, DWORD(bitPattern: pid)) {
+            defer { CloseHandle(h) }
+            return WaitForSingleObject(h, 0) != 0   // WAIT_OBJECT_0: exited; WAIT_TIMEOUT or WAIT_FAILED: running
         }
+        guard GetLastError() != DWORD(ERROR_INVALID_PARAMETER) else { return false }   // no such process
+        guard let h = OpenProcess(query, false, DWORD(bitPattern: pid)) else { return true }   // denied or unknown
         defer { CloseHandle(h) }
         var code: DWORD = 0
         guard GetExitCodeProcess(h, &code) else { return true }
