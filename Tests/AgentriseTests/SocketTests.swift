@@ -33,7 +33,7 @@ private func leaveStaleFile(at path: String) {
     defer { CloseHandle(file) }
     let bytes = Array("stale".utf8)
     var written: DWORD = 0
-    let ok = WriteFile(file, bytes, DWORD(bytes.count), &written, nil).boolValue
+    let ok = WriteFile(file, bytes, DWORD(bytes.count), &written, nil)
     let error = ok ? 0 : GetLastError()
     #expect(ok, "WriteFile failed with Win32 error \(error)")
     #expect(written == DWORD(bytes.count))
