@@ -73,12 +73,12 @@ package struct Jump {
         }
     }
 
-    /// The window that owns the agent `pid`'s terminal. With the registry's `start`, a `pid` created at another time
-    /// is someone else (the agent exited and its id was reused): not followed.
+    /// The window that owns the agent `pid`'s terminal. With the registry's `start`, a `pid` created after the session
+    /// started (plus the margin) is someone else (the agent exited and its id was reused): not followed.
     package func window(forAgent pid: UInt32, start: ProcessStart? = nil) -> TopLevelWindow? {
         let chain = Self.ancestry(of: pid, in: processes())
         guard let agent = chain.first else { return nil }   // the agent is gone
-        if let start, let created = agent.created, start.matches(creation: created) == false { return nil }
+        if let start, let created = agent.created, !start.matches(creation: created) { return nil }
         let candidates = windows().filter { $0.visible && !$0.secondary }
         for p in chain {
             if let w = candidates.first(where: { $0.pid == p.pid }) { return w }

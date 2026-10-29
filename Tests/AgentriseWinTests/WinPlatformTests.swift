@@ -135,27 +135,26 @@ private func powershellLine(_ script: String) -> String {
         #expect(!WinPlatform.isRunning(pid))
     }
 
-    /// Review I1: our own pid with our real creation time (as `procStartFt`, or `procStart` in either scale) is the
-    /// same process; a wrong start time is not; no start time, or one we can't read, falls back to `isRunning`.
-    @Test func isSameProcessComparesCreationTimes() throws {
+    /// Review I1: our own process, with its real creation time, against a session `startedAt` just after it (kept, even
+    /// with a nonsense `procStart`, which isn't read) and one an hour earlier (a reused pid: dropped). No `startedAt`, or
+    /// no creation time, falls back to `isRunning`.
+    @Test func isSameProcessComparesCreationWithStartedAt() throws {
         let me = Int32(bitPattern: GetCurrentProcessId())
-        let created = try #require(Jump.creationTime(UInt32(bitPattern: me)))
-        #expect(WinPlatform.isSameProcess(pid: me, start: ProcessStart(fileTime: "\(created)")))
-        #expect(WinPlatform.isSameProcess(pid: me, start: ProcessStart(procStart: "\(created)")))
-        let utcTicks = created + ProcessStart.dotNetTicksAtFileTimeEpoch
-        let localTicks = UInt64(Int64(utcTicks) + Int64(ProcessStart.localOffset(created)) * 10_000_000)
-        #expect(WinPlatform.isSameProcess(pid: me, start: ProcessStart(procStart: "\(utcTicks)")))
-        #expect(WinPlatform.isSameProcess(pid: me, start: ProcessStart(procStart: "\(localTicks)")))
-        let hourEarlier = created - 36_000_000_000
-        #expect(!WinPlatform.isSameProcess(pid: me, start: ProcessStart(fileTime: "\(hourEarlier)")))
-        #expect(!WinPlatform.isSameProcess(pid: me, start: ProcessStart(procStart: "\(hourEarlier + ProcessStart.dotNetTicksAtFileTimeEpoch)")))
-        #expect(!WinPlatform(paths: AppPaths(dataDir: nil)).isSameProcess(pid: me, start: ProcessStart(fileTime: "\(hourEarlier)")))
+        let created = ProcessStart.date(fileTime: try #require(Jump.creationTime(UInt32(bitPattern: me))))
+        let justAfter = ProcessStart(startedAt: created + 0.5)
+        let hourEarlier = ProcessStart(startedAt: created - 3600)
+        #expect(WinPlatform.isSameProcess(pid: me, start: justAfter))
+        #expect(!WinPlatform.isSameProcess(pid: me, start: hourEarlier))
+        #expect(!WinPlatform(paths: AppPaths(dataDir: nil)).isSameProcess(pid: me, start: hourEarlier))
+        // Read from a registry file: procStart plays no part.
+        let o: [String: Any] = ["startedAt": (created.timeIntervalSince1970 + 0.5) * 1000, "procStart": "garbage", "procStartFt": "1"]
+        #expect(WinPlatform.isSameProcess(pid: me, start: ProcessStart(registry: o)))
         #expect(WinPlatform.isSameProcess(pid: me, start: nil))
-        #expect(WinPlatform.isSameProcess(pid: me, start: ProcessStart(procStart: "not a number")))
+        #expect(WinPlatform.isSameProcess(pid: me, start: ProcessStart(registry: ["procStart": "garbage"])))
         // Unknown creation time (access denied): only liveness counts.
-        #expect(WinPlatform.isSameProcess(pid: me, start: ProcessStart(fileTime: "\(hourEarlier)"), creation: { _ in nil }))
+        #expect(WinPlatform.isSameProcess(pid: me, start: hourEarlier, creation: { _ in nil }))
         // Gone is gone, whatever the start time.
-        #expect(!WinPlatform.isSameProcess(pid: 0x7FFF_FFFC, start: ProcessStart(fileTime: "\(created)")))
+        #expect(!WinPlatform.isSameProcess(pid: 0x7FFF_FFFC, start: justAfter))
     }
 
     @Test func dataDirKeepsAgentsInside() {

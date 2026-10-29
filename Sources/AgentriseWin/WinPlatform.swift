@@ -77,13 +77,14 @@ package final class WinPlatform: PlatformServices {
 
     package func isSameProcess(pid: Int32, start: ProcessStart?) -> Bool { Self.isSameProcess(pid: pid, start: start) }
 
-    /// Running, and (when the registry recorded a start time) created when the registry says: Windows hands a dead
-    /// process's id to a new one soon, so a stale `<pid>.json` would otherwise stay "alive" (facts §1, note 1). A
-    /// creation time we can't read (access denied) or a start we can't parse leaves only `isRunning`.
+    /// Running, and (when the registry has the session's `startedAt`) created no later than `startedAt` plus a margin:
+    /// Windows hands a dead process's id to a new one soon, and that one is always created after the session started,
+    /// so a stale `<pid>.json` would otherwise stay "alive". A creation time we can't read (access denied) or no
+    /// `startedAt` leaves only `isRunning`.
     package static func isSameProcess(pid: Int32, start: ProcessStart?, creation: (UInt32) -> UInt64? = Jump.creationTime) -> Bool {
         guard isRunning(pid) else { return false }
         guard let start, let created = creation(UInt32(bitPattern: pid)) else { return true }
-        return start.matches(creation: created) ?? true
+        return start.matches(creation: created)
     }
 
     /// False only when the process is known to be gone: no process has that id any more, or it has exited. A process

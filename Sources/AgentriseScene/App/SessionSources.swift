@@ -14,70 +14,37 @@ package struct RegistryEntry {
     package var cwd: String?
     package var pid: Int32?
     package var updatedAt: Date?
-    /// When `pid` started, as Claude Code recorded it (nil when the file has no start time).
+    /// When the session started, as Claude Code recorded it (nil when the file has no `startedAt`).
     package var start: ProcessStart?
 }
 
-/// When a Claude Code process started, as its registry file records it (facts §1, note 1), so a reused pid can be told
-/// from the session's own process. On Windows `procStartFt` is the creation time in FILETIME ticks, and `procStart` is
-/// FILETIME ticks or .NET `DateTime.Ticks`; Claude Code tells the two scales apart by size (`> 3e17`). Other platforms
-/// write `procStart` in a form the app doesn't read (their `PlatformServices` ignores it).
+/// When a Claude Code session started, as its registry file records it: `startedAt`, Claude Code's own `Date.now()`
+/// (ms since 1970) once its process was running. A process created after that (plus `margin`) can't be the one that
+/// wrote the file: its pid was reused. This needs nothing about `procStart`/`procStartFt`, whose scale and time zone
+/// differ by platform and version (facts §1, note 1): they are not read.
 package struct ProcessStart: Equatable {
-    /// `procStartFt`, as written.
-    package var fileTime: String?
-    /// `procStart`, as written.
-    package var procStart: String?
+    package var startedAt: Date
 
-    package init(fileTime: String? = nil, procStart: String? = nil) {
-        self.fileTime = fileTime
-        self.procStart = procStart
-    }
+    package init(startedAt: Date) { self.startedAt = startedAt }
 
-    /// The registry's fields (strings, or numbers); nil when it has neither.
+    /// The registry's `startedAt`; nil when it has none (then only liveness counts).
     package init?(registry o: [String: Any]) {
-        func text(_ v: Any?) -> String? {
-            if let s = v as? String { return s.isEmpty ? nil : s }
-            if let n = v as? NSNumber { return n.stringValue }
-            return nil
-        }
-        fileTime = text(o["procStartFt"])
-        procStart = text(o["procStart"])
-        if fileTime == nil && procStart == nil { return nil }
+        guard let ms = (o["startedAt"] as? NSNumber)?.doubleValue, ms.isFinite, ms > 0 else { return nil }
+        startedAt = Date(timeIntervalSince1970: ms / 1000)
     }
 
-    /// .NET ticks (100 ns since 0001-01-01) at the FILETIME epoch (1601-01-01).
-    package static let dotNetTicksAtFileTimeEpoch: UInt64 = 504_911_232_000_000_000
-    /// Claude Code's line between the two scales: above it a value is .NET ticks, below it FILETIME.
-    package static let dotNetThreshold: UInt64 = 300_000_000_000_000_000
-    /// How far apart two readings of one creation time may be (the registry may round, e.g. through a JS number).
-    package static let tolerance: UInt64 = 10_000_000   // 1 s
+    /// Slack for clock steps and rounding: a process created up to this long after `startedAt` still counts as it.
+    package static let margin: TimeInterval = 10
 
-    /// Whether a process created at `creation` (FILETIME ticks, UTC) is the one recorded here; nil when no field is a
-    /// number this can read (then only liveness counts). `procStartFt` wins over `procStart`. .NET ticks may be local
-    /// time (`Win32_Process.CreationDate` is) or UTC; either reading matches. `utcOffset` gives the local zone's
-    /// offset in seconds at a FILETIME.
-    package func matches(creation: UInt64, utcOffset: (UInt64) -> Int = ProcessStart.localOffset) -> Bool? {
-        func number(_ s: String?) -> UInt64? {
-            guard let s = s?.trimmingCharacters(in: .whitespaces) else { return nil }
-            if let n = UInt64(s) { return n }
-            // A JS number past 2^53 may be written in exponent form.
-            guard let d = Double(s), d.isFinite, d >= 0, d < 1.8e19 else { return nil }
-            return UInt64(d)
-        }
-        func near(_ a: UInt64, _ b: UInt64) -> Bool { (a > b ? a - b : b - a) <= Self.tolerance }
-        if let ft = number(fileTime) { return near(ft, creation) }
-        guard let v = number(procStart) else { return nil }
-        guard v > Self.dotNetThreshold else { return near(v, creation) }
-        let utc = creation + Self.dotNetTicksAtFileTimeEpoch
-        let offset = Int64(utcOffset(creation)) * 10_000_000
-        let local = UInt64(clamping: Int64(clamping: utc) + offset)
-        return near(v, utc) || near(v, local)
+    /// FILETIME ticks (100 ns since 1601) → a date.
+    package static func date(fileTime: UInt64) -> Date {
+        Date(timeIntervalSince1970: Double(fileTime) / 10_000_000 - 11_644_473_600)
     }
 
-    /// The current time zone's offset from UTC, in seconds, at a FILETIME.
-    package static func localOffset(_ fileTime: UInt64) -> Int {
-        let seconds = Double(fileTime) / 10_000_000 - 11_644_473_600   // FILETIME epoch → Unix epoch
-        return TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: seconds))
+    /// Whether a process created at `creation` (FILETIME ticks, UTC) may be the session's own: false only when it was
+    /// created later than `startedAt` + `margin` (a reused pid).
+    package func matches(creation: UInt64) -> Bool {
+        Self.date(fileTime: creation) <= startedAt.addingTimeInterval(Self.margin)
     }
 }
 
@@ -98,7 +65,7 @@ package enum SessionRegistry {
     }
 
     /// Entries whose process is still the one that wrote them: `isSameProcess(pid, start)` is false for a process
-    /// that is gone, and (Windows) for a reused pid whose creation time isn't the recorded `start`.
+    /// that is gone, and (Windows) for a reused pid, created after the session's `startedAt`.
     package static func load(dir: URL, isSameProcess: (Int32, ProcessStart?) -> Bool) -> [String: RegistryEntry] {
         var out: [String: RegistryEntry] = [:]
         let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
@@ -270,7 +237,7 @@ package enum CodexCommandLine {
 
 /// Where clicking a session goes: the Claude app's deep link, or the terminal app that ran it. `pid` is the agent's
 /// process (the registry's, else the hook's `agentPid`): Windows finds the terminal window by walking up from it.
-/// `start` is the registry's record of when that process started, so Windows doesn't follow a reused pid.
+/// `start` is the registry's record of when the session started, so Windows doesn't follow a reused pid.
 package enum SessionLink: Equatable {
     case desktop(URL)
     case terminal(bundleId: String?, pid: Int32? = nil, start: ProcessStart? = nil)

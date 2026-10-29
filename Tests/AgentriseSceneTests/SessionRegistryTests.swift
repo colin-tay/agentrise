@@ -1,15 +1,19 @@
 // Copyright (c) 2026 Colin Tay
 // SPDX-License-Identifier: MIT
 
-// Review I1: Claude Code's registry records when its process started, so a reused pid is not mistaken for it.
+// Review I1: Claude Code's registry records when the session started (`startedAt`), so a reused pid (a process
+// created later) is not mistaken for the session's own.
 
 import Foundation
 import Testing
 @testable import AgentriseScene
 
 @Suite struct SessionRegistryTests {
-    /// 2027-01-15 08:00:00 UTC as FILETIME ticks (100 ns since 1601).
-    private let created: UInt64 = (1_800_000_000 + 11_644_473_600) * 10_000_000
+    /// 2027-01-15 08:00:00 UTC.
+    private let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+
+    /// A date as FILETIME ticks (100 ns since 1601), what `GetProcessTimes` returns.
+    private func fileTime(_ d: Date) -> UInt64 { UInt64((d.timeIntervalSince1970 + 11_644_473_600) * 10_000_000) }
 
     private func dir() throws -> URL {
         let d = FileManager.default.temporaryDirectory.appendingPathComponent("agentrise-registry-\(UUID().uuidString)")
@@ -21,21 +25,26 @@ import Testing
         try JSONSerialization.data(withJSONObject: o).write(to: dir.appendingPathComponent("\(pid).json"))
     }
 
-    @Test func loadDropsAnEntryWhosePidIsAliveButStartedAtAnotherTime() throws {
+    private var startedMs: Double { t0.timeIntervalSince1970 * 1000 }
+
+    /// The Windows rule (`ProcessStart.matches`) over made-up creation times: a live pid created well before the session
+    /// started is kept whatever `procStart` says; one created after `startedAt` + the margin is dropped; a file without
+    /// `startedAt` falls back to liveness.
+    @Test func loadDropsAnEntryWhosePidWasCreatedAfterTheSessionStarted() throws {
         let d = try dir()
-        try write(["sessionId": "same", "pid": 101, "procStartFt": "\(created)"], pid: 101, in: d)
-        try write(["sessionId": "reused", "pid": 202, "procStartFt": "\(created)"], pid: 202, in: d)
-        try write(["sessionId": "unstamped", "pid": 303], pid: 303, in: d)
-        // Every pid is alive; 202 now belongs to a process created an hour later.
-        let live: [Int32: UInt64] = [101: created, 202: created + 36_000_000_000, 303: created]
+        try write(["sessionId": "same", "pid": 101, "startedAt": startedMs, "procStart": "garbage", "procStartFt": "1"], pid: 101, in: d)
+        try write(["sessionId": "reused", "pid": 202, "startedAt": startedMs, "procStart": "\(fileTime(t0))"], pid: 202, in: d)
+        try write(["sessionId": "unstamped", "pid": 303, "procStart": "whatever"], pid: 303, in: d)
+        // Every pid is alive; 202 now belongs to a process created an hour after the session started.
+        let created: [Int32: Date] = [101: t0 - 3600, 202: t0 + 3600, 303: t0 + 3600]
         var asked: [Int32: ProcessStart?] = [:]
         let out = SessionRegistry.load(dir: d) { pid, start in
             asked[pid] = start
-            return start.flatMap { $0.matches(creation: live[pid]!) } ?? true
+            return start.map { $0.matches(creation: fileTime(created[pid]!)) } ?? true
         }
         #expect(out.keys.sorted() == ["same", "unstamped"])
-        #expect(out["same"]?.start == ProcessStart(fileTime: "\(created)"))
-        // No start time: only liveness counts.
+        #expect(out["same"]?.start == ProcessStart(startedAt: t0))
+        // No startedAt: only liveness counts.
         #expect(asked[303] == .some(nil))
         #expect(out["unstamped"]?.start == nil)
         // The old entry point still checks liveness alone.
@@ -43,42 +52,23 @@ import Testing
         #expect(SessionRegistry.load(dir: d, isRunning: { $0 != 101 }).keys.sorted() == ["reused", "unstamped"])
     }
 
-    @Test func startIsReadFromStringsOrNumbers() {
-        #expect(ProcessStart(registry: ["procStartFt": "12", "procStart": "34"]) == ProcessStart(fileTime: "12", procStart: "34"))
-        #expect(ProcessStart(registry: ["procStart": NSNumber(value: 134_444_736_000_000_000 as UInt64)])?.procStart == "134444736000000000")
-        #expect(ProcessStart(registry: ["procStart": ""]) == nil)
+    @Test func startIsReadFromStartedAtOnly() {
+        #expect(ProcessStart(registry: ["startedAt": 1_800_000_000_000.0])?.startedAt == t0)
+        #expect(ProcessStart(registry: ["startedAt": NSNumber(value: 1_800_000_000_000 as Int64)])?.startedAt == t0)
+        #expect(ProcessStart(registry: ["procStart": "134444736000000000", "procStartFt": "134444736000000000"]) == nil)
+        #expect(ProcessStart(registry: ["startedAt": "soon"]) == nil)
+        #expect(ProcessStart(registry: ["startedAt": 0]) == nil)
         #expect(ProcessStart(registry: [:]) == nil)
     }
 
-    @Test func fileTimeMatchesOnlyTheSameCreation() {
-        let s = ProcessStart(fileTime: "\(created)")
-        #expect(s.matches(creation: created) == true)
-        #expect(s.matches(creation: created + 9_000) == true)        // rounding (a JS number past 2^53)
-        #expect(s.matches(creation: created + 600_000_000) == false) // a minute later: another process
-        #expect(s.matches(creation: created - 600_000_000) == false)
-        // procStartFt wins over procStart.
-        #expect(ProcessStart(fileTime: "\(created)", procStart: "1").matches(creation: created) == true)
-    }
-
-    /// `procStart` is FILETIME below 3e17 and .NET ticks above, as Claude Code reads it; .NET ticks may be UTC or the
-    /// local time (`Win32_Process.CreationDate`).
-    @Test func procStartAcceptsBothScales() {
-        let ticks = created + ProcessStart.dotNetTicksAtFileTimeEpoch
-        let eightHours = 8 * 3600
-        let local = ticks + UInt64(eightHours) * 10_000_000
-        let offset: (UInt64) -> Int = { _ in eightHours }
-        #expect(ProcessStart(procStart: "\(created)").matches(creation: created, utcOffset: offset) == true)
-        #expect(ProcessStart(procStart: "\(ticks)").matches(creation: created, utcOffset: offset) == true)
-        #expect(ProcessStart(procStart: "\(local)").matches(creation: created, utcOffset: offset) == true)
-        #expect(ProcessStart(procStart: "\(ticks)").matches(creation: created + 36_000_000_000, utcOffset: offset) == false)
-        #expect(ProcessStart(procStart: "\(local)").matches(creation: created, utcOffset: { _ in -5 * 3600 }) == false)
-        #expect(ProcessStart(procStart: "\(created)").matches(creation: created + 36_000_000_000) == false)
-    }
-
-    /// A start time this can't read (macOS writes a date string) leaves the decision to liveness.
-    @Test func unreadableStartIsNoAnswer() {
-        #expect(ProcessStart(procStart: "Thu Jan 15 08:00:00 2027").matches(creation: created) == nil)
-        #expect(ProcessStart(fileTime: "soon").matches(creation: created) == nil)
-        #expect(ProcessStart(fileTime: "soon", procStart: "\(created)").matches(creation: created) == true)
+    @Test func matchesUnlessCreatedAfterTheStartPlusTheMargin() {
+        let s = ProcessStart(startedAt: t0)
+        #expect(s.matches(creation: fileTime(t0 - 3600)))   // long before: the session's own (or kept anyway)
+        #expect(s.matches(creation: fileTime(t0 - 0.3)))    // the usual: created just before Claude Code noted the time
+        #expect(s.matches(creation: fileTime(t0 + ProcessStart.margin - 0.5)))
+        #expect(!s.matches(creation: fileTime(t0 + ProcessStart.margin + 0.5)))
+        #expect(!s.matches(creation: fileTime(t0 + 3600)))  // a reused pid
+        #expect(ProcessStart.margin == 10)
+        #expect(ProcessStart.date(fileTime: fileTime(t0)) == t0)
     }
 }

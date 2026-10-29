@@ -83,20 +83,22 @@ import Foundation
         #expect(j.window(forAgent: 100) == nil)
     }
 
-    /// Review I1 / Task 13 Minor 10: the agent's own pid is checked against the registry's start time, so a reused pid
-    /// doesn't bring an unrelated window forward.
+    /// Review I1 / Task 13 Minor 10: the agent's own pid is checked against the session's `startedAt`, so a reused pid
+    /// (a process created later) doesn't bring an unrelated window forward.
     @Test func reusedAgentPidIsNotFollowed() {
+        // claude.exe (100) was created at FILETIME 70 (a moment after 1601); sessions "started" relative to that.
+        let created = ProcessStart.date(fileTime: 70)
+        let own = ProcessStart(startedAt: created + 1), stale = ProcessStart(startedAt: created - 3600)
         var got: [UInt] = []
         let j = jump(activated: { got.append($0.handle) })
-        #expect(j.window(forAgent: 100, start: ProcessStart(fileTime: "70"))?.handle == 0x80)
-        #expect(j.window(forAgent: 100, start: ProcessStart(fileTime: "70000000000")) == nil)
-        #expect(!j.open(.terminal(bundleId: nil, pid: 100, start: ProcessStart(fileTime: "70000000000"))))
+        #expect(j.window(forAgent: 100, start: own)?.handle == 0x80)
+        #expect(j.window(forAgent: 100, start: stale) == nil)
+        #expect(!j.open(.terminal(bundleId: nil, pid: 100, start: stale)))
         #expect(got.isEmpty)
-        // A start time that can't be read, or a creation time we couldn't get: the walk goes ahead.
-        #expect(j.window(forAgent: 100, start: ProcessStart(procStart: "Thu Jan 15")) != nil)
+        // A creation time we couldn't get: the walk goes ahead.
         let unknown = jump([ProcessEntry(pid: 100, parent: 80, exe: "claude.exe")] + tree.filter { $0.pid != 100 })
-        #expect(unknown.window(forAgent: 100, start: ProcessStart(fileTime: "70000000000"))?.handle == 0x80)
-        #expect(j.open(.terminal(bundleId: nil, pid: 100, start: ProcessStart(fileTime: "70"))))
+        #expect(unknown.window(forAgent: 100, start: stale)?.handle == 0x80)
+        #expect(j.open(.terminal(bundleId: nil, pid: 100, start: own)))
         #expect(got == [0x80])
     }
 

@@ -38,14 +38,14 @@ final class FakePlatform: PlatformServices {
     func openSession(_ link: SessionLink) -> Bool { opened.append(link); return opens }
 
     /// Writes <claude dir>/sessions/<pid>.json like a live Claude Code process.
-    func writeRegistry(pid: Int32, sessionId: String, entrypoint: String, hostSessionId: String? = nil, procStartFt: String? = nil,
+    func writeRegistry(pid: Int32, sessionId: String, entrypoint: String, hostSessionId: String? = nil, startedAt: Date? = nil,
                        at t: Date) throws {
         let dir = SessionRegistry.dir(claudeDir: claudeDirectory)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         var o: [String: Any] = ["sessionId": sessionId, "pid": pid, "status": "idle", "entrypoint": entrypoint,
                                 "cwd": "/work/demo", "updatedAt": t.timeIntervalSince1970 * 1000]
         if let hostSessionId { o["hostSessionId"] = hostSessionId }
-        if let procStartFt { o["procStartFt"] = procStartFt }
+        if let startedAt { o["startedAt"] = startedAt.timeIntervalSince1970 * 1000 }
         try JSONSerialization.data(withJSONObject: o).write(to: dir.appendingPathComponent("\(pid).json"))
     }
 
@@ -217,19 +217,21 @@ final class ManualScheduler: TowerScheduler {
     }
 
     /// Review I1: a registry file left behind by a killed Claude Code whose pid now belongs to another process (alive,
-    /// but started at another time) is stale: the session leaves past the grace like one whose file is gone.
+    /// but created after the session's `startedAt`) is stale: the session leaves past the grace like one whose file is
+    /// gone.
     @Test func registryFileOfAReusedPidIsStale() throws {
         let (model, platform, scheduler, _, _) = try make()
         var left: [TowerEffect] = []
         model.onEffects = { effects, _ in left += effects.filter { if case .sessionLeft = $0 { return true }; return false } }
-        var created: [Int32: String] = [101: "1000", 202: "2000"]
-        platform.sameProcess = { pid, start in start.map { $0.fileTime == created[pid] } ?? true }
-        try platform.writeRegistry(pid: 101, sessionId: "m", entrypoint: "cli", procStartFt: "1000", at: t0)
-        try platform.writeRegistry(pid: 202, sessionId: "k", entrypoint: "cli", procStartFt: "2000", at: t0)
+        // Windows' rule over made-up creation times: each process was created a moment before its session started.
+        var created: [Int32: Date] = [101: t0 - 1, 202: t0 - 1]
+        platform.sameProcess = { pid, start in start.map { created[pid]! <= $0.startedAt + ProcessStart.margin } ?? true }
+        try platform.writeRegistry(pid: 101, sessionId: "m", entrypoint: "cli", startedAt: t0, at: t0)
+        try platform.writeRegistry(pid: 202, sessionId: "k", entrypoint: "cli", startedAt: t0, at: t0)
         model.refreshSources()
         scheduler.advance(by: 1)
         #expect(model.visibleSessions.map(\.id).sorted() == ["k", "m"])
-        created[101] = "9999"   // m's Claude Code was killed; its pid went to another program
+        created[101] = t0 + 600   // m's Claude Code was killed; its pid went to a program started later
         for _ in 0..<8 {
             scheduler.advance(by: 5)
             model.refreshSources()
@@ -310,17 +312,17 @@ final class ManualScheduler: TowerScheduler {
     }
 
     /// A terminal session's link carries Claude Code's pid from the registry (Windows walks up from it to the window),
-    /// with the start time the registry recorded for it.
+    /// with the session's start time the registry recorded.
     @Test func terminalLinkCarriesTheRegistryPid() throws {
         let (model, platform, scheduler, _, _) = try make()
         try platform.writeRegistry(pid: 101, sessionId: "m", entrypoint: "cli", at: t0)
-        try platform.writeRegistry(pid: 202, sessionId: "k", entrypoint: "cli", procStartFt: "134000000000000000", at: t0)
+        try platform.writeRegistry(pid: 202, sessionId: "k", entrypoint: "cli", startedAt: t0, at: t0)
         model.refreshSources()
         scheduler.advance(by: 1)
         model.open(sessionId: "m")
         model.open(sessionId: "k")
         #expect(platform.opened == [.terminal(bundleId: nil, pid: 101),
-                                    .terminal(bundleId: nil, pid: 202, start: ProcessStart(fileTime: "134000000000000000"))])
+                                    .terminal(bundleId: nil, pid: 202, start: ProcessStart(startedAt: t0))])
     }
 
     @Test func effectsArriveWithTheSessionsAsTheyAreNow() throws {
