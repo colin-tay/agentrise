@@ -244,7 +244,8 @@ package enum HookPlan {
         return out + "'"
     }
 
-    package static func claude(home: URL, platform: HookPlatform = .current) -> HookFile {
+    /// The macOS form unless asked otherwise (the Windows app always passes `.windows`).
+    package static func claude(home: URL, platform: HookPlatform = .posix) -> HookFile {
         claude(settings: claudeSettingsURL(home: home), platform: platform)
     }
 
@@ -256,7 +257,7 @@ package enum HookPlan {
 
     /// Codex 0.164 clamps SessionEnd and Interrupt hooks to 3 s and runs an async SessionEnd hook synchronously,
     /// warning about each on every session start; entries that ask for neither keep its status line quiet.
-    package static func codex(codexHome: URL, platform: HookPlatform = .current) -> HookFile {
+    package static func codex(codexHome: URL, platform: HookPlatform = .posix) -> HookFile {
         HookFile(url: codexHome.appendingPathComponent("hooks.json"), events: codexEvents.map(\.rawValue),
                  handler: { command(hookPath: $0, agent: .codex, platform: platform) }, backupTag: "agentrise-backup",
                  timeout: 3, syncEvents: [HookEventName.sessionEnd.rawValue])

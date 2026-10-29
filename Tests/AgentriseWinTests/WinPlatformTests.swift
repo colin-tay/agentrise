@@ -207,7 +207,7 @@ private func powershellLine(_ script: String) -> String {
         #expect(a.value == nil)
         #expect(!a.isEnabled)
         try a.set(false)   // already off: fine
-        #expect(Autostart.currentExe().lowercased().hasSuffix(".exe"))
+        #expect(FileManager.default.fileExists(atPath: Autostart.currentExe()))   // the test runner's own image
     }
 }
 

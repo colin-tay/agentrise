@@ -66,10 +66,12 @@ import TowerKit
         #expect(HookPlan.command(hookPath: macPath, agent: .codex, platform: .posix) == HookCommand(command: "\"\(macPath)\" --agent codex"))
         #if !os(Windows)
         #expect(HookPlatform.current == .posix)
-        #expect(HookPlan.claude(home: URL(fileURLWithPath: "/h")).command(macPath) == "\"\(macPath)\"")
         #else
         #expect(HookPlatform.current == .windows(.exec))
         #endif
+        // Without a platform, the plans are the macOS ones on both (the Windows app always says `.windows`).
+        #expect(HookPlan.claude(home: URL(fileURLWithPath: "/h")).command(macPath) == "\"\(macPath)\"")
+        #expect(HookPlan.codex(codexHome: URL(fileURLWithPath: "/h")).handler(macPath) == HookCommand(command: "\"\(macPath)\" --agent codex"))
         let h = try #require((HookPlan.claude(settings: URL(fileURLWithPath: "/x"), platform: .posix).entry(hookPath: macPath)["hooks"] as? [[String: Any]])?.first)
         #expect(try json(h) == #"{"async":true,"command":"\"/Users/u/Library/Application Support/Agentrise/bin/agentrise-hook\"","timeout":5,"type":"command"}"#)
     }
