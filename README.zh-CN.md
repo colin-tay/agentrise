@@ -66,7 +66,7 @@ Codex 给的信息比 Claude Code 少，所以 Codex 的机器人不会显示：
 `Agentrise-windows-x64-<版本>.zip`。没有安装程序：解压到任意目录，双击 `Agentrise.exe` 即可。
 Swift 和 Visual C++ 运行库的 DLL 就放在它旁边，不需要另装任何东西。（如果 Windows 仍提示缺少
 `VCRUNTIME140.dll` 或 `MSVCP140.dll`，请安装微软官方的
-[Visual C++ 2015–2022 x64 可再发行组件包](https://aka.ms/vs/17/release/vc_redist.x64.exe)。）
+[Visual C++ v14 可再发行组件包（x64）](https://aka.ms/vc14/vc_redist.x64.exe)。）
 
 **首次运行。**
 

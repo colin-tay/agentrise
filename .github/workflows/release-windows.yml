@@ -79,7 +79,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $bin = (swift build -c release --show-bin-path | Out-String).Trim()
           $script = @(Get-Content dist/runtime-files.txt)
-          $dirs = @(Get-Content dist/search-dirs.txt)   # the build directory first, then the Swift and VC++ runtimes
+          $dirs = @(Get-Content dist/search-dirs.txt)   # the build directory, then the VC++ and Swift runtimes
           function Names([string[]] $paths) { @($paths | ForEach-Object { (Split-Path -Leaf $_).ToLowerInvariant() } | Sort-Object) }
           function Print([string] $exe, [string[]] $searchDirs) {
             $out = Join-Path $env:RUNNER_TEMP ("runtime-" + [guid]::NewGuid() + '.txt')

@@ -76,7 +76,7 @@ It is **unsigned** and has had little testing on real machines.
 installer: unzip anywhere and double-click `Agentrise.exe`. The Swift and Visual C++ runtime DLLs ship
 next to it, so nothing else needs installing. (If Windows still reports a missing `VCRUNTIME140.dll`
 or `MSVCP140.dll`, install Microsoft's
-[Visual C++ 2015–2022 x64 Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe).)
+[Visual C++ v14 Redistributable (x64)](https://aka.ms/vc14/vc_redist.x64.exe).)
 
 **First run.**
 

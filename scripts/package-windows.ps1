@@ -5,14 +5,17 @@
 # every DLL they import transitively that isn't Windows' own, LICENSE and a README.txt.
 #
 # The DLL closure comes from `dumpbin /dependents` (imports and delay-load imports), searching, in order: the build
-# directory, the Swift runtime directory (the directory on PATH with swiftCore.dll) and the Visual C++ runtime's
-# redistributable folder (VC\Redist\MSVC\<version>\x64\Microsoft.VC14x.CRT of the newest Visual Studio with the C++
-# tools). A DLL found in none of them is the system's (kernel32, the UCRT's api-ms-win-* sets, ...) and stays out.
+# directory, the Visual C++ runtime's redistributable folder (VC\Redist\MSVC\<version>\x64\Microsoft.VC14x.CRT of the
+# newest Visual Studio with the C++ tools) and the Swift runtime directory (the directory on PATH with swiftCore.dll).
+# The VC++ folder comes before Swift's, which has its own copies of vcruntime140*.dll and msvcp140.dll: the zip's copies
+# are the ones Visual Studio's licence lets us redistribute. A DLL found in none of them is the system's (kernel32, the
+# UCRT's api-ms-win-* sets, ...) and stays out.
 # `Agentrise.exe --print-runtime-files` computes the same list with `RuntimeFiles.closure`, which the installed hook
 # copies its DLLs with; the release workflow checks that the two agree.
 #
 # The Visual C++ runtime DLLs (vcruntime140*.dll, msvcp140*.dll) are deployed next to the exe ("application local
-# folder"), unmodified, as the Visual Studio 2022 Distributable Code list allows for the files in VC\Redist; see
+# folder"), unmodified, as Visual Studio's Distributable Code list allows for the files in VC\Redist ("you may copy and
+# distribute with your program any of the files within the following folder and its subfolders": VC\redist); see
 # README.txt below and the README's Windows section.
 #
 # Usage (from the repository root, after `swift build -c release`):
@@ -41,6 +44,13 @@ function Find-VisualStudio {
         Select-Object -First 1
     if (-not $vs) { throw 'no Visual Studio with the C++ x64 tools' }
     return $vs
+}
+
+function Get-VisualStudioLine {
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    $line = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property catalog_productLineVersion |
+        Select-Object -First 1
+    if ($line) { return "$line".Trim() } else { return '' }
 }
 
 function Find-Dumpbin([string] $vs) {
@@ -82,7 +92,8 @@ $vs = Find-VisualStudio
 $dumpbin = Find-Dumpbin $vs
 $swiftRuntime = Find-SwiftRuntime
 $vcRuntime = Find-VCRuntime $vs
-$searchDirs = @($BinDir, $swiftRuntime, $vcRuntime)
+$vsLine = Get-VisualStudioLine
+$searchDirs = @($BinDir, $vcRuntime, $swiftRuntime)
 Write-Output "dumpbin: $dumpbin"
 Write-Output "search: $($searchDirs -join ' | ')"
 
@@ -113,9 +124,16 @@ if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -F
 New-Item -ItemType Directory -Force -Path $stage | Out-Null
 foreach ($f in $files) { Copy-Item -LiteralPath $f -Destination $stage }
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination (Join-Path $stage 'LICENSE.txt')
-$vcFiles = @($files | Where-Object { $_.StartsWith($vcRuntime, [System.StringComparison]::OrdinalIgnoreCase) } |
-    ForEach-Object { Split-Path -Leaf $_ })
+$vcFiles = @($files | Where-Object { (Split-Path -Leaf $_) -match '^(vcruntime|msvcp)140' })
+foreach ($f in $vcFiles) {
+    if (-not $f.StartsWith($vcRuntime, [System.StringComparison]::OrdinalIgnoreCase)) { throw "$f is not from $vcRuntime" }
+}
+$vcFiles = @($vcFiles | ForEach-Object { Split-Path -Leaf $_ })
+if ($vcFiles.Count -eq 0) { throw 'no VC++ runtime DLLs in the closure (expected vcruntime140.dll and msvcp140.dll)' }
 $vcVersion = Split-Path -Leaf (Split-Path -Parent (Split-Path -Parent $vcRuntime))
+$redistList = if ($vsLine -eq '2022') { 'https://learn.microsoft.com/visualstudio/releases/2022/redistribution' }
+              else { 'https://learn.microsoft.com/visualstudio/releases/2026/redistribution' }
+$vsName = if ($vsLine) { "Microsoft Visual Studio $vsLine" } else { 'Microsoft Visual Studio' }
 
 $readme = @"
 Agentrise $Version for Windows (experimental) / Windows 实验版
@@ -134,7 +152,7 @@ https://github.com/colin-tay/agentrise
 hook 程序会复制到 %LOCALAPPDATA%\Agentrise\bin\，之后移动或删除这个解压目录不影响 hook。
 运行库：Visual C++ 运行库（$($vcFiles -join ', ')）已经随包附带，放在 Agentrise.exe 旁边，不需要另装。
 如果启动时仍提示缺少 VCRUNTIME140.dll 或 MSVCP140.dll，请安装微软官方的
-Visual C++ 2015-2022 x64 可再发行组件包：https://aka.ms/vs/17/release/vc_redist.x64.exe
+Visual C++ v14 可再发行组件包（x64）：https://aka.ms/vc14/vc_redist.x64.exe
 这是实验版本：只有 x64（Windows 11 ARM 通过系统的 x64 模拟运行）。问题反馈：
 https://github.com/colin-tay/agentrise/issues/new?template=windows.yml
 
@@ -151,7 +169,7 @@ the old file backed up). The hook is copied to %LOCALAPPDATA%\Agentrise\bin\, so
 this folder later doesn't break it.
 Runtime: the Visual C++ runtime ($($vcFiles -join ', ')) ships next to Agentrise.exe; nothing else to
 install. If Windows still reports a missing VCRUNTIME140.dll or MSVCP140.dll, install Microsoft's
-Visual C++ 2015-2022 x64 Redistributable: https://aka.ms/vs/17/release/vc_redist.x64.exe
+Visual C++ v14 Redistributable (x64): https://aka.ms/vc14/vc_redist.x64.exe
 Experimental: x64 only (runs on Windows 11 ARM through its x64 emulation). Report problems at
 https://github.com/colin-tay/agentrise/issues/new?template=windows.yml
 
@@ -164,8 +182,8 @@ BlocksRuntime.dll, ...): the Swift project, Apache License 2.0 with Runtime Libr
 (https://swift.org/LICENSE.txt); _FoundationICU.dll contains ICU, Unicode License v3
 (https://github.com/unicode-org/icu/blob/main/LICENSE).
 $($vcFiles -join ', '): Microsoft Visual C++ runtime $vcVersion, Copyright (c) Microsoft Corporation,
-redistributed unmodified as Distributable Code under the Microsoft Visual Studio 2022 license terms
-(https://aka.ms/vs/17/redistribution). They are licensed to you only for use with Agentrise, under
+redistributed unmodified as Distributable Code under the $vsName license terms
+(https://visualstudio.microsoft.com/license-terms/; Distributable Code list: $redistList). They are licensed to you only for use with Agentrise, under
 terms that protect them at least as much as those license terms: do not modify, reverse engineer or
 redistribute them on their own. Microsoft is not affiliated with and does not endorse Agentrise.
 "@
