@@ -99,7 +99,7 @@ start at sign-in; always on top; one instance; clicking a robot to jump back to 
 - Unsigned (see above). x64 only; on Windows 11 ARM it runs through Windows' x64 emulation.
 - Clicking a terminal session brings its terminal window forward, not the tab. Jumping to a Claude
   desktop-app session uses its `claude://` link, which is unverified on Windows.
-- Not on Windows: Bark push and sounds.
+- Not on Windows: Bark push, sounds, and cc-connect (Feishu) session recognition.
 - Emoji inside text (the ⚡ on name plates) are drawn about 20% smaller than on macOS.
 - Things only checked by reading code and docs, not yet on a real machine: Claude Code versions
   without the hook `args` field, Codex's shell for hooks and its trust prompt, npm-installed Codex,

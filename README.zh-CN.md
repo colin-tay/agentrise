@@ -85,7 +85,7 @@ Swift 和 Visual C++ 运行库的 DLL 就放在它旁边，不需要另装任何
 - 没有签名（见上）。只有 x64；Windows 11 ARM 上通过系统的 x64 模拟运行。
 - 单击终端会话只把终端窗口切到前台，切不到具体标签页。跳到 Claude 桌面端会话用的是 `claude://`
   链接，在 Windows 上还没验证过。
-- Windows 版没有 Bark 推送和提示音。
+- Windows 版没有 Bark 推送、提示音和 cc-connect（飞书）会话识别。
 - 嵌在文字里的 emoji（名牌上的 ⚡）比 macOS 上小约 20%。
 - 下面这些只通过读代码和文档确认过，还没在真机上试过：不支持 hook `args` 字段的旧版 Claude Code、
   Codex 执行 hook 用的 shell 和它的信任流程、npm 装的 Codex、跨显示器的 DPI 变化、以管理员身份运行。
