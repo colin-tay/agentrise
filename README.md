@@ -69,12 +69,14 @@ set of fake sessions to a running app. After editing `assets/*.svg`, run
 ## Windows (experimental)
 
 An experimental Windows build exists: the same tower, sessions and art, in a window with a tray icon.
-It is **unsigned** and has had little testing on real machines.
+It is **unsigned** and has had little testing on real machines. It needs Windows 10 version 1809 or
+later, or Windows 11, on x64.
 
 **Download.** Zips named `Agentrise-windows-x64-<version>.zip` appear on the
 [Releases](https://github.com/colin-tay/agentrise/releases) page when one is published. There is no
-installer: unzip anywhere and double-click `Agentrise.exe`. The Swift and Visual C++ runtime DLLs ship
-next to it, so nothing else needs installing. (If Windows still reports a missing `VCRUNTIME140.dll`
+installer: unzip into a folder of its own (the files must stay together) and double-click
+`Agentrise.exe`. The Swift and Visual C++ runtime DLLs ship next to it, so nothing else needs
+installing. (If Windows still reports a missing `VCRUNTIME140.dll`
 or `MSVCP140.dll`, install Microsoft's
 [Visual C++ v14 Redistributable (x64)](https://aka.ms/vc14/vc_redist.x64.exe).)
 

@@ -387,8 +387,12 @@ private func withWideTest<R>(_ s: String, _ body: (UnsafePointer<WCHAR>) -> R) -
         let runtime = try #require(toolchainRuntimeDir(), "no swiftCore.dll on PATH")
         #expect(try run(try agentriseExe(), ["--print-runtime-files", nativePath(out), "--search-dir", nativePath(runtime)],
                         timeout: 30) == 0)
-        let lines = try String(contentsOf: out, encoding: .utf8).split(separator: "\n").map(String.init)
+        let all = try String(contentsOf: out, encoding: .utf8).split(separator: "\n").map(String.init)
+        let lines = all.filter { !$0.hasPrefix("system ") && !$0.hasPrefix("missing ") }
         let names = lines.map { $0.split(separator: "\\").last.map(String.init)?.lowercased() ?? "" }
+        let system = all.filter { $0.hasPrefix("system ") }.map { $0.dropFirst(7).lowercased() }
+        #expect(system.contains("kernel32.dll"))
+        #expect(!all.contains { $0.hasPrefix("missing ") })
         #expect(names.prefix(2) == ["agentrise.exe", "agentrise-hook.exe"])
         #expect(names.contains("swiftcore.dll"))
         #expect(names.contains("foundation.dll"))
@@ -396,6 +400,36 @@ private func withWideTest<R>(_ s: String, _ body: (UnsafePointer<WCHAR>) -> R) -
         #expect(Set(names).count == names.count)
         let expected = RuntimeFilesCommandLine.files(appDir: try buildDir(), exe: try agentriseExe(), searchDirs: [nativePath(runtime)])
         #expect(names == expected.map { $0.lastPathComponent.lowercased() })
+    }
+
+    /// An import found in no search directory that isn't Windows' own is reported as missing, with its importer: a
+    /// copy of the hook whose `swiftCore.dll` import is renamed `swiftCorX.dll` (same length). Windows' own imports
+    /// (kernel32, api-ms-win-*) are `system`; a Swift or VC++ runtime name never is, even if System32 has a copy.
+    @Test func unresolvedImportsAreMissingUnlessWindowsOwn() throws {
+        let dir = try scratchDir()
+        var bytes = [UInt8](try Data(contentsOf: try buildDir().appendingPathComponent("agentrise-hook.exe")))
+        let from = Array("swiftCore.dll".utf8), to = Array("swiftCorX.dll".utf8)
+        var patched = 0
+        var i = 0
+        while i + from.count <= bytes.count {
+            if bytes[i..<i + from.count].elementsEqual(from) { bytes.replaceSubrange(i..<i + from.count, with: to); patched += 1 }
+            i += 1
+        }
+        #expect(patched > 0)
+        let fake = dir.appendingPathComponent("agentrise-hook.exe")
+        try Data(bytes).write(to: fake)
+        let runtime = try #require(toolchainRuntimeDir(), "no swiftCore.dll on PATH")
+        let r = RuntimeFiles.resolve(of: [fake], searchDirs: [dir, runtime])
+        #expect(r.missing["swiftCorX.dll"] == "agentrise-hook.exe")
+        #expect(r.system.contains { $0.lowercased() == "kernel32.dll" })
+        #expect(r.missing.count == 1)
+        #expect(RuntimeFiles.isSystem("api-ms-win-crt-runtime-l1-1-0.dll", systemDir: RuntimeFiles.systemDirectory()))
+        #expect(RuntimeFiles.isSystem("KERNEL32.dll", systemDir: RuntimeFiles.systemDirectory()))
+        #expect(!RuntimeFiles.isSystem("VCRUNTIME140.dll", systemDir: RuntimeFiles.systemDirectory()))
+        #expect(!RuntimeFiles.isSystem("swiftCore.dll", systemDir: RuntimeFiles.systemDirectory()))
+        #expect(!RuntimeFiles.isSystem("nothing-like-this.dll", systemDir: RuntimeFiles.systemDirectory()))
+        // The closure itself is unchanged: what was found.
+        #expect(RuntimeFiles.closure(of: [fake], searchDirs: [dir, runtime]) == r.files)
     }
 
     /// The installed hook really runs from bin\ and reaches the app's socket path (exec form: no shell, the path has a

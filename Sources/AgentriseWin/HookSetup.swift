@@ -64,27 +64,69 @@ package enum PEImports {
 /// The files an exe needs besides the system's. Task 14's packaging uses the same function.
 package enum RuntimeFiles {
     /// `exes` plus every DLL they import, transitively, that is found in `searchDirs` (the first directory that has
-    /// it). A DLL found in none of them is the system's (kernel32, the UCRT's api-ms-win-* sets, the VC++ runtime
-    /// installed with Windows) and is left out. Order: the exes, then DLLs as discovered.
+    /// it). A DLL found in none of them is left out: the system's (kernel32, the UCRT's api-ms-win-* sets, ...) or,
+    /// on a development machine, the toolchain's on `PATH`. Order: the exes, then DLLs as discovered.
     ///
     /// For the hook in a packaged build the search directory is the exe's own (the Swift runtime and Foundation DLLs
     /// sit next to `Agentrise.exe`); on a development machine those come from the toolchain on `PATH`, are not next
     /// to the exe, and the list is just the exe.
-    package static func closure(of exes: [URL], searchDirs: [URL]) -> [URL] {
-        var out = exes
+    package static func closure(of exes: [URL], searchDirs: [URL]) -> [URL] { resolve(of: exes, searchDirs: searchDirs).files }
+
+    /// What `closure` found, and what it didn't.
+    package struct Resolution: Equatable {
+        /// The exes, then the DLLs found in the search directories, as discovered.
+        package var files: [URL] = []
+        /// Imports found in no search directory that belong to Windows (`isSystem`), in discovery order.
+        package var system: [String] = []
+        /// Imports found in no search directory that aren't Windows' own: name → the file that imports it. Packaging
+        /// fails on any (scripts/package-windows.ps1 applies the same rule).
+        package var missing: [String: String] = [:]
+    }
+
+    package static func resolve(of exes: [URL], searchDirs: [URL],
+                                systemDir: URL = RuntimeFiles.systemDirectory()) -> Resolution {
+        var r = Resolution(files: exes)
         var seen = Set(exes.map { $0.lastPathComponent.lowercased() })
         var queue = exes
         while !queue.isEmpty {
             let file = queue.removeFirst()
             guard let data = try? Data(contentsOf: file), let names = PEImports.dlls(in: data) else { continue }
             for name in names where seen.insert(name.lowercased()).inserted {
-                guard let found = searchDirs.map({ $0.appendingPathComponent(name) })
-                    .first(where: { FileManager.default.fileExists(atPath: $0.path) }) else { continue }
-                out.append(found)
-                queue.append(found)
+                if let found = searchDirs.map({ $0.appendingPathComponent(name) })
+                    .first(where: { FileManager.default.fileExists(atPath: $0.path) }) {
+                    r.files.append(found)
+                    queue.append(found)
+                } else if isSystem(name, systemDir: systemDir) {
+                    r.system.append(name)
+                } else {
+                    r.missing[name] = file.lastPathComponent
+                }
             }
         }
-        return out
+        return r
+    }
+
+    /// A DLL Windows provides: an API set (`api-ms-win-*`, `ext-ms-*`), or a file in System32 that isn't a Swift or
+    /// Visual C++ runtime DLL (those ship with the app, even when a copy happens to be in System32).
+    package static func isSystem(_ name: String, systemDir: URL) -> Bool {
+        let n = name.lowercased()
+        if n.hasPrefix("api-ms-win-") || n.hasPrefix("ext-ms-") { return true }
+        if isRuntimeName(n) { return false }
+        return FileManager.default.fileExists(atPath: systemDir.appendingPathComponent(name).path)
+    }
+
+    /// The Swift runtime's and the Visual C++ runtime's DLL names (lower case).
+    package static func isRuntimeName(_ n: String) -> Bool {
+        n.hasPrefix("swift") || n.hasPrefix("foundation") || n.hasPrefix("_foundation") || n == "dispatch.dll"
+            || n == "blocksruntime.dll" || n.hasPrefix("vcruntime140") || n.hasPrefix("msvcp140") || n.hasPrefix("concrt140")
+    }
+
+    /// `%SystemRoot%\System32`.
+    package static func systemDirectory() -> URL {
+        var buf = [UInt16](repeating: 0, count: Int(MAX_PATH) + 1)
+        let n = GetSystemDirectoryW(&buf, UINT(buf.count))
+        let path = n > 0 && Int(n) < buf.count ? String(decoding: buf[..<Int(n)], as: UTF16.self) : "C:\\Windows\\System32"
+        return URL(fileURLWithPath: path, isDirectory: true)
     }
 }
 

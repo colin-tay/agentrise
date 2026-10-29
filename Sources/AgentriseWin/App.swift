@@ -41,16 +41,28 @@ package enum HookCommandLine {
     }
 }
 
-/// `Agentrise.exe --print-runtime-files <out.txt> [--search-dir <dir>]...`: writes, one full path per line (UTF-8), the
-/// files `RuntimeFiles.closure` finds for `Agentrise.exe` and the `agentrise-hook.exe` next to it, searching the exe's
-/// own directory and then each `--search-dir` in order. The release workflow checks that the packaging script's
-/// `dumpbin` closure is this same list (the installed hook copies its DLLs with this function). Returns the exit code.
+/// `Agentrise.exe --print-runtime-files <out.txt> [--search-dir <dir>]...`: writes (UTF-8, one per line) what
+/// `RuntimeFiles.resolve` finds for `Agentrise.exe` and the `agentrise-hook.exe` next to it, searching the exe's own
+/// directory and then each `--search-dir` in order: each file's full path, then `system <name>` for each import that
+/// is Windows' own, then `missing <name> <importer>` for each import found nowhere. The release workflow checks this
+/// against the packaging script's `dumpbin` closure (the installed hook copies its DLLs with the same function).
+/// Returns 0, 3 when an import is missing, 1 when it couldn't write the list.
 package enum RuntimeFilesCommandLine {
-    package static func files(appDir: URL = HookHelperFiles.appDir(), exe: URL = URL(fileURLWithPath: Autostart.currentExe()),
-                              searchDirs: [String]) -> [URL] {
+    package static func resolution(appDir: URL = HookHelperFiles.appDir(), exe: URL = URL(fileURLWithPath: Autostart.currentExe()),
+                                   searchDirs: [String]) -> RuntimeFiles.Resolution {
         let hook = appDir.appendingPathComponent(HookHelperFiles.hookExe)
         let dirs = [appDir] + searchDirs.map { URL(fileURLWithPath: $0, isDirectory: true) }
-        return RuntimeFiles.closure(of: [exe, hook], searchDirs: dirs)
+        return RuntimeFiles.resolve(of: [exe, hook], searchDirs: dirs)
+    }
+
+    package static func files(appDir: URL = HookHelperFiles.appDir(), exe: URL = URL(fileURLWithPath: Autostart.currentExe()),
+                              searchDirs: [String]) -> [URL] {
+        resolution(appDir: appDir, exe: exe, searchDirs: searchDirs).files
+    }
+
+    package static func lines(_ r: RuntimeFiles.Resolution) -> [String] {
+        r.files.map { SafeFile.nativePath(of: $0) } + r.system.map { "system \($0)" }
+            + r.missing.sorted { $0.key.lowercased() < $1.key.lowercased() }.map { "missing \($0.key) \($0.value)" }
     }
 
     package static func run(out: String, searchDirs: [String]) -> Int32 {
@@ -58,9 +70,10 @@ package enum RuntimeFilesCommandLine {
         guard FileManager.default.fileExists(atPath: appDir.appendingPathComponent(HookHelperFiles.hookExe).path) else {
             return 1
         }
-        let text = files(appDir: appDir, searchDirs: searchDirs).map { SafeFile.nativePath(of: $0) + "\n" }.joined()
+        let r = resolution(appDir: appDir, searchDirs: searchDirs)
+        let text = lines(r).map { $0 + "\n" }.joined()
         do { try Data(text.utf8).write(to: URL(fileURLWithPath: out)) } catch { return 1 }
-        return 0
+        return r.missing.isEmpty ? 0 : 3
     }
 }
 
@@ -77,7 +90,8 @@ package enum RuntimeFilesCommandLine {
 ///   written), logs the result and exits 0 (1 on failure, 2 for Codex when Codex isn't on this machine: its home is
 ///   never created). Runs whether or not Agentrise is running.
 /// - `--print-runtime-files <out.txt> [--search-dir <dir>]...`: writes the runtime file list (`RuntimeFilesCommandLine`)
-///   and exits 0 (1 when it couldn't), before anything else: no data directory, no log.
+///   and exits 0 (3 when an import is missing, 1 when it couldn't write), right after DPI awareness and OLE are set up
+///   and before the data directory and the log: it creates neither.
 package struct AppOptions: Equatable {
     package var dataDir: String?
     package var screenshot: String?

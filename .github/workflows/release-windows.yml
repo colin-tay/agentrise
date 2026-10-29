@@ -3,7 +3,7 @@
 #
 # Builds Agentrise-windows-x64-<version>.zip and uploads it as a workflow artifact (spec §5.10). It never creates a
 # GitHub Release: publishing one is the author's call, after the VM trial. The version is the tag's (v1.2.3 -> 1.2.3)
-# on a tag push, and the app's own AppInfo.version on a manual run.
+# on a tag push (it must equal the app's AppInfo.version), and AppInfo.version on a manual run.
 name: Windows package
 
 on:
@@ -23,7 +23,9 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Install Swift 6.1.2
         uses: compnerd/gha-setup-swift@9ff1ee4c44888c5817fc14d1b257ac8cabb4935f # v0.5.1
@@ -45,7 +47,8 @@ jobs:
           if ($env:REF_TYPE -eq 'tag') {
             if ($env:REF_NAME -notmatch '^v([0-9][0-9A-Za-z.+-]*)$') { throw "tag $env:REF_NAME is not v<version>" }
             $version = $Matches[1]
-            if ($version -ne $appVersion) { Write-Output "::warning::tag $env:REF_NAME differs from AppInfo.version $appVersion" }
+            # The zip's name and the About box / log must agree (the issue form asks for either).
+            if ($version -ne $appVersion) { throw "tag $env:REF_NAME differs from AppInfo.version $appVersion in Sources/AgentriseWin/App.swift" }
           } else {
             $version = $appVersion
           }
@@ -66,6 +69,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           $bin = (swift build -c release --show-bin-path | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or -not $bin) { throw "swift build --show-bin-path failed ($LASTEXITCODE)" }
           ./scripts/package-windows.ps1 -Version $env:VERSION -BinDir $bin -OutDir dist
 
       # The script's dumpbin closure must be the list RuntimeFiles.closure computes for the same exes and directories
@@ -77,10 +81,13 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $bin = (swift build -c release --show-bin-path | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or -not $bin) { throw "swift build --show-bin-path failed ($LASTEXITCODE)" }
           $script = @(Get-Content dist/runtime-files.txt)
+          $scriptSystem = @(Get-Content dist/system-dlls.txt)
           $dirs = @(Get-Content dist/search-dirs.txt)   # the build directory, then the VC++ and Swift runtimes
           function Names([string[]] $paths) { @($paths | ForEach-Object { (Split-Path -Leaf $_).ToLowerInvariant() } | Sort-Object) }
-          function Print([string] $exe, [string[]] $searchDirs) {
+          # --print-runtime-files lines: file paths, then "system <name>", then "missing <name> <importer>".
+          function Print([string] $exe, [string[]] $searchDirs, [int] $expect = 0) {
             $out = Join-Path $env:RUNNER_TEMP ("runtime-" + [guid]::NewGuid() + '.txt')
             $arguments = @('--print-runtime-files', $out) + @($searchDirs | ForEach-Object { '--search-dir', $_ })
             $psi = [System.Diagnostics.ProcessStartInfo]::new($exe)
@@ -88,13 +95,25 @@ jobs:
             $psi.UseShellExecute = $false
             $p = [System.Diagnostics.Process]::Start($psi)
             if (-not $p.WaitForExit(30000)) { $p.Kill(); throw "$exe --print-runtime-files did not exit" }
-            if ($p.ExitCode -ne 0) { throw "$exe --print-runtime-files exited with $($p.ExitCode)" }
+            if ($p.ExitCode -ne $expect) { Get-Content -Encoding utf8 $out; throw "$exe --print-runtime-files exited with $($p.ExitCode), expected $expect" }
             return @(Get-Content -Encoding utf8 $out)
           }
           if ($dirs[0] -ne (Resolve-Path $bin).Path) { throw "the script searched $($dirs[0]) first, not $bin" }
-          $fromBuild = Print (Join-Path $bin 'Agentrise.exe') @($dirs | Select-Object -Skip 1)
-          $fromDist = Print (Resolve-Path dist/Agentrise/Agentrise.exe).Path @()
+          function Paths([string[]] $lines) { @($lines | Where-Object { $_ -notmatch '^(system|missing) ' }) }
+          function Tagged([string[]] $lines, [string] $tag) { @($lines | Where-Object { $_ -match "^$tag " } | ForEach-Object { $_.Substring($tag.Length + 1) }) }
+          $buildLines = Print (Join-Path $bin 'Agentrise.exe') @($dirs | Select-Object -Skip 1)
+          $distLines = Print (Resolve-Path dist/Agentrise/Agentrise.exe).Path @()
+          $fromBuild = Paths $buildLines
+          $fromDist = Paths $distLines
+          if ((Tagged $buildLines 'missing').Count -gt 0 -or (Tagged $distLines 'missing').Count -gt 0) { throw 'RuntimeFiles reports missing DLLs' }
+          $s1 = (Names $scriptSystem) -join ','; $s2 = (Names (Tagged $buildLines 'system')) -join ','; $s3 = (Names (Tagged $distLines 'system')) -join ','
+          Write-Output "Windows' own (script): $s1"
+          if ($s1 -ne $s2) { throw "the Windows DLLs differ between the script and RuntimeFiles:`n  $s1`n  $s2" }
+          if ($s1 -ne $s3) { throw "the Windows DLLs differ between the script and the packaged folder:`n  $s1`n  $s3" }
           $packaged = @(Get-ChildItem dist/Agentrise -File | Where-Object { $_.Extension -in '.exe', '.dll' } | ForEach-Object { $_.Name })
+          foreach ($l in 'Swift-LICENSE.txt', 'ICU-LICENSE.txt', 'LICENSE.txt', 'README.txt') {
+            if (-not (Test-Path -LiteralPath (Join-Path dist/Agentrise $l))) { throw "dist/Agentrise has no $l" }
+          }
           Write-Output "script (dumpbin):"; $script | ForEach-Object { "  $_" }
           Write-Output "RuntimeFiles.closure, build directory:"; $fromBuild | ForEach-Object { "  $_" }
           $a = (Names $script) -join ','; $b = (Names $fromBuild) -join ','; $c = (Names $fromDist) -join ','; $d = (Names $packaged) -join ','
@@ -102,6 +121,46 @@ jobs:
           if ($c -ne $d) { throw "RuntimeFiles.closure of the packaged folder differs from its contents:`n  $c`n  $d" }
           if ($a -ne $d) { throw "the packaged folder differs from the closure:`n  $a`n  $d" }
           Write-Output "agree: $(@($script).Count) files"
+
+      # A DLL that is in no search directory and isn't Windows' own must fail the packaging, and RuntimeFiles must
+      # report it: a copy of the build whose agentrise-hook.exe imports swiftCorX.dll instead of swiftCore.dll (the
+      # import name patched in place, same length).
+      - name: Packaging fails on a missing DLL
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bin = (swift build -c release --show-bin-path | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or -not $bin) { throw "swift build --show-bin-path failed ($LASTEXITCODE)" }
+          $fake = Join-Path $env:RUNNER_TEMP 'fake import'
+          New-Item -ItemType Directory -Force -Path $fake | Out-Null
+          Copy-Item (Join-Path $bin 'Agentrise.exe') $fake
+          $bytes = [System.IO.File]::ReadAllBytes((Join-Path $bin 'agentrise-hook.exe'))
+          $from = [System.Text.Encoding]::ASCII.GetBytes('swiftCore.dll'); $to = [System.Text.Encoding]::ASCII.GetBytes('swiftCorX.dll')
+          $patched = 0
+          for ($i = 0; $i -le $bytes.Length - $from.Length; $i++) {
+            $hit = $true
+            for ($j = 0; $j -lt $from.Length; $j++) { if ($bytes[$i + $j] -ne $from[$j]) { $hit = $false; break } }
+            if ($hit) { [Array]::Copy($to, 0, $bytes, $i, $to.Length); $patched++ }
+          }
+          if ($patched -eq 0) { throw 'no swiftCore.dll import name to patch' }
+          [System.IO.File]::WriteAllBytes((Join-Path $fake 'agentrise-hook.exe'), $bytes)
+          $failed = $null
+          try { ./scripts/package-windows.ps1 -Version 0.0.0-test -BinDir $fake -OutDir (Join-Path $env:RUNNER_TEMP 'fake out') }
+          catch { $failed = "$_" }
+          Write-Output "package-windows.ps1: $failed"
+          if (-not $failed) { throw 'packaging succeeded with a missing DLL' }
+          if ($failed -notmatch 'swiftCorX\.dll \(imported by agentrise-hook\.exe\)') { throw "unexpected failure: $failed" }
+          $out = Join-Path $env:RUNNER_TEMP 'fake runtime files.txt'
+          $runtime = @(Get-Content dist/search-dirs.txt | Select-Object -Skip 1)
+          $psi = [System.Diagnostics.ProcessStartInfo]::new((Join-Path $fake 'Agentrise.exe'))
+          foreach ($a in @('--print-runtime-files', $out) + @($runtime | ForEach-Object { '--search-dir', $_ })) { $psi.ArgumentList.Add($a) }
+          $psi.UseShellExecute = $false
+          $p = [System.Diagnostics.Process]::Start($psi)
+          if (-not $p.WaitForExit(30000)) { $p.Kill(); throw '--print-runtime-files did not exit' }
+          $lines = @(Get-Content -Encoding utf8 $out | Where-Object { $_ -match '^missing ' })
+          Write-Output "RuntimeFiles: exit $($p.ExitCode); $($lines -join '; ')"
+          if ($p.ExitCode -ne 3) { throw "--print-runtime-files exited with $($p.ExitCode), expected 3" }
+          if (($lines -join ';') -ne 'missing swiftCorX.dll agentrise-hook.exe') { throw "unexpected missing list: $($lines -join '; ')" }
 
       # The zip on a machine without the Swift toolchain: unzipped to a fresh directory whose name has a space and
       # Chinese characters, every PATH entry with Swift (and the toolchain's) removed. It must install the Claude hook
@@ -152,16 +211,29 @@ jobs:
           $binDir = Join-Path $data 'Agentrise\bin'
           $hook = Join-Path $binDir 'agentrise-hook.exe'
           if (-not (Test-Path -LiteralPath $hook)) { throw "no $hook" }
-          Write-Output "installed in Agentrise\bin:"; Get-ChildItem -LiteralPath $binDir | ForEach-Object { "  $($_.Name)" }
+          $installed = @(Get-ChildItem -LiteralPath $binDir -File | ForEach-Object { $_.Name.ToLowerInvariant() } | Sort-Object)
+          Write-Output "installed in Agentrise\bin: $($installed -join ', ')"
+          # bin\ must hold exactly the hook's closure (searched in the unzipped folder, as HookHelperFiles does).
+          $closure = @(Get-Content dist/hook-closure.txt | ForEach-Object { $_.ToLowerInvariant() } | Sort-Object)
+          if (($installed -join ',') -ne ($closure -join ',')) { throw "bin\ is not the hook's closure:`n  $($installed -join ',')`n  $($closure -join ',')" }
 
           $app = Start-App @('--data-dir', $data, '--screenshot', $shot, '--after', '8', '--size', '1200x800')
           Start-Sleep -Seconds 3
+          # Every loaded module that the zip has must come from the unzipped folder, and nothing from a Swift install.
           $modules = @((Get-Process -Id $app.Id).Modules | ForEach-Object { $_.FileName })
-          foreach ($m in 'swiftCore.dll', 'Foundation.dll', 'vcruntime140.dll') {
-            $hit = @($modules | Where-Object { (Split-Path -Leaf $_) -ieq $m })
-            Write-Output ("{0} loaded from: {1}" -f $m, ($hit -join ', '))
-            if ($hit.Count -eq 0) { throw "$m is not loaded" }
-            if (-not ($hit | Where-Object { $_.StartsWith($unzipped, [System.StringComparison]::OrdinalIgnoreCase) })) { throw "$m did not load from the unzipped folder" }
+          $packagedNames = @(Get-ChildItem -LiteralPath $unzipped -File | ForEach-Object { $_.Name })
+          $fromZip = 0
+          foreach ($m in $modules) {
+            if ($m -match '\\Swift\\') { throw "$m was loaded from a Swift install" }
+            if ($packagedNames -icontains (Split-Path -Leaf $m)) {
+              if (-not $m.StartsWith($unzipped + '\', [System.StringComparison]::OrdinalIgnoreCase)) { throw "$m is in the zip but loaded from elsewhere" }
+              $fromZip++
+            }
+          }
+          Write-Output "$fromZip of $($modules.Count) loaded modules come from the unzipped folder:"
+          $modules | Where-Object { $_.StartsWith($unzipped, [System.StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { "  $(Split-Path -Leaf $_)" }
+          foreach ($m in 'swiftCore.dll', 'Foundation.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
+            if (-not ($modules | Where-Object { (Split-Path -Leaf $_) -ieq $m })) { throw "$m is not loaded" }
           }
           $saved = $env:LOCALAPPDATA
           $env:LOCALAPPDATA = $data

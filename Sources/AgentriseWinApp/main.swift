@@ -16,7 +16,7 @@ _ = OleInitialize(nil)
 
 let options = AppOptions.parse(CommandLine.arguments)
 if let out = options.printRuntimeFiles {
-    // The packaging check (release workflow): no data directory, no log.
+    // The packaging check (release workflow): before the data directory and the log, so it creates neither.
     exit(RuntimeFilesCommandLine.run(out: out, searchDirs: options.searchDirs))
 }
 let paths = AppPaths(dataDir: options.dataDir)

@@ -8,8 +8,9 @@
 # directory, the Visual C++ runtime's redistributable folder (VC\Redist\MSVC\<version>\x64\Microsoft.VC14x.CRT of the
 # newest Visual Studio with the C++ tools) and the Swift runtime directory (the directory on PATH with swiftCore.dll).
 # The VC++ folder comes before Swift's, which has its own copies of vcruntime140*.dll and msvcp140.dll: the zip's copies
-# are the ones Visual Studio's licence lets us redistribute. A DLL found in none of them is the system's (kernel32, the
-# UCRT's api-ms-win-* sets, ...) and stays out.
+# are the ones Visual Studio's licence lets us redistribute. A DLL found in none of them must be Windows' own: an API
+# set (api-ms-win-*, ext-ms-*), or a file in %SystemRoot%\System32 that isn't a Swift or VC++ runtime name. Anything
+# else fails the packaging, naming the DLL and the file that imports it (`RuntimeFiles.isSystem` is the same rule).
 # `Agentrise.exe --print-runtime-files` computes the same list with `RuntimeFiles.closure`, which the installed hook
 # copies its DLLs with; the release workflow checks that the two agree.
 #
@@ -20,9 +21,11 @@
 #
 # Usage (from the repository root, after `swift build -c release`):
 #   scripts/package-windows.ps1 -Version 1.0 [-BinDir <dir>] [-OutDir dist]
-# Writes <OutDir>\Agentrise\ (the zip's contents), <OutDir>\Agentrise-windows-x64-<version>.zip and
-# <OutDir>\runtime-files.txt and search-dirs.txt (the closure's source paths and the directories searched, one per
-# line, for the workflow's check; not in the zip).
+# Writes <OutDir>\Agentrise\ (the zip's contents), <OutDir>\Agentrise-windows-x64-<version>.zip, and, for the
+# workflow's check (not in the zip), <OutDir>\runtime-files.txt, search-dirs.txt, system-dlls.txt and
+# hook-closure.txt: the closure's source paths, the directories searched, the imports that are Windows' own and the
+# hook's own closure in the packaged folder (what the app copies to bin\), one per line.
+# The zip also carries the licence texts in third_party\licenses (the Swift runtime's and ICU's, full text).
 param(
     [Parameter(Mandatory = $true)] [string] $Version,
     [string] $BinDir,
@@ -33,24 +36,30 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 if ($Version -notmatch '^[0-9A-Za-z][0-9A-Za-z.+-]*$') { throw "unusable version '$Version'" }
-if (-not $BinDir) { $BinDir = (swift build -c release --show-bin-path | Out-String).Trim() }
+if (-not $BinDir) {
+    $BinDir = (swift build -c release --show-bin-path | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or -not $BinDir) { throw "swift build --show-bin-path failed ($LASTEXITCODE)" }
+}
 $BinDir = (Resolve-Path -LiteralPath $BinDir).Path
 $root = Split-Path -Parent $PSScriptRoot
 
 function Find-VisualStudio {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
     if (-not (Test-Path -LiteralPath $vswhere)) { throw "no vswhere.exe at $vswhere" }
-    $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath |
-        Select-Object -First 1
+    $vs = @(& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath)
+    if ($LASTEXITCODE -ne 0) { throw "vswhere failed ($LASTEXITCODE)" }
+    $vs = $vs | Select-Object -First 1
     if (-not $vs) { throw 'no Visual Studio with the C++ x64 tools' }
     return $vs
 }
 
 function Get-VisualStudioLine {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-    $line = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property catalog_productLineVersion |
-        Select-Object -First 1
-    if ($line) { return "$line".Trim() } else { return '' }
+    $line = @(& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property catalog_productLineVersion)
+    if ($LASTEXITCODE -ne 0) { throw "vswhere failed ($LASTEXITCODE)" }
+    $line = $line | Select-Object -First 1
+    if (-not $line) { throw 'vswhere gave no product line for Visual Studio' }
+    return "$line".Trim()
 }
 
 function Find-Dumpbin([string] $vs) {
@@ -81,6 +90,16 @@ function Find-VCRuntime([string] $vs) {
     throw "no VC\Redist\MSVC\<version>\x64\Microsoft.VC14*.CRT under $vs"
 }
 
+# Windows' own DLL (see the header): RuntimeFiles.isSystem in Sources/AgentriseWin/HookSetup.swift.
+function Test-SystemDll([string] $name) {
+    $n = $name.ToLowerInvariant()
+    if ($n.StartsWith('api-ms-win-') -or $n.StartsWith('ext-ms-')) { return $true }
+    if ($n -match '^(swift|foundation|_foundation|vcruntime140|msvcp140|concrt140)' -or $n -in 'dispatch.dll', 'blocksruntime.dll') {
+        return $false
+    }
+    return (Test-Path -LiteralPath (Join-Path ([System.Environment]::SystemDirectory) $name))
+}
+
 function Get-Imports([string] $dumpbin, [string] $file) {
     $out = & $dumpbin /nologo /dependents $file
     if ($LASTEXITCODE -ne 0) { throw "dumpbin failed on $file" }
@@ -102,20 +121,43 @@ $exes = @('Agentrise.exe', 'agentrise-hook.exe') | ForEach-Object {
     if (-not (Test-Path -LiteralPath $p)) { throw "no $p (build the release products first)" }
     $p
 }
-$files = [System.Collections.Generic.List[string]]::new()
-$seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-$queue = [System.Collections.Generic.Queue[string]]::new()
-foreach ($e in $exes) { $files.Add($e); [void]$seen.Add((Split-Path -Leaf $e)); $queue.Enqueue($e) }
-while ($queue.Count -gt 0) {
-    $file = $queue.Dequeue()
-    foreach ($name in (Get-Imports $dumpbin $file)) {
-        if (-not $seen.Add($name)) { continue }
-        $found = $searchDirs | ForEach-Object { Join-Path $_ $name } | Where-Object { Test-Path -LiteralPath $_ } |
-            Select-Object -First 1
-        if (-not $found) { continue }   # the system's
-        $files.Add($found)
-        $queue.Enqueue($found)
+# The exes, then every DLL they import transitively that a search directory has (the first one that has it);
+# imports in none of them go to System (Windows' own) or Missing ("<name> (imported by <file>)").
+function Get-Closure([string] $dumpbin, [string[]] $exes, [string[]] $dirs) {
+    $r = @{
+        Files   = [System.Collections.Generic.List[string]]::new()
+        System  = [System.Collections.Generic.List[string]]::new()
+        Missing = [System.Collections.Generic.List[string]]::new()
     }
+    $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $queue = [System.Collections.Generic.Queue[string]]::new()
+    foreach ($e in $exes) { $r.Files.Add($e); [void]$seen.Add((Split-Path -Leaf $e)); $queue.Enqueue($e) }
+    while ($queue.Count -gt 0) {
+        $file = $queue.Dequeue()
+        foreach ($name in (Get-Imports $dumpbin $file)) {
+            if (-not $seen.Add($name)) { continue }
+            $found = $dirs | ForEach-Object { Join-Path $_ $name } | Where-Object { Test-Path -LiteralPath $_ } |
+                Select-Object -First 1
+            if ($found) { $r.Files.Add($found); $queue.Enqueue($found) }
+            elseif (Test-SystemDll $name) { $r.System.Add($name) }
+            else { $r.Missing.Add("$name (imported by $(Split-Path -Leaf $file))") }
+        }
+    }
+    return $r
+}
+
+$closure = Get-Closure $dumpbin $exes $searchDirs
+$files = $closure.Files
+$system = $closure.System
+$missing = $closure.Missing
+if ($missing.Count -gt 0) {
+    throw "DLLs found in no search directory and not Windows' own: $($missing -join '; ')"
+}
+
+$licenses = @('Swift-LICENSE.txt', 'ICU-LICENSE.txt') | ForEach-Object {
+    $p = Join-Path $root "third_party\licenses\$_"
+    if (-not (Test-Path -LiteralPath $p)) { throw "no $p" }
+    $p
 }
 
 $OutDir = [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $OutDir))
@@ -124,6 +166,7 @@ if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -F
 New-Item -ItemType Directory -Force -Path $stage | Out-Null
 foreach ($f in $files) { Copy-Item -LiteralPath $f -Destination $stage }
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination (Join-Path $stage 'LICENSE.txt')
+foreach ($l in $licenses) { Copy-Item -LiteralPath $l -Destination $stage }
 $vcFiles = @($files | Where-Object { (Split-Path -Leaf $_) -match '^(vcruntime|msvcp)140' })
 foreach ($f in $vcFiles) {
     if (-not $f.StartsWith($vcRuntime, [System.StringComparison]::OrdinalIgnoreCase)) { throw "$f is not from $vcRuntime" }
@@ -132,10 +175,10 @@ $vcFiles = @($vcFiles | ForEach-Object { Split-Path -Leaf $_ })
 if ($vcFiles.Count -eq 0) { throw 'no VC++ runtime DLLs in the closure (expected vcruntime140.dll and msvcp140.dll)' }
 $vcVersion = Split-Path -Leaf (Split-Path -Parent (Split-Path -Parent $vcRuntime))
 # vswhere's product line is "2022" for Visual Studio 2022 and "18" for Visual Studio 2026.
-$vsYear = switch ($vsLine) { { $_ -in '17', '2022' } { '2022' } { $_ -in '18', '2026' } { '2026' } default { $vsLine } }
-$redistList = if ($vsYear -eq '2022') { 'https://learn.microsoft.com/visualstudio/releases/2022/redistribution' }
-              else { 'https://learn.microsoft.com/visualstudio/releases/2026/redistribution' }
-$vsName = if ($vsYear) { "Microsoft Visual Studio $vsYear" } else { 'Microsoft Visual Studio' }
+$vsYear = switch ($vsLine) { { $_ -in '17', '2022' } { '2022' } { $_ -in '18', '2026' } { '2026' } default { $null } }
+if (-not $vsYear) { throw "unknown Visual Studio product line '$vsLine': add its Distributable Code list here" }
+$redistList = "https://learn.microsoft.com/visualstudio/releases/$vsYear/redistribution"
+$vsName = "Microsoft Visual Studio $vsYear"
 
 $readme = @"
 Agentrise $Version for Windows (experimental) / Windows 实验版
@@ -146,7 +189,8 @@ https://github.com/colin-tay/agentrise
 ----------------------------------------------------------------------
 中文
 ----------------------------------------------------------------------
-运行：解压到任意目录，双击 Agentrise.exe。它常驻在系统托盘（任务栏右下角）。
+系统要求：Windows 10 1809 或更新版本，或 Windows 11；x64。
+运行：把 zip 解压到一个单独的新文件夹（这些文件都要放在一起），双击 Agentrise.exe。它常驻在系统托盘（任务栏右下角）。
 首次运行：这个程序没有签名。SmartScreen 提示"Windows 已保护你的电脑"时，点"更多信息"→"仍要运行"。
 开了"智能应用控制"（Smart App Control）的电脑会直接拦截未签名程序，没有"仍要运行"按钮；
 查看它的状态：设置 → 隐私和安全性 → Windows 安全中心 → 应用和浏览器控制 → 智能应用控制。
@@ -161,7 +205,9 @@ https://github.com/colin-tay/agentrise/issues/new?template=windows.yml
 ----------------------------------------------------------------------
 English
 ----------------------------------------------------------------------
-Run: unzip anywhere and double-click Agentrise.exe. It lives in the notification area (system tray).
+Requires: Windows 10 version 1809 or later, or Windows 11; x64.
+Run: unzip into a folder of its own (the files must stay together) and double-click Agentrise.exe.
+It lives in the notification area (system tray).
 First run: the program is unsigned. When SmartScreen says "Windows protected your PC", choose
 "More info" -> "Run anyway". With Smart App Control on, Windows blocks unsigned programs outright,
 with no "Run anyway"; check its state in Settings -> Privacy & security -> Windows Security ->
@@ -180,9 +226,10 @@ Licences / 许可
 ----------------------------------------------------------------------
 Agentrise: MIT, see LICENSE.txt.
 Swift runtime and Foundation DLLs (swift*.dll, Foundation*.dll, _Foundation*.dll, dispatch.dll,
-BlocksRuntime.dll, ...): the Swift project, Apache License 2.0 with Runtime Library Exception
-(https://swift.org/LICENSE.txt); _FoundationICU.dll contains ICU, Unicode License v3
-(https://github.com/unicode-org/icu/blob/main/LICENSE).
+BlocksRuntime.dll): Swift 6.1.2, Apache License 2.0 with the Runtime Library Exception; full text in
+Swift-LICENSE.txt.
+_FoundationICU.dll contains ICU 74.1: Unicode License V3 and ICU's third-party licences; full text in
+ICU-LICENSE.txt.
 $($vcFiles -join ', '): Microsoft Visual C++ runtime $vcVersion,
 Copyright (c) Microsoft Corporation, redistributed unmodified as Distributable Code under the
 $vsName license terms (https://visualstudio.microsoft.com/license-terms/;
@@ -200,6 +247,11 @@ if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
 Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -CompressionLevel Optimal
 [System.IO.File]::WriteAllLines((Join-Path $OutDir 'runtime-files.txt'), [string[]]$files)
 [System.IO.File]::WriteAllLines((Join-Path $OutDir 'search-dirs.txt'), [string[]]$searchDirs)
+[System.IO.File]::WriteAllLines((Join-Path $OutDir 'system-dlls.txt'), [string[]]$system)
+# What the app copies to %LOCALAPPDATA%\Agentrise\bin with the hook: its closure in the packaged folder alone.
+$hookClosure = Get-Closure $dumpbin @((Join-Path $stage 'agentrise-hook.exe')) @($stage)
+if ($hookClosure.Missing.Count -gt 0) { throw "the packaged hook misses: $($hookClosure.Missing -join '; ')" }
+[System.IO.File]::WriteAllLines((Join-Path $OutDir 'hook-closure.txt'), [string[]]@($hookClosure.Files | ForEach-Object { Split-Path -Leaf $_ }))
 
 Write-Output "files:"
 Get-ChildItem -LiteralPath $stage | Sort-Object Name | ForEach-Object { Write-Output ("  {0,12:N0}  {1}" -f $_.Length, $_.Name) }
