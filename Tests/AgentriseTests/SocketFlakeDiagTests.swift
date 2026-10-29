@@ -51,7 +51,9 @@ final class Flag: @unchecked Sendable {
         }
         done.set()
         Thread.sleep(forTimeInterval: 2.5)
-        print("DIAG atomicWriteWhileSpawning: atomicFail=\(atomicFail) createFileFalse=\(createFileFalse) missingAfterCreateFile=\(missing) nonInheritableFail=\(plainFail)")
+        let summary = "DIAG atomicWriteWhileSpawning: atomicFail=\(atomicFail) createFileFalse=\(createFileFalse) missingAfterCreateFile=\(missing) nonInheritableFail=\(plainFail)"
+        print(summary); fflush(stdout)
+        Issue.record(Comment(rawValue: summary))
     }
 }
 #endif
