@@ -4,6 +4,9 @@
 import Foundation
 import Testing
 import TowerKit
+#if os(Windows)
+import WinSDK
+#endif
 
 private func socketPath(in dir: String) -> String {
     #if os(Windows)
@@ -16,8 +19,17 @@ private func socketPath(in dir: String) -> String {
 /// Leaves something at `path` that a crashed earlier run could have left behind.
 private func leaveStaleFile(at path: String) {
     #if os(Windows)
-    // A closed AF_UNIX socket leaves its file behind; a plain file stands in for it.
-    FileManager.default.createFile(atPath: path, contents: Data("stale".utf8))
+    // A closed AF_UNIX socket leaves its file behind; a plain file stands in for it. Not through
+    // FileManager: its atomic write opens the temporary file with an inheritable handle, so a child
+    // another test starts meanwhile (the hook end-to-end tests) keeps it open and the rename onto
+    // `path` fails with a sharing violation, leaving no file. CreateFileW's handle is not inherited.
+    let file = path.withCString(encodedAs: UTF16.self) {
+        CreateFileW($0, DWORD(GENERIC_WRITE), 0, nil, DWORD(CREATE_ALWAYS), DWORD(FILE_ATTRIBUTE_NORMAL), nil)
+    }
+    guard let file, file != INVALID_HANDLE_VALUE else { return }
+    var written: DWORD = 0
+    _ = WriteFile(file, Array("stale".utf8), 5, &written, nil)
+    CloseHandle(file)
     #else
     // The macOS server only removes sockets the current user owns, so leave a socket nobody listens on.
     let fd = socket(AF_UNIX, SOCK_STREAM, 0)
