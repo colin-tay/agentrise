@@ -33,6 +33,17 @@ jobs:
       - name: Build
         run: swift build
 
+      # The comparison scenes as Core Graphics draws them (the `compare` job puts them next to Windows').
+      - name: Render art gallery
+        run: swift run ArtGallery art-gallery
+
+      - name: Upload art gallery
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: art-gallery-macos
+          path: art-gallery/
+          if-no-files-found: error
+
       - name: Test
         run: swift test
 
@@ -85,6 +96,53 @@ jobs:
           path: spike.png
           if-no-files-found: error
 
+      # The comparison scenes as Direct2D/DirectWrite draw them.
+      - name: Render art gallery
+        shell: pwsh
+        run: |
+          swift run ArtGallery art-gallery
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload art gallery
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: art-gallery-windows
+          path: art-gallery/
+          if-no-files-found: error
+
       - name: Test
         shell: pwsh
         run: swift test
+
+  # Each comparison scene, macOS on the left and Windows on the right, for checking by eye (spec §5.1).
+  compare:
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download macOS art gallery
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: art-gallery-macos
+          path: gallery/macos
+
+      - name: Download Windows art gallery
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: art-gallery-windows
+          path: gallery/windows
+
+      - name: Stitch side by side
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet pillow==11.3.0
+          .venv/bin/python scripts/side-by-side.py gallery/macos gallery/windows comparison
+
+      - name: Upload comparison
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: comparison
+          path: comparison/
+          if-no-files-found: error

@@ -26,6 +26,9 @@ targets += [
     .target(name: "AgentriseMacArt", dependencies: ["AgentriseScene"], swiftSettings: [.swiftLanguageMode(.v5)]),
     .executableTarget(name: "AgentriseApp", dependencies: ["Agentrise", "AgentriseScene", "AgentriseMacArt", "TowerKit"],
                       swiftSettings: [.swiftLanguageMode(.v5)]),
+    // Renders `ComparisonScenes` to PNGs (CI puts them side by side with the Windows ones).
+    .executableTarget(name: "ArtGallery", dependencies: ["AgentriseScene", "AgentriseMacArt"],
+                      swiftSettings: [.swiftLanguageMode(.v5)]),
     .testTarget(name: "AgentriseAppTests", dependencies: ["AgentriseApp", "Agentrise", "AgentriseScene", "AgentriseMacArt", "TowerKit"],
                 exclude: ["Fixtures"],   // read from the source tree via #filePath
                 swiftSettings: [.swiftLanguageMode(.v5)]),
@@ -39,6 +42,18 @@ targets += [
                       swiftSettings: [.swiftLanguageMode(.v5)],
                       linkerSettings: [.linkedLibrary("d2d1"), .linkedLibrary("dwrite"),
                                        .linkedLibrary("windowscodecs"), .linkedLibrary("ole32")]),
+]
+// The Direct2D/DirectWrite art backend (`D2DPen`, `D2DArtBackend`) and its C declarations.
+targets += [
+    .target(name: "CDirect2D"),
+    .target(name: "AgentriseWinArt", dependencies: ["CDirect2D", "AgentriseScene"],
+            swiftSettings: [.swiftLanguageMode(.v5)],
+            linkerSettings: [.linkedLibrary("d2d1"), .linkedLibrary("dwrite"),
+                             .linkedLibrary("windowscodecs"), .linkedLibrary("ole32")]),
+    .executableTarget(name: "ArtGallery", dependencies: ["AgentriseScene", "AgentriseWinArt"],
+                      swiftSettings: [.swiftLanguageMode(.v5)]),
+    .testTarget(name: "AgentriseWinTests", dependencies: ["AgentriseWinArt", "AgentriseScene"],
+                swiftSettings: [.swiftLanguageMode(.v5)]),
 ]
 #endif
 
