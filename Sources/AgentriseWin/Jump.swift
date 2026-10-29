@@ -197,7 +197,7 @@ package struct Jump {
     /// Whether Windows has a handler for `scheme` (Claude Code checks `HKEY_CLASSES_ROOT\claude` the same way).
     package static func isRegistered(scheme: String) -> Bool {
         var key: HKEY?
-        let r = withWide(scheme) { RegOpenKeyExW(classesRoot, $0, 0, DWORD(KEY_READ), &key) }
+        let r = withWide(scheme) { RegOpenKeyExW(classesRoot, $0, 0, DWORD(0x2_0019) /* KEY_READ */, &key) }
         if r == ERROR_SUCCESS, let key { RegCloseKey(key) }
         return r == ERROR_SUCCESS
     }
