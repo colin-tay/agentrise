@@ -3,9 +3,8 @@
 
 import Foundation
 
-/// Notices an SKView that stopped drawing. When the displays wake and reconfigure, SpriteKit sometimes stops
-/// delivering frames to a view that is visible and not paused (its display link is gone), and nothing brings
-/// them back until the displays change again. Pausing and resuming the view builds a new display link.
+/// Notices a tower view that stopped drawing: visible and not paused, yet no frames for a while (a display link
+/// that died when the displays woke or changed). The view then starts a new display link.
 struct FrameWatchdog {
     /// No frame for this long while frames are due is a stall; after a restart the next waits as long again.
     static let stallAfter: TimeInterval = 3

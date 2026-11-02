@@ -71,7 +71,8 @@ final class SpriteKitDisplay: SKScene {
     init(model: TowerSceneModel) {
         self.model = model
         super.init(size: model.size)
-        scaleMode = .resizeFill
+        // Drawn by an `SKRenderer`, not in an `SKView`: whoever hosts it sets its size.
+        scaleMode = .fill
         anchorPoint = .zero
         backgroundColor = NSColor(hex: 0x0A0E26)
         sync()

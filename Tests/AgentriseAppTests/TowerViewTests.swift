@@ -40,6 +40,17 @@ import SpriteKit
         #expect(got.first?.size == frame.size)
     }
 
+    /// The scene isn't in an `SKView` that would size it: the view does.
+    @Test func resizingTheViewResizesTheSceneAndLaysItOut() {
+        let view = TowerView(frame: frame)
+        var got: [BuildingLayout] = []
+        view.onLayout = { got.append($0) }
+        view.setFrameSize(NSSize(width: 700, height: 900))
+        #expect(view.display.size == CGSize(width: 700, height: 900))
+        #expect(view.model.geo.size == CGSize(width: 700, height: 900))
+        #expect(got.last?.size == CGSize(width: 700, height: 900))
+    }
+
     @Test func occlusionTogglesPause() {
         let view = TowerView(frame: frame)
         #expect(view.isPaused == false)
@@ -55,6 +66,19 @@ import SpriteKit
         let image = view.snapshot()
         #expect(image != nil)
         #expect((image?.width ?? 0) > 0)
+    }
+
+    /// The snapshot is the view in pixels (at the fallback scale outside a window) and shows the building, not
+    /// just the clear colour.
+    @Test func snapshotIsTheRenderedSceneInPixels() throws {
+        let r = Rendering(frame), view = r.view
+        r.render([session("a")])
+        let image = try #require(view.snapshot())
+        #expect(image.width == Int(frame.width * TowerView.fallbackScale))
+        #expect(image.height == Int(frame.height * TowerView.fallbackScale))
+        let data = try #require(image.dataProvider?.data as Data?)
+        let colours = Set(stride(from: 0, to: data.count - 3, by: 4 * 997).map { data[$0..<$0 + 4] })
+        #expect(colours.count > 10)
     }
 
     @Test func occludedRendersLeaveNoDepartingRobots() {
