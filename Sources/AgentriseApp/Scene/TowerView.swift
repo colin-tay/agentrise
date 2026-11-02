@@ -3,6 +3,7 @@
 
 import AppKit
 import SpriteKit
+import os
 import Agentrise
 import AgentriseScene
 import AgentriseMacArt
@@ -77,6 +78,28 @@ final class TowerView: SKView, TowerDisplay {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if let w = window { display.backingScaleChanged(w.backingScaleFactor) }
+        watchdogTimer?.invalidate()
+        watchdogTimer = nil
+        if window != nil {
+            let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.checkFrames() }
+            RunLoop.main.add(t, forMode: .common)
+            watchdogTimer = t
+        }
+    }
+
+    // MARK: Stalls
+
+    private static let log = Logger(subsystem: "io.github.colin-tay.agentrise", category: "render")
+    private var watchdog = FrameWatchdog()
+    private var watchdogTimer: Timer?
+
+    /// Restarts drawing when SpriteKit stopped delivering frames to the visible, unpaused view (see `FrameWatchdog`).
+    func checkFrames(now: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        let due = !isPaused && window?.occlusionState.contains(.visible) == true
+        guard watchdog.shouldRestart(lastFrame: display.lastFrameAt, framesDue: due, now: now) else { return }
+        Self.log.notice("no frames for \(FrameWatchdog.stallAfter, privacy: .public)s while visible: restarting the display link")
+        isPaused = true
+        isPaused = false
     }
 
     override func viewDidChangeBackingProperties() {

@@ -20,6 +20,8 @@ final class SpriteKitDisplay: SKScene {
     var onLayout: ((BuildingLayout) -> Void)?
 
     private var lastUpdate: TimeInterval?
+    /// System uptime of the last frame (for the view's `FrameWatchdog`).
+    private(set) var lastFrameAt: TimeInterval?
     let atlasTextures = AtlasTextures()
 
     /// One SpriteKit node per model node, by the model node's identity. It holds its model node (a mirror
@@ -94,6 +96,7 @@ final class SpriteKitDisplay: SKScene {
     override func update(_ currentTime: TimeInterval) {
         let dt = lastUpdate.map { currentTime - $0 } ?? 0
         lastUpdate = currentTime
+        lastFrameAt = ProcessInfo.processInfo.systemUptime
         model.step(dt: dt)
         sync()
         relieve(after: dt)
