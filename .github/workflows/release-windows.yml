@@ -218,7 +218,14 @@ jobs:
           if (($installed -join ',') -ne ($closure -join ',')) { throw "bin\ is not the hook's closure:`n  $($installed -join ',')`n  $($closure -join ',')" }
 
           $app = Start-App @('--data-dir', $data, '--screenshot', $shot, '--after', '8', '--size', '1200x800')
-          Start-Sleep -Seconds 3
+          # The app logs "running:" once its socket listens; hook events sent before that are dropped (startup took
+          # from 1 s to 3 s on the runners).
+          $deadline = (Get-Date).AddSeconds(30)
+          while (-not ((Test-Path -LiteralPath $log) -and (Select-String -LiteralPath $log -Pattern '^\S+ running: ' -Quiet))) {
+            if ($app.HasExited) { if (Test-Path $log) { Get-Content $log }; throw "Agentrise.exe exited with $($app.ExitCode) before it was running" }
+            if ((Get-Date) -gt $deadline) { if (Test-Path $log) { Get-Content $log }; throw 'Agentrise.exe logged no "running:" within 30 s' }
+            Start-Sleep -Milliseconds 200
+          }
           # Every loaded module that the zip has must come from the unzipped folder, and nothing from a Swift install.
           $modules = @((Get-Process -Id $app.Id).Modules | ForEach-Object { $_.FileName })
           $packagedNames = @(Get-ChildItem -LiteralPath $unzipped -File | ForEach-Object { $_.Name })
